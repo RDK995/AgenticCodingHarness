@@ -1585,3 +1585,41 @@ documented substitution point, not a default to delete.
   tiers, and the silent-failure modes.
 - Claude Code behaviour is unchanged, proven by re-running validation rather than
   asserted.
+
+---
+
+# 38. Post-V1 Addition — Retained Fixtures
+
+## Problem
+
+B11 and B13 validated sixteen behaviours against fixtures built in scratch
+directories. The fixtures were not retained, so their evidence is a written
+description rather than something re-runnable.
+
+That is tolerable for a one-off build and unworkable for comparing models: every
+run would re-derive the starting state by hand, and two runs would not be
+comparing the same thing.
+
+## Solution
+
+Retain the discriminating scenarios under `fixtures/` as **templates**.
+
+A fixture is a starting repository state plus a verified-correct expected
+outcome. Running one mutates the directory, so a fixture is copied out to a
+scratch location and run there; the retained copy is never the thing that runs.
+This needs no reset script and no runner.
+
+## Scope
+
+Retain the scenarios that discriminate between a capable agent and a plausible
+one, not every check ever run. A fixture whose failure mode is obvious from the
+output teaches nothing that a golden path does not.
+
+## Acceptance criteria
+
+- Each fixture states the command to run and the verified-correct outcome.
+- Each fixture records which milestone originally validated it.
+- Expected outcomes distinguish mechanically checkable facts from judgements that
+  require reading the agent's report.
+- At least one fixture is executed from its retained state, proving the retained
+  copy is sufficient to reproduce the scenario.

@@ -2,7 +2,7 @@
 
 ## Current
 
-Milestone: None — all 12 V1 milestones plus the B13 and B14 post-V1 additions are DONE.
+Milestone: None — all 12 V1 milestones plus the B13, B14 and B15 post-V1 additions are DONE.
 Task: None.
 
 Note: B1–B12 (the complete V1 specification) remain DONE and unchanged. B13 is a
@@ -10,7 +10,7 @@ user-requested post-V1 feature, specified in `docs/implementation-plan.md` §36.
 
 ## Milestones
 
-`12 / 12 V1 build milestones DONE` · `B13 (post-V1) DONE` · `B14 (post-V1) DONE`
+`12 / 12 V1 build milestones DONE` · `B13 (post-V1) DONE` · `B14 (post-V1) DONE` · `B15 (post-V1) DONE`
 
 1. B1 — Plugin scaffold loads — DONE
 2. B2 — Harness state templates exist — DONE
@@ -26,6 +26,95 @@ user-requested post-V1 feature, specified in `docs/implementation-plan.md` §36.
 12. B12 — Simplification pass is complete — DONE
 13. B13 — Architecture is designed and tracked (post-V1) — DONE
 14. B14 — Runtime coupling documented, vendor wording removed (post-V1) — DONE
+15. B15 — Behavioural fixtures retained (post-V1) — DONE
+
+## B15 — Behavioural fixtures retained (post-V1)
+
+Status: DONE
+
+Specified in `docs/implementation-plan.md` §38. Closes the B14 follow-up: the
+B11/B13 fixtures were scratch directories, so their evidence was a written
+description rather than something re-runnable.
+
+### Tasks
+
+- [x] Specify as `docs/implementation-plan.md` §38, marked post-V1
+- [x] Retain the discriminating scenarios under `fixtures/` as copy-out templates
+- [x] Write per-fixture `EXPECTED.md` separating mechanical checks from judgement calls
+- [x] Execute retained fixtures to prove the retained copy reproduces the scenario
+
+### Acceptance Criteria
+
+- [x] Each fixture states its command and verified-correct outcome. Evidence: five `EXPECTED.md` files.
+- [x] Each fixture records the milestone that first validated it. Evidence: `fixtures/README.md` table and each `EXPECTED.md` header (B6, B8, B11, B13, B14).
+- [x] Expected outcomes distinguish mechanically checkable facts from judgements requiring the report. Evidence: every `EXPECTED.md` splits "Mechanically checkable" from "Requires reading the report".
+- [x] At least one fixture executed from its retained state. Evidence: two were — one harvested, one reconstructed. See below.
+
+### Evidence
+
+- `fixtures/README.md` — what a fixture is, the copy-out workflow, how to read results
+- `fixtures/01-requirement-violation` (B6), `02-loop-cap` (B11), `03-drift-undeclared` (B13), `04-drift-declared` (B13), `05-golden-path` (B8/B14)
+
+### Validation
+
+**Executed from the retained copy — 2 / 2 reproduced:**
+
+| Fixture | Origin | Result |
+| --- | --- | --- |
+| `03-drift-undeclared` | harvested from the B13 scratch dir | PASS |
+| `01-requirement-violation` | reconstructed from the B6 description | PASS |
+
+One of each origin was run deliberately: harvesting and reconstruction carry
+different risks, and reconstruction is the one that could silently produce a
+scenario that no longer discriminates.
+
+`03` — copied out, `git init`, baseline commit, reviewer invoked per its
+`EXPECTED.md`. Reproduced exactly: severity `IMPORTANT`, verdict `CHANGES
+REQUIRED`, **both acceptance criteria still `PASS`**, and the finding names C1
+bypassing C2 with `store.add`/`read_all` uncalled and `## Deviations` empty.
+
+`01` — same procedure. Two `BLOCKER` findings; criterion 2 `FAIL` with test
+evidence "none found"; the requirement line quoted verbatim. The reviewer probed
+`divide(1, 0)`, `divide(1, 0.0)` and `divide(1, -0.0)` itself rather than
+accepting the reported result.
+
+**Not executed in B15:** `02`, `04`, `05`. Their behaviours were validated in B11,
+B13 and B8/B14 respectively; what B15 adds is retention, and the retention
+mechanism is proven by the two runs above. Structural checks only: `04`'s suite
+runs green (4 tests), confirming its drift is invisible to tests as required;
+`02` and `05` carry no code by design.
+
+### Decisions
+
+- **Fixtures are copy-out templates, not a runnable suite.** Running mutates the
+  directory, so the retained copy is never the thing that runs. This needs no reset
+  script and no runner — the alternative was a test harness for a test harness,
+  which V1 excludes.
+- **Retained five scenarios, not sixteen.** The set is the discriminators named in
+  `docs/runtime-contract.md` plus a golden-path baseline. A check whose failure is
+  obvious from the output teaches nothing a golden path does not, and each retained
+  fixture is a maintenance cost.
+- **`04`'s unrelated bug left unfixed.** The unhandled unreadable/malformed storage
+  file is real, and its `EXPECTED.md` says to expect it. Fixing it would remove
+  evidence that the reviewer finds genuine defects while correctly *not* flagging
+  the declared deviation.
+- **Expectations split into mechanical vs judgement.** The subject under test is an
+  agent, so some outcomes are greppable (`Status: BLOCKED`, `Review Cycles: 2`) and
+  some require reading the report. Conflating them would make a fixture look
+  automatable when it is not.
+- **`01` covers Phase 17 Tests 5 and 6 in one fixture**, matching how B6 actually
+  validated them — one scenario producing both a requirement-violation `BLOCKER`
+  and an evidence-gate `FAIL`.
+
+### Follow-ups
+
+- `02` and `05` have never been executed from their retained copies. Both were
+  reconstructed, so their fidelity rests on the recorded descriptions rather than a
+  run. Worth executing once before using them to judge a model.
+
+### Blockers
+
+None.
 
 ## B14 — Runtime coupling documented, vendor wording removed (post-V1)
 

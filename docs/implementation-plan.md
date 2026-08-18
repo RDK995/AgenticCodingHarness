@@ -1539,3 +1539,49 @@ the code or by recording the deviation.
 - The reviewer detects undeclared drift and reports it as `IMPORTANT`.
 - A recorded deviation does not produce a finding.
 - With no `architecture.md` present, V1 behaviour is unchanged.
+
+---
+
+# 37. Post-V1 Addition — Runtime Contract
+
+Sections 1–35 define V1. This section, like §36, specifies a post-V1 addition. It
+changes no behaviour.
+
+## Problem
+
+The harness is a Claude Code plugin, but almost none of it is Claude-specific:
+the task packet contract, routing rule, engineering practices, evidence tables,
+finding contract, completion gate, escalation contract and all four templates are
+runtime-neutral text.
+
+That portability is accidental rather than stated. Nothing records what the
+harness actually requires from the runtime hosting it, so anyone evaluating a
+different runtime — or a different model behind the same runtime — has to
+reverse-engineer the assumptions from the agent definitions.
+
+## Solution
+
+Document the coupling; do not remove it.
+
+- `docs/runtime-contract.md` states the primitives the harness requires, the
+  capability each role demands of its model, the substitution points, and the
+  ways a substitution fails silently.
+- Residual prose using "Claude" as a synonym for "the agent" becomes
+  runtime-neutral wording.
+
+## What must not change
+
+`agents/worker.md` keeps `model: haiku`. Phase 8 requires the worker to run on
+the cheaper model, and B5 records that frontmatter line as the evidence for that
+acceptance criterion. Removing the pin would silently promote every delegated
+task to the session model — a cost regression and a spec violation. The line is a
+documented substitution point, not a default to delete.
+
+## Acceptance criteria
+
+- No plugin file uses "Claude" as a synonym for the agent.
+- `agents/worker.md` frontmatter is byte-for-byte unchanged.
+- The runtime contract names the required primitives, the per-role capability
+  tiers, and the silent-failure modes.
+- Claude Code behaviour is unchanged, proven by re-running validation rather than
+  asserted.

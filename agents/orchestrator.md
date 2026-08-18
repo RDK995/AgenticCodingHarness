@@ -275,7 +275,7 @@ Update the milestone entry in `.harness/milestones.md` in place — status,
 checked acceptance criteria, `Architecture` (component ids realised, or `N/A`),
 `Evidence` (files), `Validation` (commands and results), `Review` (PASS or the
 resolved findings), `Review Cycles` (count), and `Follow-ups` (anything
-deferred). This is what lets a fresh Claude session
+deferred). This is what lets a fresh session
 resume without the original conversation — keep it accurate rather than
 optimistic.
 

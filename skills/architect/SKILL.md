@@ -111,7 +111,7 @@ requirements: it stops.
 - Never write code, scaffolding, or directory structure from this skill. An
   architecture document is not an implementation.
 - Never mark an architecture `AGREED` because it looks reasonable to you. The
-  point of the human gate is that Claude does not get to both choose the
+  point of the human gate is that you do not get to both choose the
   architecture and certify it.
 - Never design for hypothetical future requirements. If you think one is coming,
   note it under `## Deviations` as a possibility, do not build for it.

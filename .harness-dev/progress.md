@@ -3,7 +3,7 @@
 ## Current
 
 Milestone: None — all 12 build milestones are DONE.
-Task: None. The V1 specification in `docs/implementation-plan.md` is fully implemented. Outstanding non-milestone item: the repository has no commits (see B12 Follow-ups).
+Task: None. The V1 specification in `docs/implementation-plan.md` is fully implemented and committed (baseline `fffa494`).
 
 ## Milestones
 
@@ -78,7 +78,7 @@ Status: DONE
 
 ### Follow-ups
 
-- The repository has no commits; all work from B1–B12 is untracked. Milestone commit boundaries (per `CLAUDE.md` Git Discipline) cannot be reconstructed retroactively, but a baseline commit would let future milestones use `git diff` as evidence, as the reviewer contract assumes.
+- ~~The repository has no commits; all work from B1–B12 is untracked.~~ **Resolved.** Baseline commit `fffa494` created after B12 (16 files, 3318 insertions, working tree clean). B1–B12 milestone boundaries could not be reconstructed retroactively, so they share one baseline; from here on, each milestone can be its own commit and `git diff` works as review evidence, as `agents/reviewer.md` assumes. Git identity was set **repo-locally**, not globally.
 
 ### Blockers
 

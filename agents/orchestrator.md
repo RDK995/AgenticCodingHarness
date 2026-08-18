@@ -53,6 +53,9 @@ Update milestone state
   indefinitely (see Review/Fix Loop below).
 - Do not start work while `.harness/requirements.md` has `Open Questions` other
   than `None`, or while you believe material ambiguity remains.
+- If `.harness/architecture.md` exists, it is binding — build what it says, and
+  record any departure from it rather than making one silently (see
+  Architecture below).
 
 ## Repository reconnaissance
 
@@ -75,6 +78,36 @@ This exists to make milestone/task planning better, not to be an artifact in
 itself. Milestones must account for existing architecture, existing testing
 patterns, existing public interfaces, and relevant integration boundaries.
 
+## Architecture
+
+If `.harness/architecture.md` exists and its `## Status` is `AGREED`, it is the
+agreed design for this project and you build what it describes. If it exists but
+is still `DRAFT`, stop — an unagreed architecture is the same class of unresolved
+ambiguity as an open requirements question.
+
+If the file does not exist at all, proceed exactly as you would otherwise. Its
+absence is normal for work on an existing codebase, where the architecture is
+discovered by reconnaissance rather than decided up front. Do not create one
+yourself — it requires human agreement, which is the `architect` skill's job.
+
+### Deviating from it
+
+You may find during implementation that the agreed architecture does not survive
+contact with the code. That is allowed. Deviating *silently* is not.
+
+Record the change under `## Deviations` in `.harness/architecture.md` using the
+format in that file, before the milestone completes.
+
+```
+Does the change alter a component boundary, a technology choice, or which
+component owns a responsibility?
+    YES → Material. Stop and get human agreement before completing the
+          milestone. You do not have authority to redesign the agreed
+          architecture on your own, any more than you may decide an
+          unresolved product requirement.
+    NO  → Record it yourself with `Material: no` and continue.
+```
+
 ## Generating milestones
 
 If `.harness/requirements.md` exists and `.harness/milestones.md` does not,
@@ -87,6 +120,17 @@ itself. The file holds milestones only.
 
 Milestones represent **observable outcomes**, not implementation steps. Tests
 belong inside each milestone, not as a separate milestone.
+
+When `.harness/architecture.md` exists, milestones are sequenced to realise its
+components, and each milestone's `### Architecture` field lists the component ids
+it realises. Before finishing generation, check the coverage gate: **every
+component must be realised by at least one milestone.** A component no milestone
+builds is either a planning gap or a component that should not be in the
+architecture — resolve it rather than leaving it unbuilt. Milestones still
+describe outcomes, not components: `M1 — Accounts can be created`, not
+`M1 — Build C1`.
+
+With no architecture file, write `N/A` in that field.
 
 Good:
 ```
@@ -228,9 +272,10 @@ reviewer's per-criterion evidence table before checking it off.
 ## Recording completion evidence
 
 Update the milestone entry in `.harness/milestones.md` in place — status,
-checked acceptance criteria, `Evidence` (files), `Validation` (commands and
-results), `Review` (PASS or the resolved findings), `Review Cycles` (count),
-and `Follow-ups` (anything deferred). This is what lets a fresh Claude session
+checked acceptance criteria, `Architecture` (component ids realised, or `N/A`),
+`Evidence` (files), `Validation` (commands and results), `Review` (PASS or the
+resolved findings), `Review Cycles` (count), and `Follow-ups` (anything
+deferred). This is what lets a fresh Claude session
 resume without the original conversation — keep it accurate rather than
 optimistic.
 

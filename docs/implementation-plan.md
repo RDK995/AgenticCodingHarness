@@ -1458,3 +1458,84 @@ Final fresh review passes
 ```
 
 If that works reliably, **stop adding architecture and start using the harness on real repositories.**
+---
+
+# 36. Post-V1 Addition — Architecture Design and Tracking
+
+Sections 1–35 define V1 and are complete. This section specifies one additional
+feature requested after V1 shipped. It does not modify any V1 behaviour.
+
+## Problem
+
+For a **new** project there is no existing architecture to inspect, so Phase 5
+reconnaissance has nothing to find and Phase 6 milestones — which are deliberately
+outcome-shaped, not implementation-shaped — carry no architectural content.
+
+Because `skills/implement/SKILL.md` invokes a **fresh** orchestrator per milestone,
+each one independently invents whatever architecture its milestone needs. Nothing
+holds those choices consistent across milestones, and no record exists that a
+decision was ever made or why.
+
+## Solution
+
+A third harness state file, `.harness/architecture.md`, agreed with the human
+before milestones are generated, and enforced during review.
+
+```
+requirements.md  →  architecture.md  →  milestones.md  →  implementation
+   (what/why)         (how)              (in what order)
+```
+
+## `.harness/architecture.md`
+
+Produced by a new `architect` skill. Human-confirmed, not auto-generated: an
+architecture Claude alone chose and then measures itself against is self-marking
+homework, and the same material-ambiguity principle that governs requirements
+applies to datastore, boundary, and sync/async decisions.
+
+Components carry `C<n>` identifiers so milestones can reference them.
+
+## Optional, not mandatory
+
+If `.harness/architecture.md` is absent, the harness behaves exactly as in V1.
+This keeps existing-repository work unaffected — architecture is *decided* for new
+projects, whereas for an existing codebase it is *discovered* by Phase 5
+reconnaissance, which already exists and must not be duplicated.
+
+## Two coverage gates
+
+When the file exists:
+
+- every functional requirement maps to at least one component
+- every component is realised by at least one milestone
+
+## Tracking
+
+Each milestone declares which components it realises. Progress against the
+architecture is **derived** from milestone status. Do not add a second
+per-component status field — that is redundant state.
+
+## Reviewer input
+
+This amends the closed list in Phase 14 ("Reviewer receives only") by one item:
+`.harness/architecture.md`, when it exists. It is an agreed artifact like
+`requirements.md`, not implementation rationale, so it does not weaken the
+fresh-context boundary.
+
+## Drift
+
+Deviation from the declared architecture is not inherently wrong; **undeclared**
+deviation is. A justified change is recorded in the `## Deviations` log with its
+reason. A silent one is an `IMPORTANT` review finding, which blocks milestone
+completion under the existing Phase 25 gate and is resolved either by correcting
+the code or by recording the deviation.
+
+## Acceptance criteria
+
+- Architecture is proposed from agreed requirements and requires explicit human
+  agreement before it is written as `AGREED`.
+- Milestones generated against an architecture reference the components they realise.
+- Both coverage gates are checked.
+- The reviewer detects undeclared drift and reports it as `IMPORTANT`.
+- A recorded deviation does not produce a finding.
+- With no `architecture.md` present, V1 behaviour is unchanged.

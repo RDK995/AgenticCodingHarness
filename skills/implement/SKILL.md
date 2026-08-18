@@ -24,6 +24,17 @@ IF missing:
 IF Open Questions != None, or material ambiguity remains:
     STOP and tell the user what's unresolved
 
+Read .harness/architecture.md
+
+IF present AND Status != AGREED:
+    STOP — the architecture is still DRAFT; tell the user to finish the
+    architect skill and agree it
+
+IF absent:
+    proceed normally — architecture is optional, and its absence is expected
+    when extending an existing codebase. Do not generate one; it needs human
+    agreement, which is the architect skill's job.
+
 Read .harness/milestones.md
 
 IF missing:
@@ -59,6 +70,7 @@ Once every milestone is DONE, invoke harness:reviewer in **final review mode**
 (see "Final review" in ${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md) with:
 
 - the original requirements
+- the agreed architecture (.harness/architecture.md), if the project has one
 - all milestone outcomes (from .harness/milestones.md)
 - the complete implementation diff (project start → now)
 - final validation output (the broadest appropriate validation command for
@@ -91,3 +103,7 @@ IF the reviewer returns CHANGES REQUIRED:
   each other; skipping ahead defeats the point of ordering them.
 - Never loop the review/fix cycle more than twice (per milestone, and again for
   the final review) — escalate to the human instead.
+- Never let the implementation and an agreed `.harness/architecture.md` drift
+  apart silently. By the end, the architecture must describe what was actually
+  built — either because the code matches it, or because every departure is
+  recorded under its `## Deviations`.

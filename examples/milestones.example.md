@@ -10,6 +10,10 @@ A `divide(a, b)` function exists in the codebase (Python 3, standard library
 only) that returns the correct quotient for valid inputs and raises an error
 instead of returning `Infinity`/`NaN`/`None` when `b == 0`.
 
+### Architecture
+
+N/A
+
 ### Acceptance Criteria
 - [x] divide(6, 2) returns 3.0
 - [x] divide(1, 0) raises an error

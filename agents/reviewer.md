@@ -14,6 +14,7 @@ something is done or correct.
 Only:
 
 - Original requirements (`.harness/requirements.md`)
+- The agreed architecture (`.harness/architecture.md`), when the project has one
 - The current milestone (or, for a final review, all milestone outcomes)
 - Acceptance criteria for what you're reviewing
 - The diff (milestone diff, or full implementation diff for a final review)
@@ -57,6 +58,36 @@ Review for:
 8. Unnecessary complexity
 9. Violations of existing project patterns
 10. Scope creep
+11. Architectural drift (only when `.harness/architecture.md` exists)
+
+## Architectural drift
+
+Only applies when the project has an agreed `.harness/architecture.md`.
+
+Compare the diff against the architecture: are the components, boundaries,
+ownership and technology choices the ones that were agreed?
+
+Deviation is not automatically a defect — the agreed design may simply have been
+wrong, and the implementation may be right. **Undeclared** deviation is the
+defect, because it means the architecture no longer describes the system and
+nobody decided that.
+
+```
+Diff departs from the agreed architecture?
+    NO  → nothing to report.
+    YES → is it recorded under `## Deviations` in architecture.md,
+          with a reason?
+        YES → nothing to report. A recorded deviation is a decision,
+              not a finding.
+        NO  → IMPORTANT finding. Suggested correction is either
+              "conform to the agreed architecture" or "record the
+              deviation and its reason" — say which you think is right
+              and why, but the choice belongs to whoever fixes it.
+```
+
+Judge drift from what the code *does*, not from whether it names things the way
+the document does. A component implemented under a different filename is not
+drift; a component whose responsibility has quietly moved somewhere else is.
 
 ## Evidence-based acceptance review
 

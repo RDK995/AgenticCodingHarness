@@ -24,11 +24,16 @@ No database, MCP server, or other external runtime is required.
 1. Run requirement roasting: `/harness:roast-requirements <your rough requirement>`
 2. Agree the requirements (answer whatever questions come back; the skill
    won't write `Open Questions: None` until you have)
-3. Run implementation: `/harness:implement`
-4. The harness works through milestones on its own — planning them if
+3. For a **new** project, agree an architecture: `/harness:architect` — it
+   proposes components, boundaries and technology choices from the requirements
+   and writes `.harness/architecture.md` once you agree. Skip this when adding to
+   an existing codebase, where the architecture already exists and the harness
+   inspects it instead.
+4. Run implementation: `/harness:implement`
+5. The harness works through milestones on its own — planning them if
    `.harness/milestones.md` doesn't exist yet, then implementing, testing, and
    getting each one fresh-reviewed before moving to the next
-5. Review the final result — the harness runs one more fresh, holistic review
+6. Review the final result — the harness runs one more fresh, holistic review
    once every milestone is `DONE` and reports `COMPLETE` or asks you to resolve
    a `BLOCKED` state
 
@@ -44,12 +49,17 @@ target project:
 
 ```
 .harness/requirements.md
+.harness/architecture.md   (new projects only)
 .harness/milestones.md
 ```
 
 `requirements.md` is the agreed, implementation-ready requirements.
+`architecture.md` is the agreed design for a new project — its components,
+boundaries and technology choices, plus a log of any deviation made while
+building. Milestones say which components they realise, so progress against the
+architecture is visible without a second status field to fall out of date.
 `milestones.md` tracks each milestone's status, acceptance criteria, evidence,
-validation results, and review outcome. See `examples/` for what both look
+validation results, and review outcome. See `examples/` for what each looks
 like once filled in.
 
 ## Philosophy

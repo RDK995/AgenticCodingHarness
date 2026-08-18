@@ -11,6 +11,8 @@ Status: TODO
 
 ### Outcome
 
+### Architecture
+
 ### Acceptance Criteria
 - [ ]
 
@@ -57,3 +59,7 @@ Use `BLOCKED` from any state whenever the milestone requires human intervention.
 - `### Follow-ups` records out-of-scope ideas surfaced while working the
   milestone. It is a record, not a task list — items there must not be
   implemented as part of this milestone.
+- `### Architecture` lists the component ids from `.harness/architecture.md`
+  that this milestone realises (e.g. `C1, C3`). Write `N/A` when the project has
+  no `architecture.md` — the field is always present so there is only ever one
+  milestone template to match.

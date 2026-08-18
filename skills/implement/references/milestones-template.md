@@ -51,7 +51,7 @@ Use `BLOCKED` from any state whenever the milestone requires human intervention.
 ## Rules
 
 - No JSON state store, no hidden state — this file plus `requirements.md` must
-  be enough for a new Claude session to understand project status.
+  be enough for a new session to understand project status.
 - A milestone may only become `DONE` once its `Evidence` and `Validation`
   sections contain real implementation/test evidence, not a claim.
 - `### Review Cycles` counts completed review/fix cycles for that milestone and

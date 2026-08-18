@@ -36,7 +36,7 @@ Scan for:
 Ask only questions whose answers could materially affect the implementation.
 Prefer grouped questions over one-at-a-time.
 
-Do not ask implementation-detail questions Claude can reasonably decide later
+Do not ask implementation-detail questions you can reasonably decide later
 (naming, internal data structure choice, private helper structure, etc.).
 
 **Examples that should block / must be asked:**
@@ -82,5 +82,6 @@ Downstream implementation work (the `implement` skill / orchestrator) must not s
 Open Questions != None
 ```
 
-or while Claude believes a material ambiguity remains, even if not yet written down.
+or while the implementing agent believes a material ambiguity remains, even if
+not yet written down.
 Minor technical decisions the human wasn't asked about do not block this gate.

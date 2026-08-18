@@ -2,7 +2,7 @@
 
 ## Current
 
-Milestone: None — all 12 V1 milestones plus the B13 post-V1 addition are DONE.
+Milestone: None — all 12 V1 milestones plus the B13 and B14 post-V1 additions are DONE.
 Task: None.
 
 Note: B1–B12 (the complete V1 specification) remain DONE and unchanged. B13 is a
@@ -10,7 +10,7 @@ user-requested post-V1 feature, specified in `docs/implementation-plan.md` §36.
 
 ## Milestones
 
-`12 / 12 V1 build milestones DONE` · `B13 (post-V1) DONE` · `8 / 8 B13 checks PASS`
+`12 / 12 V1 build milestones DONE` · `B13 (post-V1) DONE` · `B14 (post-V1) DONE`
 
 1. B1 — Plugin scaffold loads — DONE
 2. B2 — Harness state templates exist — DONE
@@ -25,6 +25,87 @@ user-requested post-V1 feature, specified in `docs/implementation-plan.md` §36.
 11. B11 — End-to-end fixture validates the harness — DONE
 12. B12 — Simplification pass is complete — DONE
 13. B13 — Architecture is designed and tracked (post-V1) — DONE
+14. B14 — Runtime coupling documented, vendor wording removed (post-V1) — DONE
+
+## B14 — Runtime coupling documented, vendor wording removed (post-V1)
+
+Status: DONE
+
+Specified in `docs/implementation-plan.md` §37. Requested while scoping an
+experiment running parts of the harness on self-hosted models. Documents the
+coupling; removes none of it.
+
+### Tasks
+
+- [x] Specify as `docs/implementation-plan.md` §37, marked post-V1
+- [x] Neutralise prose using "Claude" as a synonym for "the agent"
+- [x] Write `docs/runtime-contract.md` — required primitives, capability tiers, substitution points, silent-failure modes
+- [x] Prove Claude Code behaviour is unchanged rather than asserting it
+
+### Acceptance Criteria
+
+- [x] No plugin file uses "Claude" as a synonym for the agent. Evidence: `grep -rn 'Claude' agents/ skills/ | grep -v 'Claude Code'` → no matches. Five call sites changed.
+- [x] `agents/worker.md` frontmatter byte-for-byte unchanged. Evidence: md5 `e7c64211a2c1493a9f17711c175f7b7c` before and after the edit pass; `model: haiku` intact.
+- [x] The runtime contract names the required primitives, per-role capability tiers, and silent-failure modes. Evidence: `docs/runtime-contract.md`, 124 lines.
+- [x] Claude Code behaviour unchanged, proven by re-running validation. Evidence: 3 / 3 checks below.
+
+### Evidence
+
+- `docs/runtime-contract.md`
+- `docs/implementation-plan.md` §37
+- Wording: `skills/roast-requirements/SKILL.md` (×2), `skills/architect/SKILL.md`, `agents/orchestrator.md`, `skills/implement/references/milestones-template.md`
+
+### Validation — 3 / 3 PASS
+
+| # | Check | Result |
+| --- | --- | --- |
+| 1 | No vendor-as-agent wording remains; `worker.md` byte-identical | PASS |
+| 2 | All 6 components still discoverable | PASS |
+| 3 | Full `/harness:implement` golden path unchanged | PASS |
+
+**Check 3** — clean fixture (`scratchpad/b14/golden`, agreed requirements only) run
+end to end. Milestone reached `Status: DONE`; independently re-verified outside the
+run: `python3 -m unittest discover` → 4 tests, `OK`; milestone headings match
+`milestones-template.md` exactly and in order; `### Architecture` correctly `N/A`.
+
+An earlier attempt at this check was killed mid-run by a session usage limit, not
+by a defect. It is not counted as evidence, though it did confirm milestone
+generation still emits `### Architecture: N/A` after the template edit. The run
+recorded above is a complete, independent re-run.
+
+### Decisions
+
+- **Kept `model: haiku` rather than unpinning it.** Removing the line would make
+  the worker inherit the session model — silently promoting every delegated task
+  to the expensive tier, breaking Phase 8's cheaper-model requirement and
+  invalidating B5's recorded acceptance evidence. Documented as a substitution
+  point in `runtime-contract.md` instead. This is the one place a careless
+  "make it model-agnostic" pass would cause a real regression.
+- **Documented the coupling rather than abstracting it.** No adapter layer, no
+  configuration system, no indirection. V1 excludes a workflow engine, and the
+  coupling turned out to be one functional line plus packaging — too small to
+  justify infrastructure.
+- **README untouched.** B10 pinned it to exactly four sections; it does not
+  reference `docs/implementation-plan.md` either, so the new document follows the
+  same convention.
+- **Capability tiers recorded as guidance, not enforcement.** The reviewer tier is
+  identified as the one to protect: a weak reviewer emits a confident,
+  well-formatted `PASS` rather than failing loudly, which is worse than no harness
+  because the output looks like verification.
+- **Wording change in `milestones-template.md` diverges slightly from Phase 2's
+  literal text** ("a new Claude session" → "a new session"). Semantically
+  identical; the acceptance criterion it serves is unaffected.
+
+### Follow-ups
+
+- The B11/B13 fixtures were scratch directories and were not retained. Re-running
+  the sixteen checks means re-creating them from the descriptions recorded here.
+  Worth retaining as real fixtures before benchmarking any self-hosted model, since
+  each run would otherwise be re-derived by hand.
+
+### Blockers
+
+None.
 
 ## B13 — Architecture is designed and tracked (post-V1)
 

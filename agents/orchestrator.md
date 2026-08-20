@@ -135,9 +135,26 @@ M3 — Write functions
 M4 — Write tests
 ```
 
-Prefer a small number of meaningful milestones. Each should generally be
-independently implementable, testable, and reviewable. Do not generate
-hundreds of microtasks upfront.
+### How big is a milestone
+
+Size a milestone by its **acceptance criteria**: target **3-5**, and past **7**
+it is two milestones. Decide that here, during generation — a milestone that is
+too large is not discovered until it has already cost a long context to run.
+
+Criteria are the measure because they are fixed here, visible in
+`milestones.md` afterwards, and checkable by a human without watching the run.
+Each one needs an implementation, a test, and recorded evidence, so ten criteria
+is not a large milestone — it is two or three milestones that were written as
+one.
+
+Split on the outcome, not the checklist: two milestones each of which is
+independently implementable, testable and reviewable, not one outcome with its
+criteria dealt out between them. If a split leaves a half that cannot be reviewed
+on its own, the seam is in the wrong place.
+
+Milestones should still be meaningful outcomes rather than microtasks — but
+"a small number of milestones" is not itself a goal, and buying fewer milestones
+by making each one larger costs far more than it saves.
 
 ## Creating task packets
 

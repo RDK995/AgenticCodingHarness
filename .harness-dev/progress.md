@@ -2,17 +2,13 @@
 
 ## Current
 
-Milestone: none active. All 19 build milestones are `DONE`.
-
-No next task. Open items are follow-ups in the archive — the strongest are in
-`.harness-dev/archive/B19.md` (tool-definition surface is the untouched per-turn
-constant; turn count still has headroom but no mechanism) and
-`.harness-dev/archive/B18.md` (persist the toolchain commands; give existing
-codebases a durable map).
+Milestone: B20 — Enforced delegation and a milestone budget (post-V1)
+Task: 2 of 3 parts remain — the tool restriction and the per-milestone
+delegation record. Part 2 (the criteria budget) is done.
 
 ## Milestones
 
-`12 / 12 V1 build milestones DONE` · `19 / 19 including post-V1 additions DONE`
+`12 / 12 V1 build milestones DONE` · `19 / 19 earlier milestones DONE` · `B20 IN_PROGRESS (1 of 3 parts)`
 
 1. B1 — Plugin scaffold loads — DONE
 2. B2 — Harness state templates exist — DONE
@@ -33,6 +29,7 @@ codebases a durable map).
 17. B17 — Tier assignment and escalation (post-V1) — DONE
 18. B18 — Read discipline at runtime (post-V1) — DONE
 19. B19 — Reduce the per-turn constant (post-V1) — DONE
+20. B20 — Enforced delegation and a milestone budget (post-V1) — IN_PROGRESS
 
 ## Reading this file
 
@@ -49,6 +46,110 @@ was actually proven, or because the current milestone changes something an earli
 one verified. Never read the archive to answer "what is next"; the sections above
 answer that. Never load the whole archive.
 
-When a milestone reaches `DONE`, its section moves to
-`.harness-dev/archive/B<n>.md` unchanged. No milestone is active, so this file
-holds the pointer and the index only.
+When the active milestone below reaches `DONE`, move its section to
+`.harness-dev/archive/B<n>.md` unchanged and replace it here with the next
+milestone.
+
+
+## B20 — Enforced delegation and a milestone budget (post-V1)
+
+Status: IN_PROGRESS — part 2 of 3 complete
+
+Specified in `docs/implementation-plan.md` §43. Measured on a real project
+(`OpenWeightHarness`): 7 orchestrator runs, 1,542 turns, 262,532,486 tokens; one
+milestone took 1h09m and 41.4M tokens.
+
+**§43 supersedes §42's account of where the money goes.** §42 measured a 41-turn
+orchestrator, found growth at 36%, and concluded the per-turn constant was the
+target. At 191-331 turns growth is 82-95% and the constant is the rounding error.
+
+### The measurement
+
+| Turns | Total | Fixed | Growth |
+| --- | --- | --- | --- |
+| 15 | 528,375 | 323,775 | 39% |
+| 191 | 31,208,829 | 4,234,852 | 86% |
+| 251 | 41,373,941 | 5,588,515 | 86% |
+| 264 | 58,941,246 | 5,960,328 | 90% |
+| 331 | 62,230,743 | 7,796,374 | 87% |
+| **all** | **262,532,486** | **34,891,072** | **87%** |
+
+Two causes, both measured across the same 7 runs:
+
+- **Retained work.** 21 delegations against 218 `Edit`/`Write` calls the
+  orchestrator made itself — 1:10. Implementation output lands in the context that
+  compounds. ~45% of turns issue no tool at all; 0 of 832 tool turns issued more
+  than one tool.
+- **Oversized milestones.** 7-13 acceptance criteria each (M6: 13, M7: 12); the
+  retained fixtures carry 2-4.
+
+These multiply rather than compete. A 13-criterion milestone run inline *is* a
+250-turn context.
+
+### Tasks
+
+- [x] Specify as §43, marked post-V1
+- [x] Part 2 — budget milestone size by acceptance criteria, with a split rule
+- [ ] Part 1 — restrict the orchestrator's tools; route the ladder's last rung to a top-tier worker
+- [ ] Part 3 — record tasks planned and delegated per milestone
+
+### Part 2 — evidence
+
+`agents/orchestrator.md` §"How big is a milestone": target **3-5** criteria, past
+**7** it is two milestones, decided at generation. Replaces "Prefer a small number
+of meaningful milestones", which biased the opposite way.
+
+Criteria rather than tasks, because criteria are fixed at generation, visible in
+`milestones.md`, and checkable without observing the run. A task budget is a
+promise; a criteria count is an artifact.
+
+**Validated against the real project's M6, on a copy.** M6's 13 criteria became
+four independently reviewable outcomes:
+
+| Milestone | Criteria |
+| --- | --- |
+| M6 — Read-only and git-query tools answer through one typed registry | 2 |
+| M7 — Commands and tests run only through a named, unconfined sandbox | 4 |
+| M8 — The full FR4 tool vocabulary mutates files and stays in worktree | 4 |
+| M9 — Every mutation runs the full pipeline and rolls back on failure | 3 |
+
+Scope conserved exactly: 13 criteria in, 13 out, **0 lost, 0 added**, verified by
+normalised text comparison against the original file. Following milestones
+renumbered correctly. No source file touched.
+
+The seam held, which was the risk worth watching: the cheap way to satisfy a
+criteria budget is to deal the checklist into piles while keeping one outcome. It
+cut along real boundaries instead — read-only, execution, mutation, rollback —
+each testable alone. That is what "split on the outcome, not the checklist" was
+written for.
+
+### Decisions
+
+- **The budget counts acceptance criteria, not tasks.** Tasks are internal to a
+  milestone run and invisible afterwards; criteria are an artifact a human or the
+  reviewer can check. `CLAUDE.md` has required 3-7 tasks since B16 and no agent
+  file ever said so — the same dev-side-only gap B18 closed for ranged reads.
+
+- **Part 1 is the only actual mechanism, and it is not done.** B16 required
+  delegation by default and was itself measured finding zero subagent turns; the
+  field data now shows 1:10. The instruction has failed twice.
+  `docs/runtime-contract.md` states why: a per-role restriction is "a property of
+  the runtime, not a promise in the prompt." Part 2 is another instruction, and
+  should be expected to decay the same way unless part 1 lands.
+
+### Follow-ups
+
+- **The project's other milestones are still oversized.** The re-plan touched only
+  M6 as instructed. M10 carries 12 criteria; M4, M5 and M11-M14 carry 7-9. Adopting
+  the budget means re-planning all of them.
+- **4x the milestones means 4x the review cycles.** Reviewers were already 938
+  turns across 12 invocations on that project. Smaller diffs make each review
+  cheaper but the per-review fixed cost multiplies — roughly break-even at fixture
+  scale, expected favourable at 87% growth, unverified either way.
+- **Turn count for a small milestone is still unmeasured.** Whether a 2-4 criterion
+  milestone runs in materially fewer than 191-331 turns is the number that matters
+  and has not been established.
+
+### Blockers
+
+None.

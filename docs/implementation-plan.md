@@ -1623,3 +1623,83 @@ output teaches nothing that a golden path does not.
   require reading the agent's report.
 - At least one fixture is executed from its retained state, proving the retained
   copy is sufficient to reproduce the scenario.
+
+---
+
+# 39. Post-V1 Addition — Bounded Token Cost
+
+## Problem
+
+Measured across this repository's own build sessions (693 assistant turns,
+`~/.claude/projects/-Users-ryankenny-Projects-codingHarnessV2/*.jsonl`):
+
+| Measure | Value |
+| --- | --- |
+| Total context consumed | 97.7M tokens (95.0M cache-read, 2.6M cache-write) |
+| Output tokens | 0.64M |
+| Median context per turn, long sessions | 140k–160k |
+| Turns above 200k context | 162 |
+| Share of spend from turns already above 100k | **84%** |
+| Compactions | 0 |
+| Subagent turns | **0** |
+
+Three causes, in order of size.
+
+**Marathon sessions.** Two sessions ran 333 and 297 turns without a reset. Once
+a session is at 150k, every subsequent turn re-pays for that window, so cost
+grows with the square of session length rather than with work done.
+
+**No delegation.** Zero subagent turns means every bounded task ran inline in the
+main context at the session tier, rather than in a fresh worker context on the
+cheap tier. The routing rule existed and was never exercised.
+
+**Monotonic state files.** `.harness-dev/progress.md` reached 952 lines (~11k
+tokens) holding the full detail of fifteen completed milestones, and the operating
+protocol reads it first, every session. `.harness/milestones.md` grows the same
+way in a real project, so the cost ships to users.
+
+None of this is caused by the size of the harness's own instructions: the entire
+repository is ~36k tokens.
+
+## Solution
+
+Bound the context each role holds, rather than shortening what any role reads.
+
+1. **Milestone boundaries are context boundaries.** A completed milestone ends the
+   session. `progress.md` already exists so a fresh session can resume without the
+   conversation; the protocol must say so.
+2. **Delegate by default.** The routing rule decides *who* does the work, and the
+   default for bounded low-risk work is a fresh subagent, not the current context.
+3. **State files carry the current milestone, not the archive.** Completed
+   milestone detail moves to one file per milestone, referenced by an index and
+   read only on demand. This applies to both `.harness-dev/progress.md` and, for
+   users, `.harness/milestones.md`.
+4. **Reads are section-scoped.** Locate the section, then read that range — do not
+   read a 1600-line specification to answer a question about one milestone.
+5. **Roles name their model tier.** `runtime-contract.md` §Capability tiers already
+   assigns each role a tier; only the worker's was pinned in a file. The rest
+   inherited the session model, which both overpays for the orchestrator and leaves
+   the reviewer — the tier explicitly identified as the one to protect — silently
+   downgraded whenever the session model is cheap.
+
+## Scope
+
+No new infrastructure: no token accounting, no budget enforcement, no
+configuration system, no runner. The changes are to instructions, state layout,
+and three frontmatter lines.
+
+Splitting state files must be lossless. Completed milestone evidence is the
+repository's record of what was actually verified; it is relocated, never
+summarised or dropped.
+
+## Acceptance criteria
+
+- The session-start read is bounded and does not grow with the number of
+  completed milestones.
+- Completed milestone detail is retained in full and reachable, proven by
+  reconstruction rather than assertion.
+- The operating protocol states when to end a session and when to delegate.
+- Specification reads are section-scoped, with the mechanism stated.
+- Every role's model tier is named in a file rather than inherited, and matches
+  the tier `docs/runtime-contract.md` assigns it.
+- The reviewer is not downgraded.

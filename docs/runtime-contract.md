@@ -69,8 +69,17 @@ worse than having no harness, because the output *looks* like verification.
 | To change | Edit | Note |
 | --- | --- | --- |
 | Which model runs the cheap tier | `model:` in `agents/worker.md` frontmatter | See the warning below |
-| Which model runs everything else | The session model | No harness file names it |
+| Which model runs the high tier | `model:` in `agents/orchestrator.md` frontmatter | Verification and routing quality live here |
+| Which model runs the highest tier | `model:` in `agents/reviewer.md` frontmatter | Do not lower it; see the tier table above |
+| Which model runs the skills | The session model | `roast-requirements` and `architect` are high tier and are not subagents |
 | Tool restrictions per role | `tools:` frontmatter | Loosening the reviewer's set removes a structural guarantee |
+
+Every subagent role names its own tier in frontmatter (B16). Before that, only the
+worker did, and the other two inherited the session model — which overpaid for the
+orchestrator on an expensive session and, worse, silently downgraded the reviewer
+on a cheap one. Inheriting is the failure mode this table exists to prevent: the
+tier a role runs at should be a decision recorded in a file, not a side effect of
+how the session happened to start.
 
 **Do not delete the `model:` line to "unpin" the worker.** Removing it makes the
 worker inherit the session model, silently promoting every delegated task to the
@@ -102,11 +111,12 @@ exists for exactly this, so it must not run on the weak tier.
 
 B11 and B13 validated sixteen behaviours against fixtures, each with an
 independently verified correct outcome. Those scenarios are recorded in
-`.harness-dev/progress.md`; the fixtures themselves were scratch directories and
-were not retained, so re-running them means re-creating them from the recorded
-descriptions.
+`.harness-dev/archive/B11.md` and `.harness-dev/archive/B13.md`. The five that
+discriminate hardest are retained as runnable fixtures under `fixtures/` (B15);
+the rest were scratch directories, so re-running them means re-creating them from
+the recorded descriptions.
 
-The five that discriminate hardest between a real agent and a plausible one:
+The retained five:
 
 1. **Requirement violation** — `divide(1, 0)` returning `Infinity` must be caught
    as a `BLOCKER` against the stated requirement (B6).

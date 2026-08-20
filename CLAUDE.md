@@ -19,7 +19,7 @@ Do not use the conversation as the authoritative source of implementation state 
 Use this priority order:
 
 1. `docs/implementation-plan.md` — required V1 behaviour and architecture
-2. `.harness-dev/progress.md` — current build milestone, task, evidence, blockers, and next action
+2. `.harness-dev/progress.md` — current build milestone, task, evidence, blockers, and next action (completed milestones: `.harness-dev/archive/B<n>.md`, read on demand only)
 3. Repository code and configuration — actual implementation
 4. Git diff/history — actual changes
 5. Test/build/lint/type-check output — actual validation evidence
@@ -52,9 +52,9 @@ Do not reorder milestones unless a concrete dependency makes the documented orde
 
 When asked to continue implementation:
 
-1. Read `.harness-dev/progress.md`.
+1. Read `.harness-dev/progress.md`. It is bounded to the `Current` pointer, the milestone index, and the active milestone; it does not grow as milestones complete. Do not read `.harness-dev/archive/` to work out what to do next.
 2. Identify the `Current` milestone and task.
-3. Read only the relevant sections of `docs/implementation-plan.md` needed for that milestone.
+3. Read only the sections of `docs/implementation-plan.md` needed for that milestone. Locate them (`grep -n '^# ' docs/implementation-plan.md`), then read that line range (`sed -n 'A,Bp'`). The file is ~1700 lines; do not read it whole.
 4. Inspect the repository for existing conventions and current implementation state.
 5. If the milestone is `TODO`, set it to `IN_PROGRESS`.
 6. Break only the current milestone into a small set of bounded tasks.
@@ -65,10 +65,62 @@ When asked to continue implementation:
 11. Set the milestone to `REVIEW` before final milestone verification.
 12. Mark acceptance criteria complete only when supported by implementation and/or test evidence.
 13. Mark the milestone `DONE` only when its completion gate passes.
-14. Update the `Current` section to the next milestone and its first task.
-15. Stop when explicitly asked to work on only one milestone, or when blocked.
+14. Move the completed milestone's section to `.harness-dev/archive/B<n>.md` unchanged, and update the milestone index and the `Current` section to the next milestone and its first task.
+15. Stop at the milestone boundary, when explicitly asked to work on only one milestone, or when blocked. A finished milestone ends the session — see Context Discipline.
 
 Do not generate detailed tasks for future milestones before they become current.
+
+## Context Discipline
+
+Cost grows with how long a context lives, not with how much work it does. Once a
+session sits at 150k tokens, every later turn re-pays for that whole window, so a
+marathon session costs several times what the same work costs across sessions
+that end at milestone boundaries.
+
+Three levers, in order of size.
+
+### End the session at each milestone boundary
+
+A completed milestone is a context boundary. When a milestone reaches `DONE`:
+
+- record its evidence in `.harness-dev/progress.md`;
+- move its section to `.harness-dev/archive/B<n>.md`;
+- commit it (see Git Discipline);
+- stop, and tell the human to `/clear` before the next milestone.
+
+Do not carry a finished milestone's context into the next one. `progress.md` plus
+the repository is enough to resume — that is what the file is for. If the
+conversation holds something a fresh session would need, that is a gap in
+`progress.md`: fix the file rather than keep the session alive to preserve it.
+
+Do not begin a milestone you cannot finish in the context left. Stopping cleanly
+with progress recorded costs less than compacting, and loses less.
+
+### Delegate bounded work
+
+For each task, ask the routing questions from `agents/orchestrator.md`: is it
+clearly specified, bounded, low risk, and easy to verify?
+
+- All effectively yes → delegate it to a subagent, giving it a task packet rather
+  than the conversation history. It runs in a fresh context on a cheaper tier, and
+  what it reads never enters yours.
+- Otherwise → keep it. Architecture, security, ambiguous bugs, public interfaces,
+  and cross-cutting changes stay with the agent holding the requirements.
+
+Delegation is the default for bounded work, not an optimisation to remember when
+context gets tight. It does not relax the core rule: never trust a delegated
+result — verify it from the diff, the tests, and the evidence.
+
+### Read in ranges, not whole files
+
+Read what answers the question, not the file containing the answer.
+
+- Specification: `grep -n` for the section heading, then `sed -n 'A,Bp'`.
+- Archive: one milestone file, on demand. Never the directory.
+- Search before reading: `grep -rn` beats opening candidates to find out.
+
+Re-reading something already in context is free and is not the concern; pulling in
+1700 lines to use 40 of them is.
 
 ## Milestone Completion Gate
 
@@ -89,6 +141,7 @@ After meaningful progress, update `.harness-dev/progress.md`.
 At minimum keep these accurate:
 
 - `## Current`
+- the milestone index
 - overall milestone count
 - current milestone `Status`
 - current milestone tasks

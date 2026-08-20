@@ -26,7 +26,7 @@ The coupling is small enough to list in full:
 
 ## Required primitives
 
-A runtime can host the harness if it provides these four things.
+A runtime can host the harness if it provides these five things.
 
 **1. Fresh-context subagent invocation.** Start an agent from a given system
 prompt plus a text packet, with no memory of the caller's context. Used for
@@ -47,6 +47,18 @@ completion gate will accept.
 the worker's `Summary / Files Changed / Tests Run / Result / Unresolved Issues`,
 the reviewer's evidence table and `PASS | CHANGES REQUIRED` verdict.
 
+**5. Per-invocation model override.** The caller can run a subagent at a tier
+other than the one its definition pins, for one invocation, without editing the
+definition. Used only by the worker retry ladder: three attempts at the Cheap
+tier, then two at the High tier before the orchestrator takes over.
+
+This is the one primitive with a clean degradation. A runtime without it should
+skip the escalated attempts and go straight from the Cheap tier to the
+orchestrator — the ladder loses two rungs and gets more expensive, but nothing
+becomes unsound. Do not emulate it by editing `model:` in `agents/worker.md`,
+which promotes *every* delegated task to the High tier permanently and quietly
+inverts the economics the routing rule exists to protect.
+
 ## Capability tiers
 
 The roles differ sharply in how much model capability they need, and the
@@ -55,22 +67,52 @@ difference is not about size of output.
 | Role | Tier | Why |
 | --- | --- | --- |
 | `worker` | **Cheap** | Bounded, clearly-specified, low-risk tasks. Nothing it claims is trusted: the orchestrator re-verifies independently and a fresh reviewer checks the result. Failure degrades gracefully — the retry ladder already assumes workers fail. |
-| `orchestrator` | **High** | Holds the routing decision, the independent verification, and the escalation judgement. Unrestricted tools by design, because it keeps the risky work. |
-| `reviewer` | **Highest** | The thing that verifies everything else. Nothing verifies it except a human. |
+| `orchestrator` | **Highest** | Holds the routing decision, the independent verification, and the escalation judgement. Unrestricted tools by design, because it keeps the risky work — and it is the only role that re-verifies a worker's claim before evidence is recorded. |
+| `reviewer` | **High** | The thing that verifies everything else. Nothing verifies it except a human. |
 | `roast-requirements`, `architect` | **High** | Their entire value is asking the question nobody had considered — the capability weaker models lack most. |
 
-The reviewer tier is the one to protect. A weak reviewer does not fail loudly; it
-emits a confident, well-formatted, per-criterion evidence table saying `PASS`.
-The harness then records that as evidence and the completion gate opens. That is
-worse than having no harness, because the output *looks* like verification.
+A weak reviewer does not fail loudly; it emits a confident, well-formatted,
+per-criterion evidence table saying `PASS`. The harness then records that as
+evidence and the completion gate opens. That is worse than having no harness,
+because the output *looks* like verification. This remains the harness's most
+dangerous failure mode regardless of which tier the reviewer runs at.
+
+**Current assignment is a recorded human decision, not a derivation.** Through
+B16 this document put the reviewer at the top tier and called it the one to
+protect. The pins were subsequently inverted by explicit instruction:
+`orchestrator` to `opus`, `reviewer` to `sonnet`. The reasoning above is retained
+because it states a real risk, and the risk is now carried by the orchestrator's
+independent re-verification rather than by reviewer capability alone — two
+verification passes still stand between a worker's claim and a `DONE`, and the
+higher-tier one now runs first. Whether that substitution holds is an empirical
+question, and `fixtures/01-requirement-violation` and `fixtures/03-drift-undeclared`
+are the tests that answer it: they are the two that discriminate whether a model
+can hold the `reviewer` role at all. Re-run both after any change to these pins.
+
+**Both were run under the current pins on 2026-08-20 and passed** — 13 / 13
+expected outcomes, including fixture 03, where every test is green and both
+acceptance criteria genuinely hold, so a confident `PASS` would have been the
+failure. `sonnet` caught the undeclared drift, graded it `IMPORTANT` rather than
+`BLOCKER` or `OPTIONAL`, and kept both criteria at `PASS`. Evidence is recorded
+in the B16 section of `.harness-dev/progress.md`.
 
 ## Substitution points
 
 | To change | Edit | Note |
 | --- | --- | --- |
 | Which model runs the cheap tier | `model:` in `agents/worker.md` frontmatter | See the warning below |
-| Which model runs everything else | The session model | No harness file names it |
+| Which model the worker escalates to | The tier named in `agents/orchestrator.md` §Task-level retry and escalation | A per-invocation override, not a second agent definition |
+| Which model runs the highest tier | `model:` in `agents/orchestrator.md` frontmatter | Verification, routing, and escalation judgement live here |
+| Which model runs the high tier | `model:` in `agents/reviewer.md` frontmatter | Lowering it further trades away the last check before the gate; re-run fixtures 01 and 03 |
+| Which model runs the skills | The session model | `roast-requirements` and `architect` are high tier and are not subagents |
 | Tool restrictions per role | `tools:` frontmatter | Loosening the reviewer's set removes a structural guarantee |
+
+Every subagent role names its own tier in frontmatter (B16). Before that, only the
+worker did, and the other two inherited the session model — which overpaid for the
+orchestrator on an expensive session and, worse, silently downgraded the reviewer
+on a cheap one. Inheriting is the failure mode this table exists to prevent: the
+tier a role runs at should be a decision recorded in a file, not a side effect of
+how the session happened to start.
 
 **Do not delete the `model:` line to "unpin" the worker.** Removing it makes the
 worker inherit the session model, silently promoting every delegated task to the
@@ -102,11 +144,12 @@ exists for exactly this, so it must not run on the weak tier.
 
 B11 and B13 validated sixteen behaviours against fixtures, each with an
 independently verified correct outcome. Those scenarios are recorded in
-`.harness-dev/progress.md`; the fixtures themselves were scratch directories and
-were not retained, so re-running them means re-creating them from the recorded
-descriptions.
+`.harness-dev/archive/B11.md` and `.harness-dev/archive/B13.md`. The five that
+discriminate hardest are retained as runnable fixtures under `fixtures/` (B15);
+the rest were scratch directories, so re-running them means re-creating them from
+the recorded descriptions.
 
-The five that discriminate hardest between a real agent and a plausible one:
+The retained five:
 
 1. **Requirement violation** — `divide(1, 0)` returning `Infinity` must be caught
    as a `BLOCKER` against the stated requirement (B6).

@@ -1623,3 +1623,206 @@ output teaches nothing that a golden path does not.
   require reading the agent's report.
 - At least one fixture is executed from its retained state, proving the retained
   copy is sufficient to reproduce the scenario.
+
+---
+
+# 39. Post-V1 Addition — Bounded Token Cost
+
+## Problem
+
+Measured across this repository's own build sessions (693 assistant turns,
+`~/.claude/projects/-Users-ryankenny-Projects-codingHarnessV2/*.jsonl`):
+
+| Measure | Value |
+| --- | --- |
+| Total context consumed | 97.7M tokens (95.0M cache-read, 2.6M cache-write) |
+| Output tokens | 0.64M |
+| Median context per turn, long sessions | 140k–160k |
+| Turns above 200k context | 162 |
+| Share of spend from turns already above 100k | **84%** |
+| Compactions | 0 |
+| Subagent turns | **0** |
+
+Three causes, in order of size.
+
+**Marathon sessions.** Two sessions ran 333 and 297 turns without a reset. Once
+a session is at 150k, every subsequent turn re-pays for that window, so cost
+grows with the square of session length rather than with work done.
+
+**No delegation.** Zero subagent turns means every bounded task ran inline in the
+main context at the session tier, rather than in a fresh worker context on the
+cheap tier. The routing rule existed and was never exercised.
+
+**Monotonic state files.** `.harness-dev/progress.md` reached 952 lines (~11k
+tokens) holding the full detail of fifteen completed milestones, and the operating
+protocol reads it first, every session. `.harness/milestones.md` grows the same
+way in a real project, so the cost ships to users.
+
+None of this is caused by the size of the harness's own instructions: the entire
+repository is ~36k tokens.
+
+## Solution
+
+Bound the context each role holds, rather than shortening what any role reads.
+
+1. **Milestone boundaries are context boundaries.** A completed milestone ends the
+   session. `progress.md` already exists so a fresh session can resume without the
+   conversation; the protocol must say so.
+2. **Delegate by default.** The routing rule decides *who* does the work, and the
+   default for bounded low-risk work is a fresh subagent, not the current context.
+3. **State files carry the current milestone, not the archive.** Completed
+   milestone detail moves to one file per milestone, referenced by an index and
+   read only on demand. This applies to both `.harness-dev/progress.md` and, for
+   users, `.harness/milestones.md`.
+4. **Reads are section-scoped.** Locate the section, then read that range — do not
+   read a 1600-line specification to answer a question about one milestone.
+5. **Roles name their model tier.** `runtime-contract.md` §Capability tiers already
+   assigns each role a tier; only the worker's was pinned in a file. The rest
+   inherited the session model, which both overpays for the orchestrator and leaves
+   the reviewer — the tier explicitly identified as the one to protect — silently
+   downgraded whenever the session model is cheap.
+
+## Scope
+
+No new infrastructure: no token accounting, no budget enforcement, no
+configuration system, no runner. The changes are to instructions, state layout,
+and three frontmatter lines.
+
+Splitting state files must be lossless. Completed milestone evidence is the
+repository's record of what was actually verified; it is relocated, never
+summarised or dropped.
+
+## Acceptance criteria
+
+- The session-start read is bounded and does not grow with the number of
+  completed milestones.
+- Completed milestone detail is retained in full and reachable, proven by
+  reconstruction rather than assertion.
+- The operating protocol states when to end a session and when to delegate.
+- Specification reads are section-scoped, with the mechanism stated.
+- Every role's model tier is named in a file rather than inherited, and matches
+  the tier `docs/runtime-contract.md` assigns it.
+- The reviewer is not downgraded.
+
+## Amendment — tier assignment inverted by decision (2026-08-20)
+
+The final criterion above no longer holds, by explicit human instruction after
+B16's implementation was complete: `orchestrator` is pinned to `opus` and
+`reviewer` to `sonnet`, inverting the assignment this section argued for.
+
+What survives unchanged is the criterion that matters structurally — each role's
+tier is *named in a file* rather than inherited from the session. That was the
+actual defect §39 identified: a role's tier being a side effect of how the
+session started. Which tier each role gets is a decision; that it is recorded at
+all is the requirement.
+
+The risk the original argument described is not resolved, only relocated. A weak
+reviewer still fails silently rather than loudly, so the orchestrator's
+independent re-verification — now the higher-tier pass, and the one that runs
+first — carries proportionally more of the guarantee. `docs/runtime-contract.md`
+§Capability tiers records this, and names `fixtures/01-requirement-violation` and
+`fixtures/03-drift-undeclared` as the empirical check on whether the reviewer
+role still holds at the lower tier.
+
+# 40. Post-V1 Addition — Tier Assignment and Escalation
+
+## Problem
+
+B16 pinned every role's model tier in a file rather than letting it be inherited
+from the session. That fixed the mechanism — a role's tier became a recorded
+decision — but left two questions open that are not about context cost and do not
+belong to §39.
+
+**Which tier each role gets.** §39 argued the reviewer belonged at the top tier
+because nothing verifies the verifier. That was a reasoned position, not a
+measured one, and it was never tested against the fixtures that exist to test it.
+
+**What happens when the cheap tier cannot do the work.** The worker retry ladder
+ran three fresh-context attempts at one tier and then handed the task to the
+orchestrator. There was no intermediate rung: a task slightly beyond the cheap
+tier fell all the way to the most expensive agent in the system, which is both
+the slowest path and the one that puts work back into the context §39 exists to
+keep small.
+
+## Solution
+
+1. **Assign tiers by decision and verify the assignment.** `orchestrator` runs at
+   the highest tier because it holds routing, independent re-verification, and
+   escalation judgement, and it re-verifies every worker claim before evidence is
+   recorded. `reviewer` runs below it. The reviewer's capability to hold its role
+   is an empirical question, so it is settled by running
+   `fixtures/01-requirement-violation` and `fixtures/03-drift-undeclared` rather
+   than by argument.
+
+2. **The retry ladder climbs tiers rather than repeating one.** Three attempts at
+   the Cheap tier, then two at the High tier, then the orchestrator. Repeating a
+   failed tier a third time tests patience, not capability.
+
+3. **Escalation is a per-invocation model override, not a second agent.** Same
+   instructions, same tool restrictions, same task-packet contract, more
+   capability. Editing `model:` in `agents/worker.md` to achieve the same effect
+   would promote every delegated task permanently and invert the economics the
+   routing rule protects.
+
+4. **Climbing stops when capability is not the problem.** Repeated failures caused
+   by an unclear or contradictory requirement do not become resolvable at a higher
+   tier; they escalate to the orchestrator or the human instead.
+
+## Scope
+
+No new infrastructure. The changes are the two frontmatter pins, the retry ladder
+in `agents/orchestrator.md`, one packet field in `agents/worker.md`, and the
+corresponding entries in `docs/runtime-contract.md`.
+
+This adds required primitive **5** — per-invocation model override — to
+`docs/runtime-contract.md`. It is the only primitive with a clean degradation: a
+runtime lacking it skips the escalated rungs and goes Cheap → orchestrator.
+
+Verification is by existing fixtures. No fixture is added.
+
+## Acceptance criteria
+
+- Every role's pinned tier matches the tier `docs/runtime-contract.md` assigns it,
+  and the document records the assignment as a decision rather than a derivation.
+- The reviewer's tier is verified against fixtures 01 and 03, not asserted.
+- The retry ladder is tier-climbing, with the attempt counts per tier stated.
+- Escalation is documented as a model override, with the "do not edit the
+  worker's `model:` line" rule stated and its consequence explained.
+- The runtime contract names the override primitive and its degradation path.
+- The ladder has a documented early exit for failures that more capability cannot
+  fix.
+- ~~The tier-climbing ladder is exercised end to end by an orchestrator run.~~
+  **Waived — see below.**
+
+## Amendment — the ladder-exercising criterion is waived (2026-08-20)
+
+`fixtures/06-impossible-criterion` was built to satisfy that criterion and does
+not. Its task is impossible by construction, so that it would fail deterministically
+rather than depending on a capability gradient — but the orchestrator declined to
+delegate it at all, recording that a task with no honest implementation mainly
+gives a worker the opportunity to special-case the pinned test. It implemented the
+task itself, proved the impossibility, and escalated. That is the correct
+engineering outcome; it simply is not the one the criterion asked for.
+
+The two requirements pull against each other. To climb the ladder a task must be
+**delegable and still fail** — which means genuine coding difficulty, which is
+exactly the model-dependent gradient §40 set out to avoid. A fixture that pinned
+"the Cheap tier fails here and the High tier succeeds" would drift with every model
+release and could never distinguish a working ladder from a lucky sample.
+
+The criterion is therefore waived rather than met, on this reasoning:
+
+- **The failure mode is mild.** If the ladder instruction is misread, behaviour
+  degrades to what it was before §40 — the orchestrator takes the task itself.
+  Slower and more expensive, not unsound. Contrast the reviewer tier, where the
+  failure mode is a silent false `PASS` and the gate opening on nothing; that one
+  justified two fixture runs and got them.
+- **The mechanism is instruction, not code.** There is no branch that can be wrong
+  in a way review cannot see.
+- **The gap is recorded, not implicit.** `fixtures/README.md` states that the
+  ladder is unexercised and why, so nobody later closes it with the gradient
+  fixture this section argues against.
+
+What `06` does verify — impossibility proved rather than asserted, the ladder
+deliberately not spent, the pinned test intact, and an escalation a human can act
+on — is retained as its purpose.

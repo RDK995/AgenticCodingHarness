@@ -71,7 +71,8 @@ Once every milestone is DONE, invoke harness:reviewer in **final review mode**
 
 - the original requirements
 - the agreed architecture (.harness/architecture.md), if the project has one
-- all milestone outcomes (from .harness/milestones.md)
+- all milestone outcomes (from .harness/milestones.md, and from
+  `.harness/archive/M<n>.md` for any milestone whose detail has been archived)
 - the complete implementation diff (project start → now)
 - final validation output (the broadest appropriate validation command for
   this repository)

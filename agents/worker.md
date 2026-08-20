@@ -48,6 +48,8 @@ Return:
 Previous Attempt(s) (present only if this task was retried):
 - Attempt <n>: what was tried, what the result/validation output was, why it
   didn't pass.
+
+Escalated: tier (present only on a tier-escalated attempt)
 ```
 
 If a `Previous Attempt(s)` block is present, this is a retry — a fresh worker
@@ -55,6 +57,16 @@ invocation with no memory of the earlier attempt(s). Read it before starting:
 don't repeat what already failed, and don't assume the earlier attempt's
 partial work is still on disk (start from the current repository state, not
 from the failed attempt's description of it).
+
+If `Escalated: tier` is present, earlier attempts at a cheaper tier already
+failed and you are running with more capability. Treat the recorded approaches
+as ruled out: re-running them more carefully is the one thing already known not
+to work. Prefer re-reading the actual code and tests over trusting the previous
+attempts' description of why they failed — that description is a claim, and the
+diagnosis may be exactly what was wrong. If the task looks underspecified rather
+than hard, say so in `Unresolved Issues` and return `BLOCKED` instead of
+guessing; that is more useful to the orchestrator than a plausible wrong
+implementation.
 
 ## What you do
 

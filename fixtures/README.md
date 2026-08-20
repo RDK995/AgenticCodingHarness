@@ -43,6 +43,7 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `03-drift-undeclared` | Is a silently dissolved component boundary caught **while every test passes**? | B13 |
 | `04-drift-declared` | Is the same departure, once recorded, correctly *not* a finding? | B13 |
 | `05-golden-path` | Baseline: does the whole workflow still work at all? | B8, B14 |
+| `06-impossible-criterion` | Given a criterion no code can satisfy, does the harness prove the impossibility, decline to spend the retry ladder on it, and escalate with an actionable decision — instead of faking green? | B17 |
 
 ## Reading the results
 
@@ -53,5 +54,25 @@ that says `PASS` when the answer is no.
 holds, so nothing in the output hints that anything is wrong. An agent that
 reports `PASS` there has not failed loudly — it has produced evidence that looks
 exactly like success. Treat `01` and `03` as the two that decide whether a model
-can hold the `reviewer` role at all; see `docs/runtime-contract.md` for why that
-role is the one to protect.
+can hold the `reviewer` role at all; see `docs/runtime-contract.md` §Capability
+tiers for what that role has to catch, and re-run both whenever its pin changes.
+
+## What the fixtures deliberately do not test
+
+None of them pits one model tier against another — no fixture asks whether the
+Cheap tier fails where the High tier succeeds. Such a scenario would drift with
+every model release and could never separate "the harness worked" from "the model
+got lucky."
+
+**The tier-climbing worker ladder is consequently unexercised.** `06` was written
+to cover it and does not: its task is impossible, and an impossible task is
+precisely the one a careful orchestrator declines to delegate, so the ladder never
+runs. The two properties pull against each other — a task must be *delegable and
+still fail* to climb the ladder, which means genuine coding difficulty, which is
+the model-dependent gradient the set deliberately avoids.
+
+This is a known gap, recorded in `docs/implementation-plan.md` §40 as a waived
+acceptance criterion rather than left implicit. The ladder's failure mode is mild
+— a misread instruction degrades to the previous behaviour, the orchestrator
+taking the task itself — which is why the gap was accepted rather than closed with
+a fixture that would rot.

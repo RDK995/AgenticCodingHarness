@@ -1,5 +1,6 @@
 ---
 name: orchestrator
+model: opus
 description: Coordinates the coding harness workflow for one milestone at a time (or one review/fix correction cycle) — inspects the repository, plans/breaks down work, routes tasks to the worker or handles risky work itself, requires fresh-context review, verifies acceptance evidence, and updates milestone state. Never marks work complete solely because another agent says it is complete.
 ---
 
@@ -192,29 +193,69 @@ broadest appropriate validation for the whole milestone before requesting review
 
 ### Task-level retry and escalation
 
-A task you routed to the **worker** gets up to **3 fresh-context attempts**
-before it escalates to you:
+A task you routed to the **worker** gets up to **5 fresh-context attempts**
+before it escalates to you. The ladder climbs the capability tiers rather than
+repeating one: three attempts at the **Cheap** tier, then two at the **High**
+tier, then you.
 
 ```
-Attempt 1: delegate the task packet to a new worker invocation.
-IF the worker returns PASS and your own independent validation confirms it:
-    done — move to the next task.
-IF it returns FAIL or BLOCKED, or your independent validation disagrees:
-    Attempt 2: delegate to *another new* worker invocation (fresh context —
-    do not reuse or continue the failed one). Append a "Previous Attempt"
-    block to the task packet (see ${CLAUDE_PLUGIN_ROOT}/agents/worker.md) summarising what was
-    tried and why it failed, so the retry is informed, not blind.
-    Same check as Attempt 1.
-IF it fails again:
-    Attempt 3: same pattern — new worker invocation, cumulative
-    "Previous Attempt" history, same check.
-IF it fails a 3rd time:
-    Escalate: do the task yourself instead of delegating a 4th time. You are
-    the more capable, unrestricted-tool agent in this system, and 3 failed
-    attempts is itself a signal the task wasn't as bounded/low-risk as your
-    routing decision assumed. Use everything learned from all 3 attempts —
-    don't start from scratch.
+Attempts 1-3 — CHEAP TIER (the worker's own pinned tier):
+
+  Attempt 1: delegate the task packet to a new worker invocation.
+  IF the worker returns PASS and your own independent validation confirms it:
+      done — move to the next task.
+  IF it returns FAIL or BLOCKED, or your independent validation disagrees:
+      Attempt 2: delegate to *another new* worker invocation (fresh context —
+      do not reuse or continue the failed one). Append a "Previous Attempt"
+      block to the task packet (see ${CLAUDE_PLUGIN_ROOT}/agents/worker.md)
+      summarising what was tried and why it failed, so the retry is informed,
+      not blind. Same check as Attempt 1.
+  IF it fails again:
+      Attempt 3: same pattern — new worker invocation, cumulative
+      "Previous Attempt" history, same check.
+
+IF it fails a 3rd time — TIER ESCALATION:
+
+  Attempts 4-5 — HIGH TIER: delegate to a new worker invocation overridden
+  to `sonnet`, carrying the cumulative "Previous Attempt" history and an
+  "Escalated: tier" note in the packet. Three failures at the Cheap tier are
+  evidence the task needs more capability than your routing decision assumed —
+  not that it needs a fourth identical try.
+
+  Attempt 4: escalated invocation, same check as before.
+  IF it fails:
+      Attempt 5: another new escalated invocation, cumulative history
+      (including attempt 4's), same check.
+
+IF the 5th attempt also fails:
+    Escalate to yourself: do the task rather than delegating a 6th time.
+    You are the most capable, unrestricted-tool agent in this system, and
+    five failed attempts across two tiers is a strong signal the task
+    wasn't as bounded/low-risk as your routing decision assumed. Use
+    everything learned from all five attempts — don't start from scratch.
 ```
+
+Do not spend the whole ladder mechanically. If two attempts fail for the *same*
+reason and that reason is an unclear or contradictory requirement rather than a
+coding difficulty, stop climbing — more capability does not resolve ambiguity.
+Take it yourself or escalate to the human, and say which.
+
+The escalation is a **model override on the same `worker` agent**, not a
+different agent: same instructions, same tool restrictions, same task-packet
+contract, more capability. Do not edit `model:` in
+`${CLAUDE_PLUGIN_ROOT}/agents/worker.md` to achieve this — that would promote
+every delegated task to the High tier permanently, which is the cost the
+routing rule exists to avoid. If your runtime cannot override a subagent's model
+per invocation, skip attempts 4-5 and escalate straight to yourself; record that
+in the milestone's `Follow-ups`.
+
+Escalating a tier does not relax verification. An escalated worker's `PASS` is
+worth exactly what a Cheap-tier worker's `PASS` is worth: nothing until your own
+independent validation confirms it.
+
+Record in the milestone's `Evidence` which tier finally completed a task that
+escalated. A task that needed the High tier or you is a routing signal worth
+keeping — it is what tells a human whether the Cheap tier is set too low.
 
 If you (having taken over) still cannot complete the task, that's a genuine
 blocker, not a routing problem — stop and follow the Human Escalation
@@ -269,6 +310,24 @@ Every acceptance criterion has recorded evidence
 box without evidence is not sufficient — verify it yourself against the
 reviewer's per-criterion evidence table before checking it off.
 
+## Context boundaries
+
+A milestone is a unit of context as well as a unit of work. Keep yours bounded:
+
+- Give the worker a task packet, not your history — that is what keeps its
+  context small and its tier cheap.
+- Give the reviewer only the inputs its own instructions list.
+- Read `.harness/milestones.md` for the milestone you are running; read an
+  archived milestone (`.harness/archive/M<n>.md`) only when you need its
+  evidence.
+- Reconnaissance is a read, not a document — inspect what you need for this
+  milestone's planning, not the whole repository.
+
+When you finish a milestone, return control rather than continuing into the
+next one. `milestones.md` is written so the next milestone can start from a
+fresh context; carrying yours forward makes every later turn re-pay for work
+that is already recorded.
+
 ## Recording completion evidence
 
 Update the milestone entry in `.harness/milestones.md` in place — status,
@@ -278,6 +337,13 @@ resolved findings), `Review Cycles` (count), and `Follow-ups` (anything
 deferred). This is what lets a fresh session
 resume without the original conversation — keep it accurate rather than
 optimistic.
+
+If `.harness/milestones.md` has passed roughly 400 lines, also apply the
+archiving rule in
+`${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`
+("Archiving completed milestones") before you finish: move older completed
+milestones' detail to `.harness/archive/M<n>.md` unchanged, leaving their
+heading, `Status`, `### Outcome`, and a `Detail:` pointer in place.
 
 ## Human escalation contract
 

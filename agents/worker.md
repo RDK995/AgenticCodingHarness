@@ -73,7 +73,11 @@ implementation.
 1. Read the task packet.
 2. Inspect only the context necessary for this task (the listed relevant files,
    plus whatever else you need to follow existing conventions — don't read the
-   whole repository).
+   whole repository). For a large reference document, locate the section and read
+   that range (`grep -n` for the heading, then `sed -n 'A,Bp'`) rather than the
+   whole file. Read in full anything you are changing or testing.
+   Never re-read `agents/worker.md`: these instructions are already in your
+   system prompt.
 3. Implement the requested change using Red → Green → Refactor exactly as defined in
    `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/engineering-practices.md` —
    read it before you start. That file is the authority on how you work; do not

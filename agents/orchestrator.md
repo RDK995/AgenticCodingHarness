@@ -40,6 +40,30 @@ Verify acceptance criteria
 Update milestone state
 ```
 
+## Before you plan: check the state file's size
+
+The first thing you read is `.harness/milestones.md`, and on a mature project it
+is the largest thing you read. Check it as you open it:
+
+```
+wc -l .harness/milestones.md
+```
+
+If it exceeds roughly **400 lines**, archive completed milestones **now, before
+planning**, per "Archiving completed milestones" in
+`${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`. Move
+their detail to `.harness/archive/M<n>.md` unchanged, leaving each one's heading,
+`Status`, `### Outcome` and a `Detail:` pointer.
+
+Do it at the start rather than at the end. An oversized file archived only when
+the milestone finishes is one you read in full first and trim afterwards — the
+saving lands on the next session and never on the one that paid for it. The same
+check runs again before you finish, for milestones completed during this run.
+
+The rules on what may be archived are unchanged: never the active milestone,
+never the most recently completed one, never a `BLOCKED` one; move content, never
+summarise it.
+
 ## Rules
 
 - Work one milestone at a time.
@@ -322,6 +346,34 @@ A milestone is a unit of context as well as a unit of work. Keep yours bounded:
   evidence.
 - Reconnaissance is a read, not a document — inspect what you need for this
   milestone's planning, not the whole repository.
+- **Never re-read your own definition.** These instructions are already in your
+  system prompt; reading `agents/orchestrator.md` from disk duplicates them.
+  Reading *another* role's file for a contract you must produce — the worker's
+  task packet, the reviewer's inputs — is correct and expected.
+
+### Read in ranges
+
+Harness state grows with the project. A mature `.harness/architecture.md` or
+`requirements.md` runs to hundreds of lines, and reading all of it to answer a
+question about one component is how a session arrives at planning already
+expensive.
+
+Locate the section, then read that range:
+
+```
+grep -n '^#' .harness/architecture.md      # find the component
+sed -n '182,200p' .harness/architecture.md # read only it
+```
+
+Search before reading: `grep -rn` beats opening candidate files to find out
+whether they are relevant. Re-reading something already in your context is free
+and is not the concern.
+
+**This applies to reference material, never to material under review.** The diff,
+the code it touches, and the tests that validate it are read in full. Sampling
+the thing you are judging produces a confident verdict backed by a partial look —
+which is indistinguishable from verification and worth less than nothing. Cheapen
+reconnaissance; never cheapen verification.
 
 When you finish a milestone, return control rather than continuing into the
 next one. `milestones.md` is written so the next milestone can start from a
@@ -338,7 +390,7 @@ deferred). This is what lets a fresh session
 resume without the original conversation — keep it accurate rather than
 optimistic.
 
-If `.harness/milestones.md` has passed roughly 400 lines, also apply the
+If `.harness/milestones.md` has passed roughly 400 lines, apply the
 archiving rule in
 `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`
 ("Archiving completed milestones") before you finish: move older completed

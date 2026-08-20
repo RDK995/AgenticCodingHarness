@@ -2,19 +2,18 @@
 
 ## Current
 
-Milestone: none active. All 17 build milestones are `DONE`.
+Milestone: none active. All 18 build milestones are `DONE`.
 
-There is no next task. The harness is complete against
-`docs/implementation-plan.md` §§1-40. Open items are recorded as follow-ups in
-the archive, not as work in progress — read `.harness-dev/archive/B17.md`
-(§Follow-ups) and `.harness-dev/archive/B16.md` (§Follow-ups) before starting
-anything new. The largest of them: the runtime `implement` skill still loops
-every milestone in one driving session, and the worker tier ladder is unexercised
-by any fixture (waived, `docs/implementation-plan.md` §40).
+No next task. The harness is complete against `docs/implementation-plan.md`
+§§1-41. Open items are follow-ups in the archive, not work in progress — the two
+strongest candidates are in `.harness-dev/archive/B18.md` (§Follow-ups): persist
+the toolchain commands, and give existing codebases a durable map instead of
+re-deriving one every milestone. Also open: the runtime `implement` skill still
+loops every milestone in one driving session (`.harness-dev/archive/B16.md`).
 
 ## Milestones
 
-`12 / 12 V1 build milestones DONE` · `17 / 17 including post-V1 additions DONE`
+`12 / 12 V1 build milestones DONE` · `18 / 18 including post-V1 additions DONE`
 
 1. B1 — Plugin scaffold loads — DONE
 2. B2 — Harness state templates exist — DONE
@@ -33,6 +32,7 @@ by any fixture (waived, `docs/implementation-plan.md` §40).
 15. B15 — Behavioural fixtures retained (post-V1) — DONE
 16. B16 — Token cost is bounded (post-V1) — DONE
 17. B17 — Tier assignment and escalation (post-V1) — DONE
+18. B18 — Read discipline at runtime (post-V1) — DONE
 
 ## Reading this file
 
@@ -41,7 +41,7 @@ milestone only. It does not grow as milestones complete.
 
 Completed milestone detail — tasks, acceptance criteria, evidence, validation,
 decisions, follow-ups, blockers — lives in `.harness-dev/archive/`, one file per
-milestone (`B1.md` … `B17.md`, plus `post-B11-retry-escalate.md`), verbatim as it
+milestone (`B1.md` … `B18.md`, plus `post-B11-retry-escalate.md`), verbatim as it
 was recorded.
 
 Read an archive file only when you need that milestone's evidence — to check what

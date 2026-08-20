@@ -1984,6 +1984,17 @@ Keeping it would have meant paying a certain cost for an unmeasurable benefit,
 which is the exact failure mode §42 was written to attack. It was removed on its
 own evidence.
 
+**Total context could not be measured this way.** Four samples of `06` — two of
+them the same commit on the same fixture — put turn count at 22/22/28/24 and total
+context across a 33% band. The per-fixture percentages quoted above are each one
+paired sample inside that band, and do not support a total-spend claim. What is
+stable is the baseline (5.0% spread, mean −799 tokens/turn after the trim) and
+context per turn (sd 386 on ~22.5k). B19 claims the baseline reduction only.
+
+A consequence for anyone pursuing the turn lever: at 27% run-to-run variance on an
+identical task, a mechanism aimed at turn count cannot be validated by paired
+fixture runs. It needs repeated sampling with a stated sample size.
+
 **What the measurement was actually worth was the diagnosis, not the fix.** Agent
 prose explains only 27% of the orchestrator's baseline gap over the worker
 (2,508 tokens of 9,135); the remainder is system prompt and tool definitions — the

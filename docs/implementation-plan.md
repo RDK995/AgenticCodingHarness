@@ -1888,3 +1888,105 @@ file format. The archiving mechanism itself is unchanged — only when it is che
 - Ranged-read guidance is present in the agent files, not only in `CLAUDE.md`.
 - The guidance explicitly exempts material under review from ranged reading.
 - No fixture regresses; `05` and `06` still behave as their `EXPECTED.md` files say.
+
+# 42. Post-V1 Addition — Reduce the Per-Turn Constant
+
+## Problem
+
+Measured over one full milestone of `fixtures/05-golden-path` (142 assistant
+turns, 2,882,600 tokens of context):
+
+| Role | Model | Turns | Base | Peak | Total | Fixed |
+| --- | --- | --- | --- | --- | --- | --- |
+| orchestrator | opus | 41 | 17,944 | 41,085 | 1,151,579 | 63.9% |
+| main driver | opus | 22 | 18,518 | 39,343 | 560,978 | 72.6% |
+| worker | haiku | 35 | 8,809 | 14,811 | 417,525 | 73.8% |
+| reviewer | sonnet | 20 | 11,003 | 20,963 | 327,256 | 67.2% |
+| **all** | | **142** | | | **2,882,600** | **70.4%** |
+
+**70.4% of all spend is the fixed baseline re-paid on every turn** — system
+prompt, tool definitions, agent definition — not accumulated conversation and not
+file reads. Growth is the minority of the bill.
+
+Two consequences follow, and neither is addressed by any earlier milestone.
+
+**The agent definition is a per-turn constant.** Baseline tracks definition size:
+`orchestrator.md` 422 lines → 17.9k base, `reviewer.md` 188 → 11.0k, `worker.md`
+125 → 8.8k. The orchestrator's definition costs roughly 3.4k tokens on each of its
+54 turns in that run — about 184k tokens for one small milestone. Every line in
+that file is billed once per turn, forever.
+
+**Turn count multiplies everything resident.** 54 orchestrator turns to deliver a
+four-line function. Halving turns halves spend regardless of what is in context.
+
+This also settles a question raised while measuring: resetting context between
+*tasks* rather than milestones would attack only the 29.6% growth while re-paying
+an ~18k baseline per reset, and there is no per-task durable record to resume
+from. It is rejected on the measurement, not on preference.
+
+## Solution
+
+1. **Delete duplication from `agents/orchestrator.md`.** B12's question, applied
+   to the file with the highest per-turn cost: what can be removed while
+   preserving required behaviour? Bullets that restate a section appearing later
+   in the same file are the clearest case — several say "see X below" beside the
+   thing they summarise.
+
+2. ~~**Prefer batched tool calls.**~~ **Tried and removed — see the amendment
+   below.** Turn count is the largest lever in the table above, but an instruction
+   is not a mechanism for pulling it, and this one measurably did not.
+
+## Scope
+
+Deletion and compression of instructions. No behaviour is removed: every rule the
+fixtures verify must survive, and the fixtures are the check.
+
+Guard against the obvious failure — trimming a definition until the behaviour it
+encodes stops happening. Anything deleted must either be stated elsewhere in a
+file the role already reads, or be genuinely redundant.
+
+## Acceptance criteria
+
+- `agents/orchestrator.md` is materially smaller, with the before/after recorded.
+- No rule verified by a fixture is lost; each deletion is redundant or relocated.
+- ~~Brief batching guidance is present.~~ **Withdrawn** — added, measured, found
+  to have no effect, and removed rather than kept on the strength of its rationale.
+- `fixtures/05` and `06` still meet their `EXPECTED.md` outcomes.
+- The measured orchestrator baseline is recorded after the change, from a real
+  run rather than estimated.
+
+## Amendment — measured result, and the batching instruction withdrawn (2026-08-20)
+
+B19 was proposed on the reasoning that turn count is the dominant lever: at 70.4%
+fixed cost, cutting turns 30% would save ~21% of spend. Measured against both
+fixtures, that is not what happened.
+
+| Fixture | Context before | after | Turns |
+| --- | --- | --- | --- |
+| `06` (single thread, clean signal) | 501,870 | 480,309 | **−4.3%**, 22 → 22 |
+| `05` (full workflow) | 2,882,600 | 2,864,174 | **−0.6%**, 142 → 135 |
+
+Neither increased, so the milestone stands. But the split matters:
+
+**The deletion pass works and is small.** `orchestrator.md` 422 → 353 lines; the
+measured baseline fell 703/turn on `06` and 918/turn on `05`. On `06` — identical
+turn counts, no subagent variance — that accounts for essentially the whole
+−4.3%.
+
+**The batching instruction did nothing and has been removed.** Turn count was
+unchanged on `06` (22 → 22). On `05` the orchestrator dropped 54 → 49 turns, but
+the driving session rose 22 → 27 and +136k tokens, and `SKILL.md` was untouched by
+B19 — so that movement is run-to-run variance, and the −5 cannot be credited to
+the instruction either. Meanwhile the paragraph cost ~50 tokens on every turn,
+about 2.4k per milestone, indefinitely.
+
+Keeping it would have meant paying a certain cost for an unmeasurable benefit,
+which is the exact failure mode §42 was written to attack. It was removed on its
+own evidence.
+
+**What the measurement was actually worth was the diagnosis, not the fix.** Agent
+prose explains only 27% of the orchestrator's baseline gap over the worker
+(2,508 tokens of 9,135); the remainder is system prompt and tool definitions — the
+worker declares 6 tools, the orchestrator is unrestricted by design. The largest
+per-turn constant in the system is therefore not reachable by editing
+instructions, and no further deletion pass should be expected to pay much.

@@ -1826,3 +1826,65 @@ The criterion is therefore waived rather than met, on this reasoning:
 What `06` does verify — impossibility proved rather than asserted, the ladder
 deliberately not spent, the pinned test intact, and an escalation a human can act
 on — is retained as its purpose.
+
+# 41. Post-V1 Addition — Read Discipline at Runtime
+
+## Problem
+
+Observed on a real project immediately after adopting B16/B17: the orchestrator's
+first turns consumed ~93k tokens before any implementation work began. The project's
+harness state was `architecture.md` 500 lines, `milestones.md` 639, `requirements.md`
+297 — roughly 1,400 lines read in full before planning started.
+
+B16 measured that 84% of spend came from turns already above 100k. A session that
+*starts* at 93k has spent its entire margin on reconnaissance.
+
+Three specific causes, all of them gaps in how B16 was applied rather than new
+defects.
+
+**The archive threshold is checked at the wrong end of the milestone.**
+`agents/orchestrator.md` applies the ~400-line archiving rule "before you finish",
+when recording completion evidence. So an oversized `milestones.md` is read in full
+at the *start* of every milestone and only trimmed at the *end*. The read that costs
+the most is the one that happens before the rule fires.
+
+**Agents re-read their own definitions.** An agent's instructions are already in its
+system prompt. Reading `agents/<self>.md` from disk duplicates 100-330 lines that
+were never absent.
+
+**Ranged reads never reached the runtime roles.** §39 item 4 required
+section-scoped reads and was applied to `CLAUDE.md` — this repository's own build
+protocol — and to nothing the agents read. `grep -rln "sed -n" agents skills docs`
+returned no matches. The roles that read a user's 500-line `architecture.md` had no
+instruction to read part of it.
+
+## Solution
+
+1. **Check the archive threshold on open, not only before finishing.** The
+   orchestrator archives an oversized `milestones.md` when it first reads it, so the
+   saving applies to the session that pays for it. The end-of-milestone check stays.
+
+2. **Never re-read your own definition.** Stated in each agent file. Reading
+   *another* role's file for a contract it must produce remains correct.
+
+3. **Ranged reads for reference documents, with the review material exempt.**
+   Locate the section, read that range. This applies to large state and reference
+   documents. It explicitly does **not** apply to the diff, code, or tests under
+   review: a reviewer that samples the material it is judging produces exactly the
+   confident, evidence-shaped `PASS` that `docs/runtime-contract.md` identifies as
+   the harness's worst failure. Cheapening reconnaissance is safe; cheapening
+   verification is not.
+
+## Scope
+
+Instructions only. No new infrastructure, no configuration, no change to any state
+file format. The archiving mechanism itself is unchanged — only when it is checked.
+
+## Acceptance criteria
+
+- The archive threshold is checked when `milestones.md` is first read, and still
+  before the milestone completes.
+- Every agent file states that an agent must not re-read its own definition.
+- Ranged-read guidance is present in the agent files, not only in `CLAUDE.md`.
+- The guidance explicitly exempts material under review from ranged reading.
+- No fixture regresses; `05` and `06` still behave as their `EXPECTED.md` files say.

@@ -45,6 +45,18 @@ You have `Bash` access. Use it to independently re-run the stated validation
 commands rather than trusting reported output — this is the whole point of a
 fresh-context review.
 
+**Read the diff and the code it touches in full. Never sample them.** A verdict
+reached from a partial look is still formatted as a verdict, and nothing
+downstream can tell the difference — that is precisely the failure this role
+exists to prevent. Economy applies to *reference* material only: for a large
+`architecture.md` or `requirements.md`, locate the relevant section (`grep -n` for
+the heading, then `sed -n 'A,Bp'`) rather than reading hundreds of lines to check
+one component. For a final review, read `.harness/archive/M<n>.md` for the
+milestones you actually need to judge.
+
+Never re-read `agents/reviewer.md`: these instructions are already in your system
+prompt.
+
 ## Checklist
 
 Review for:

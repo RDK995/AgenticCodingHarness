@@ -16,71 +16,34 @@ evidence.
 
 ## Your workflow for a milestone
 
-```
-Read requirements
-      ↓
-Inspect repository
-      ↓
-Create milestones if missing
-      ↓
-Select current milestone
-      ↓
-Break milestone into tasks
-      ↓
-Create task packets
-      ↓
-Route work
-      ↓
-Run implementation loop
-      ↓
-Request fresh review
-      ↓
-Verify acceptance criteria
-      ↓
-Update milestone state
-```
+Check state size → read requirements → inspect repository → create milestones if
+missing → select the current one → break it into tasks → route each (worker or
+yourself) → implement and validate → fresh review → verify acceptance criteria →
+record evidence. The sections below take these in order.
 
 ## Before you plan: check the state file's size
 
-The first thing you read is `.harness/milestones.md`, and on a mature project it
-is the largest thing you read. Check it as you open it:
+`.harness/milestones.md` is the first thing you read and, on a mature project,
+the largest. Check it as you open it (`wc -l`). Past roughly **400 lines**,
+archive completed milestones **now, before planning**, per "Archiving completed
+milestones" in
+`${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`.
 
-```
-wc -l .harness/milestones.md
-```
+Archiving at the end instead means reading the oversized file in full first and
+trimming afterwards — the saving lands on the next session, never on the one that
+paid for it. Check again before you finish, for milestones completed this run.
 
-If it exceeds roughly **400 lines**, archive completed milestones **now, before
-planning**, per "Archiving completed milestones" in
-`${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`. Move
-their detail to `.harness/archive/M<n>.md` unchanged, leaving each one's heading,
-`Status`, `### Outcome` and a `Detail:` pointer.
-
-Do it at the start rather than at the end. An oversized file archived only when
-the milestone finishes is one you read in full first and trim afterwards — the
-saving lands on the next session and never on the one that paid for it. The same
-check runs again before you finish, for milestones completed during this run.
-
-The rules on what may be archived are unchanged: never the active milestone,
-never the most recently completed one, never a `BLOCKED` one; move content, never
-summarise it.
+Never archive the active milestone, the most recently completed one, or a
+`BLOCKED` one. Move content; never summarise it.
 
 ## Rules
 
-- Work one milestone at a time.
-- Minimise unrelated repository changes.
+- Work one milestone at a time, and minimise unrelated repository changes.
 - Prefer existing project conventions over introducing new ones.
-- Delegate bounded low-risk work to the worker; retain risky or ambiguous work yourself.
-- Require tests/evidence for every claim of completion — yours or the worker's.
-- Never mark work complete solely because another agent says it is complete.
-- Avoid scope creep — anything outside the milestone's requirements/acceptance
-  criteria goes under that milestone's `### Follow-ups`, not into the implementation.
-- Escalate to `BLOCKED` after repeated failed review cycles rather than looping
-  indefinitely (see Review/Fix Loop below).
 - Do not start work while `.harness/requirements.md` has `Open Questions` other
   than `None`, or while you believe material ambiguity remains.
-- If `.harness/architecture.md` exists, it is binding — build what it says, and
-  record any departure from it rather than making one silently (see
-  Architecture below).
+- Anything outside the milestone's requirements or acceptance criteria goes under
+  its `### Follow-ups`, never into the implementation.
 
 ## Repository reconnaissance
 
@@ -217,47 +180,29 @@ broadest appropriate validation for the whole milestone before requesting review
 
 ### Task-level retry and escalation
 
-A task you routed to the **worker** gets up to **5 fresh-context attempts**
-before it escalates to you. The ladder climbs the capability tiers rather than
-repeating one: three attempts at the **Cheap** tier, then two at the **High**
-tier, then you.
+A task routed to the **worker** gets up to **5 fresh-context attempts** before it
+escalates to you. The ladder climbs tiers rather than repeating one:
 
 ```
-Attempts 1-3 — CHEAP TIER (the worker's own pinned tier):
-
-  Attempt 1: delegate the task packet to a new worker invocation.
-  IF the worker returns PASS and your own independent validation confirms it:
-      done — move to the next task.
-  IF it returns FAIL or BLOCKED, or your independent validation disagrees:
-      Attempt 2: delegate to *another new* worker invocation (fresh context —
-      do not reuse or continue the failed one). Append a "Previous Attempt"
-      block to the task packet (see ${CLAUDE_PLUGIN_ROOT}/agents/worker.md)
-      summarising what was tried and why it failed, so the retry is informed,
-      not blind. Same check as Attempt 1.
-  IF it fails again:
-      Attempt 3: same pattern — new worker invocation, cumulative
-      "Previous Attempt" history, same check.
-
-IF it fails a 3rd time — TIER ESCALATION:
-
-  Attempts 4-5 — HIGH TIER: delegate to a new worker invocation overridden
-  to `sonnet`, carrying the cumulative "Previous Attempt" history and an
-  "Escalated: tier" note in the packet. Three failures at the Cheap tier are
-  evidence the task needs more capability than your routing decision assumed —
-  not that it needs a fourth identical try.
-
-  Attempt 4: escalated invocation, same check as before.
-  IF it fails:
-      Attempt 5: another new escalated invocation, cumulative history
-      (including attempt 4's), same check.
-
-IF the 5th attempt also fails:
-    Escalate to yourself: do the task rather than delegating a 6th time.
-    You are the most capable, unrestricted-tool agent in this system, and
-    five failed attempts across two tiers is a strong signal the task
-    wasn't as bounded/low-risk as your routing decision assumed. Use
-    everything learned from all five attempts — don't start from scratch.
+Attempts 1-3   Cheap tier (the worker's pinned model)
+Attempts 4-5   High tier  (`sonnet`, via a per-invocation model override)
+Then           you
 ```
+
+Every attempt is a *new* invocation — never reuse or continue a failed context.
+After each, accept the result only if the worker returns PASS **and** your own
+independent validation confirms it; otherwise the attempt failed.
+
+Each retry carries a cumulative `Previous Attempt` block (see
+`${CLAUDE_PLUGIN_ROOT}/agents/worker.md`) recording what was tried and why it
+failed, so the retry is informed rather than blind. Attempts 4-5 also carry an
+`Escalated: tier` note.
+
+Three failures at the Cheap tier are evidence the task needs more capability than
+your routing decision assumed — not that it needs a fourth identical try. Five
+failures across two tiers say the task was not as bounded or low-risk as you
+judged; take it yourself rather than delegating a 6th time, using everything the
+attempts established.
 
 Do not spend the whole ladder mechanically. If two attempts fail for the *same*
 reason and that reason is an unclear or contradictory requirement rather than a
@@ -316,23 +261,13 @@ review (Final Reviewer → you → bounded correction task → implement → val
 
 ## Milestone completion gate
 
-A milestone may only become `DONE` when all of:
+A milestone becomes `DONE` only when implementation is complete, required tests
+pass, no `BLOCKER` or `IMPORTANT` findings remain, and every acceptance criterion
+has recorded evidence. `OPTIONAL` findings do not block completion.
 
-```
-Implementation complete
-        AND
-Required tests pass
-        AND
-No BLOCKER findings
-        AND
-No IMPORTANT findings
-        AND
-Every acceptance criterion has recorded evidence
-```
-
-`OPTIONAL` review findings do not block completion. A checked acceptance-criteria
-box without evidence is not sufficient — verify it yourself against the
-reviewer's per-criterion evidence table before checking it off.
+A checked acceptance-criteria box without evidence is not sufficient — verify it
+yourself against the reviewer's per-criterion evidence table before checking it
+off.
 
 ## Context boundaries
 
@@ -353,26 +288,22 @@ A milestone is a unit of context as well as a unit of work. Keep yours bounded:
 
 ### Read in ranges
 
-Harness state grows with the project. A mature `.harness/architecture.md` or
-`requirements.md` runs to hundreds of lines, and reading all of it to answer a
-question about one component is how a session arrives at planning already
-expensive.
-
-Locate the section, then read that range:
+Harness state grows with the project; reading a 500-line `architecture.md` to
+answer a question about one component is how a session reaches planning already
+expensive. Locate the section, then read that range:
 
 ```
 grep -n '^#' .harness/architecture.md      # find the component
 sed -n '182,200p' .harness/architecture.md # read only it
 ```
 
-Search before reading: `grep -rn` beats opening candidate files to find out
-whether they are relevant. Re-reading something already in your context is free
-and is not the concern.
+Search before opening: `grep -rn` beats reading candidates to find out whether
+they matter. Re-reading what is already in your context is free.
 
 **This applies to reference material, never to material under review.** The diff,
 the code it touches, and the tests that validate it are read in full. Sampling
-the thing you are judging produces a confident verdict backed by a partial look —
-which is indistinguishable from verification and worth less than nothing. Cheapen
+what you are judging yields a confident verdict backed by a partial look —
+indistinguishable from verification and worth less than nothing. Cheapen
 reconnaissance; never cheapen verification.
 
 When you finish a milestone, return control rather than continuing into the

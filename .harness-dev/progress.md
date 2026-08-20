@@ -2,18 +2,17 @@
 
 ## Current
 
-Milestone: none active. All 18 build milestones are `DONE`.
+Milestone: none active. All 19 build milestones are `DONE`.
 
-No next task. The harness is complete against `docs/implementation-plan.md`
-§§1-41. Open items are follow-ups in the archive, not work in progress — the two
-strongest candidates are in `.harness-dev/archive/B18.md` (§Follow-ups): persist
-the toolchain commands, and give existing codebases a durable map instead of
-re-deriving one every milestone. Also open: the runtime `implement` skill still
-loops every milestone in one driving session (`.harness-dev/archive/B16.md`).
+No next task. Open items are follow-ups in the archive — the strongest are in
+`.harness-dev/archive/B19.md` (tool-definition surface is the untouched per-turn
+constant; turn count still has headroom but no mechanism) and
+`.harness-dev/archive/B18.md` (persist the toolchain commands; give existing
+codebases a durable map).
 
 ## Milestones
 
-`12 / 12 V1 build milestones DONE` · `18 / 18 including post-V1 additions DONE`
+`12 / 12 V1 build milestones DONE` · `19 / 19 including post-V1 additions DONE`
 
 1. B1 — Plugin scaffold loads — DONE
 2. B2 — Harness state templates exist — DONE
@@ -33,6 +32,7 @@ loops every milestone in one driving session (`.harness-dev/archive/B16.md`).
 16. B16 — Token cost is bounded (post-V1) — DONE
 17. B17 — Tier assignment and escalation (post-V1) — DONE
 18. B18 — Read discipline at runtime (post-V1) — DONE
+19. B19 — Reduce the per-turn constant (post-V1) — DONE
 
 ## Reading this file
 
@@ -41,7 +41,7 @@ milestone only. It does not grow as milestones complete.
 
 Completed milestone detail — tasks, acceptance criteria, evidence, validation,
 decisions, follow-ups, blockers — lives in `.harness-dev/archive/`, one file per
-milestone (`B1.md` … `B18.md`, plus `post-B11-retry-escalate.md`), verbatim as it
+milestone (`B1.md` … `B19.md`, plus `post-B11-retry-escalate.md`), verbatim as it
 was recorded.
 
 Read an archive file only when you need that milestone's evidence — to check what
@@ -51,4 +51,4 @@ answer that. Never load the whole archive.
 
 When a milestone reaches `DONE`, its section moves to
 `.harness-dev/archive/B<n>.md` unchanged. No milestone is active, so this file
-currently holds the pointer and the index only.
+holds the pointer and the index only.

@@ -2001,3 +2001,113 @@ prose explains only 27% of the orchestrator's baseline gap over the worker
 worker declares 6 tools, the orchestrator is unrestricted by design. The largest
 per-turn constant in the system is therefore not reachable by editing
 instructions, and no further deletion pass should be expected to pay much.
+# 43. Post-V1 Addition — Enforced Delegation and a Milestone Budget
+
+## Problem
+
+Measured on a real project (`OpenWeightHarness`, 7 orchestrator runs, 1,542
+orchestrator turns, 262,532,486 tokens):
+
+| Turns | Total | Fixed | Growth | Growth % |
+| --- | --- | --- | --- | --- |
+| 15 | 528,375 | 323,775 | 204,600 | 39% |
+| 191 | 31,208,829 | 4,234,852 | 26,973,977 | 86% |
+| 251 | 41,373,941 | 5,588,515 | 35,785,426 | 86% |
+| 264 | 58,941,246 | 5,960,328 | 52,980,918 | 90% |
+| 331 | 62,230,743 | 7,796,374 | 54,434,369 | 87% |
+| **all** | **262,532,486** | **34,891,072** | **227,641,414** | **87%** |
+
+One milestone took 1h09m and 41.4M tokens. §42 found growth to be 36% of a
+41-turn orchestrator run and concluded the per-turn constant was the target;
+**at 191-331 turns growth is 82-95%**, and the constant is the rounding error.
+The conclusion of §42 does not generalise past short milestones, and this section
+supersedes it as the account of where the money goes.
+
+The cause is not milestone scope. Across those same runs:
+
+- **21 delegations against 218 `Edit`/`Write` calls the orchestrator made itself** —
+  a 1:10 ratio. Implementation output therefore lands in the orchestrator's own
+  context, which is the context that compounds.
+- **~45% of turns issue no tool at all.**
+- **0 of 832 tool-issuing turns issued more than one tool.**
+
+Splitting a milestone that still runs inline yields two smaller milestones with
+the same defect. Retained work is the cause; milestone size is the symptom.
+
+B16 already required delegation by default, and B16 was measured on this
+repository finding zero subagent turns. The instruction has now failed twice.
+`docs/runtime-contract.md` states the reason plainly: a per-role restriction is
+"a property of the runtime, not a promise in the prompt. A runtime that cannot
+enforce it downgrades a guarantee to a request." Delegation has been a promise in
+the prompt, and it was declined nine times in ten.
+
+## Solution
+
+**1. Make delegation structural, not advisory.** The orchestrator declares no
+`tools:` line and is unrestricted. Give it a restricted set without `Write` and
+`Edit`, so implementation cannot happen in its context.
+
+This requires somewhere for escalated work to go, because today the ladder ends
+with "do the task yourself". Replace that final rung with a **worker invoked at
+the top tier**: the orchestrator's own model, a fresh context, the same task
+packet contract. Work then always runs in a subagent, at a tier matching its
+difficulty, and never in the coordinating context.
+
+The trade is real and must be stated: an escalated worker does not carry the
+orchestrator's accumulated understanding of the milestone, only its packet. That
+is already true of every other delegation, and the packet contract exists to carry
+what is needed — but the orchestrator currently escalates to itself *because* it
+holds that context, and this gives that up deliberately in exchange for the 87%.
+
+**2. Give a milestone a stated budget, counted in acceptance criteria.**
+`CLAUDE.md` has required 3-7 bounded tasks per milestone since B16; no agent file
+says it, so no runtime milestone has ever been planned against it — the same
+dev-side-only gap B18 closed for ranged reads.
+
+Measured on the same project, milestones carry **7 to 13 acceptance criteria**
+(M6: 13, M7: 12, M4: 9); the retained fixtures carry 2-4. A 13-criterion milestone
+is not 3-7 tasks — each criterion needs an implementation, a test and recorded
+evidence — so it is 20-40, and a 250-turn context is its arithmetic consequence.
+
+Express the budget in **acceptance criteria**, not tasks. Criteria are fixed at
+generation time, are visible in `milestones.md` afterwards, and can be checked by
+a human or the reviewer without observing the run. A task budget is a promise; a
+criteria count is an artifact. Target 3-5 criteria; past 7, it is two milestones —
+decided during generation rather than discovered at turn 250.
+
+Size and retention multiply rather than compete. A 13-criterion milestone run
+inline *is* a 250-turn context. Fixing delegation alone leaves the orchestrator
+accumulating 13 criteria worth of packets, results and verification; fixing size
+alone leaves smaller milestones still running inline. §43 requires both, and
+neither is sufficient on its own.
+
+**3. Record what actually happened.** Each completed milestone records its task
+count and how many tasks were delegated. Without it there is no way to tell
+whether any of this changed behaviour, and §42 showed that reasoning about
+expected effect is not a substitute.
+
+## Scope
+
+Frontmatter, instructions, and one line per milestone in the template. No token
+accounting, no budget enforcement machinery, no runner.
+
+The escalation change removes the orchestrator's ability to implement. That is
+the point, and it is the only part of this section that is a mechanism rather
+than a request.
+
+## Acceptance criteria
+
+- `agents/orchestrator.md` declares a `tools:` set without `Write` or `Edit`.
+- The retry ladder's final rung is a top-tier worker invocation, not the
+  orchestrator implementing inline; `docs/runtime-contract.md` records the change
+  and its trade.
+- A stated budget of acceptance criteria per milestone, with a split rule, in a
+  file the orchestrator reads; and the existing "prefer a small number of
+  meaningful milestones" wording reconciled with it, since it currently biases
+  the opposite way.
+- `milestones.md` records tasks planned and tasks delegated.
+- Fixtures 01-06 still meet their `EXPECTED.md` outcomes — in particular `06`,
+  whose current expectation is that the orchestrator implements the task itself,
+  and which must be re-examined rather than assumed to still hold.
+- Re-measured on a real milestone, with the delegation ratio and growth share
+  reported before and after.

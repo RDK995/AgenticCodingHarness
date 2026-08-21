@@ -62,14 +62,41 @@ definition. Used by routing and by the retry ladder — Cheap x2, Mid x1, Top x1
 before a task is blocked (§47) — and to run the reviewer at the tier of the work
 it is judging.
 
-A runtime without it must run every task and every review at one tier. The ladder
-then loses its rungs — more expensive, but not unsound. **The reviewer pairing is
-the part that does not degrade safely:** without an override, a milestone
-containing top-tier work is reviewed at the reviewer's pinned tier, which is the
-weak-reviewer failure this document warns about. On such a runtime, pin the
-reviewer to the top tier and accept the cost. Do not emulate it by editing `model:` in `agents/worker.md`,
-which promotes *every* delegated task permanently and quietly inverts the
-economics the routing rule exists to protect.
+**Total absence degrades safely.** A runtime with no override runs every task and
+every review at its pinned tier: all work at `haiku`, all reviews at `sonnet`. The
+ladder loses its rungs and weak implementations block sooner — more expensive, and
+worse at hard work, but the reviewer is still stronger than the work it judges, so
+the gate still means something.
+
+**Partial or silent support does not.** Two cases:
+
+*Partial* — the runtime honours the override for workers but not the reviewer, or
+`model:` in `agents/worker.md` is edited upward while the reviewer stays pinned.
+Top-tier work then gets a lower-tier review, and the pairing rule is violated
+without anything reporting it.
+
+*Silently ignored* — the runtime accepts a model parameter and no-ops it. The
+orchestrator believes it invoked a top-tier reviewer and records
+`Review tier: opus` in `milestones.md` while `sonnet` actually ran. **The evidence
+then asserts a pairing that never happened**, and every guarantee in this harness
+rests on evidence being true.
+
+**The asymmetry is what matters.** A silently ignored override in the *ladder*
+fails loudly: the attempt runs weaker, fails, and the task blocks. Nothing false
+is recorded. The same failure at the *reviewer* is silent — a weaker model emits a
+confident per-criterion `PASS`, the gate opens, and the milestone records a strong
+review that did not occur. That is this document's worst failure reached not by
+configuring a weak reviewer, but by believing a weak one is strong.
+
+**Verify rather than assume.** Before trusting the pairing on a new runtime,
+invoke the reviewer with an override and confirm from the transcript that the
+model actually changed. If it cannot be confirmed, pin `agents/reviewer.md` to the
+top tier and accept the cost on every review — a known cost is better than an
+unverifiable guarantee.
+
+Do not emulate the override by editing `model:` in `agents/worker.md`, which
+promotes *every* delegated task permanently and quietly inverts the economics the
+routing rule exists to protect.
 
 ## Capability tiers
 

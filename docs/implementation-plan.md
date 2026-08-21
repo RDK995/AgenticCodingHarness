@@ -2471,3 +2471,29 @@ file.
   rather than fixed.
 - Fixtures 05, 06 and 07 still meet their `EXPECTED.md` outcomes, and 06's ladder
   wording is updated to the new counts.
+
+## Amendment — the degradation analysis was wrong (2026-08-21)
+
+§47 and `docs/runtime-contract.md` both claimed that a runtime lacking the
+per-invocation override "would review top-tier work at the reviewer's pinned
+tier". That is self-contradictory: routing to the top tier uses the same
+primitive, so a runtime without it has no top-tier work to mis-review. Total
+absence degrades safely — everything runs at `haiku`, `sonnet` reviews it, and the
+reviewer remains stronger than the work.
+
+The real risk is narrower and worse. **Partial support** — the override honoured
+for workers but not the reviewer, or `worker.md` pinned upward while the reviewer
+stays fixed — violates the pairing with nothing reporting it. **Silent support** —
+a runtime that accepts the model parameter and ignores it — is worse still: the
+orchestrator records `Review tier: opus` while `sonnet` ran, so the evidence
+asserts a pairing that never happened.
+
+The asymmetry is the point. A silently ignored override in the ladder fails
+loudly: the attempt runs weaker, fails, the task blocks, nothing false is
+recorded. The same failure at the reviewer is silent — a confident `PASS`, an
+opened gate, and a milestone recording a review that did not occur.
+
+`runtime-contract.md` now states this, and requires confirming from the transcript
+that an override actually changed the model before trusting the pairing on a new
+runtime. Where it cannot be confirmed, pin the reviewer to the top tier: a known
+cost beats an unverifiable guarantee.

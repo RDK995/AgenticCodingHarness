@@ -44,6 +44,7 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `04-drift-declared` | Is the same departure, once recorded, correctly *not* a finding? | B13 |
 | `05-golden-path` | Baseline: does the whole workflow still work at all? | B8, B14 |
 | `06-impossible-criterion` | Given a criterion no code can satisfy, does the harness prove the impossibility, decline to spend the retry ladder on it, and escalate with an actionable decision — instead of faking green? | B17 |
+| `07-layered-temptation` | Given an architecture that divides cleanly by tier, does planning produce thin end-to-end slices — or one milestone per component? | B22 |
 
 ## Reading the results
 
@@ -56,6 +57,20 @@ reports `PASS` there has not failed loudly — it has produced evidence that loo
 exactly like success. Treat `01` and `03` as the two that decide whether a model
 can hold the `reviewer` role at all; see `docs/runtime-contract.md` §Capability
 tiers for what that role has to catch, and re-run both whenever its pin changes.
+
+## The one that tests planning
+
+`01`-`06` all test review or execution. `07` tests **generation**, which is the
+input to everything else and had no fixture until B22 — every earlier change to
+milestone shape was validated by re-cutting one real project's board by hand.
+
+Its discriminators are domain-independent, which is the point: a layered plan gives
+each milestone about one component and no component recurs; a sliced plan gives each
+milestone several and the same component is advanced repeatedly. That is countable
+from the `### Architecture` fields on any project, not just this fixture's.
+
+The trap is symmetrical on purpose — five components, five acceptance criteria — so
+milestone *count* discriminates nothing.
 
 ## What the fixtures deliberately do not test
 

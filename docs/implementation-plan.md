@@ -2205,3 +2205,115 @@ more, not less, and `03` must still fail anything that dissolves a boundary.
   with an entry-point criterion — with scope conserved.
 - `fixtures/03` and `04` still behave as their `EXPECTED.md` files say; `05` and
   `06` unaffected.
+
+# 45. Post-V1 Addition — A Planning Fixture, and Generation Gates
+
+## Problem
+
+Fixtures 01-06 test review and execution. **Nothing tests planning.**
+
+Every change to milestone generation in §43 and §44 was validated by re-cutting one
+real project's board by hand. That does not generalise to another project, does not
+survive a model change, and will not catch a drift back to layered milestones.
+Milestone quality — the input to everything else the harness does — is the one
+behaviour with no fixture.
+
+The absence shows in what §44 produced. Re-cut against real requirements, 13 of 16
+milestones were genuine end-to-end slices, and three were not:
+
+- **Driving through an entry point is not the same as asserting observable
+  behaviour.** One milestone drives `/think` — a real entry point — and asserts
+  that context assembly follows the order exact search → filename match → LSP →
+  Tree-sitter → imports → lexical ranking. A user cannot tell if that order
+  changed. It satisfies the letter of the demonstrability rule and misses its
+  point. Two others do the same with internal loop structure and DAG persistence.
+
+- **Thinness is nominal while a single criterion can carry a subsystem.** One
+  entry-point criterion requires creating an isolated worktree, reading the
+  repository, editing files, running tests, and returning a diff. Three-to-five
+  criteria per milestone looks thin until one of them is an entire coding agent.
+
+- **Ordering by integration risk is stated and not applied.** The resulting board
+  is ordered by dependency and feature area; the riskiest integration sits ninth
+  of sixteen.
+
+The pattern across §43, §44 and B16 is consistent: **prose advises, gates decide.**
+§44 worked only because it changed the coverage gate; its examples alone would have
+been overridden at the point of enforcement. B16's delegation instruction was pure
+advice and has failed twice, measured at 1:10 on a real project.
+
+## Solution
+
+Build the fixture first, then the gates, so the gates have something to be measured
+against rather than being hand-checked on one board.
+
+**1. `fixtures/07-layered-temptation`.** Requirements plus an agreed
+`architecture.md` whose components map cleanly onto tiers — the shape that invites
+one milestone per component. No `milestones.md`: generation is the thing under test.
+
+The discriminator is mechanical and does not depend on the domain. In a layered
+plan each milestone names about one component and components do not recur. In a
+sliced plan each milestone names several components and the same component is
+advanced by several milestones. That distinction is countable from the
+`### Architecture` fields.
+
+~~**2. Demonstrability becomes a gate, and tests the assertion rather than the
+driver.**~~ ~~**3. One assertion per criterion.**~~ **Both withdrawn — see the
+amendment below.** The fixture was built first precisely so the gates would have
+something to be measured against, and it showed the failure they targeted does not
+occur in fresh generation.
+
+## Scope
+
+One fixture, and gate wording in `agents/orchestrator.md`. No new infrastructure.
+
+Adding examples is explicitly rejected: §44 already demotes the layered example to
+`Bad` and still produced three weak slices.
+
+## Acceptance criteria
+
+- `fixtures/07-layered-temptation` exists: requirements, an agreed architecture
+  with tier-shaped components, no `milestones.md`, and an `EXPECTED.md` separating
+  mechanical checks from those needing the report read.
+- Its mechanical checks include component recurrence across milestones and a
+  criteria cap, and do not depend on the fixture's domain.
+- Baseline recorded: what the harness generates for it **before** the gates.
+- ~~The demonstrability gate tests the assertion, not the driver.~~ **Withdrawn.**
+- ~~The one-assertion rule is stated.~~ **Withdrawn.**
+- Fixture 07 meets its `EXPECTED.md` on the agents as they stand, and 03, 04, 05,
+  06 are unaffected.
+
+## Amendment — baseline passed, gates withdrawn (2026-08-21)
+
+`fixtures/07-layered-temptation` was run against the agents **before** any gate
+change. It passed 5 / 5 mechanical checks and every report-level expectation.
+
+```
+M1 — A posted URL can be followed through the API and survives restart   5   C1,C2,C3,C4,C5
+M2 — A custom alias can be claimed, and only once                        4   C1,C2,C3
+M3 — A link stops redirecting once it expires                            4   C1,C2,C3,C4
+M4 — Followed links are counted and reported by the stats endpoint       5   C1,C2,C3
+```
+
+M1 is a walking skeleton. Every milestone crosses at least two components, C1 and
+C2 recur in all four, all five components are covered, and every milestone carries
+an HTTP entry-point criterion. Criteria are single assertions about observable
+behaviour — `302` with a `Location` header, `400` and creates no link, `410` with
+no `Location`. None carries a subsystem. It also declined the fixture's central
+trap, folding restart-survival into the skeleton rather than turning five
+acceptance criteria into five milestones.
+
+The gates were proposed from three weak slices observed on a real project. Those
+came from **re-cutting existing component milestones**, which is a different and
+harder task than planning from scratch, and the weakness does not reproduce in
+generation. Adding a gate would mean paying a permanent per-turn cost — in the file
+§42 measured — for a failure with no reproduction. Both were withdrawn on that
+evidence, as §42's batching instruction was.
+
+What survives is the fixture, which is the part that generalises: it locks in
+current planning behaviour, its discriminators are domain-independent, and it will
+catch a regression under a future model or prompt change.
+
+The weak-slice observation is retained as an under-specified follow-up rather than
+a fix: it is reproducible only on re-cuts. If it recurs, a re-cut-specific fixture
+is the right response, not a gate on generation.

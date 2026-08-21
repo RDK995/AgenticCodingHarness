@@ -33,10 +33,19 @@ prompt plus a text packet, with no memory of the caller's context. Used for
 orchestrator → worker, orchestrator → reviewer, and implement → orchestrator per
 milestone.
 
-**2. Per-role tool restriction, enforced structurally.** The reviewer has no
-`Write` or `Edit`, so it can only ever report findings and never quietly fix what
-it is judging. That is a property of the runtime, not a promise in the prompt. A
-runtime that cannot enforce it downgrades a guarantee to a request.
+**2. Per-role tool restriction.** The reviewer declares no `Write` or `Edit`, so
+fixing what it is judging is not a step it can take without deliberately reaching
+for another route. A runtime that cannot restrict tools at all downgrades even
+that to a request.
+
+Be precise about what this buys. The reviewer does declare `Bash`, because it must
+re-run validation itself, and a role with `Bash` can write files. The restriction
+removes the *convenient* path and makes the *inconvenient* one visible in the
+transcript; it is not an enforced guarantee. This document previously claimed the
+restriction meant the reviewer "can only ever report findings" — that was
+overstated, and §46 records the correction. The guarantee that actually holds is
+the structural one: the reviewer is a fresh context that never sees implementation
+rationale.
 
 **3. Real file and shell access.** Read, write, edit, search, and run commands.
 The entire design rests on executable evidence: tests are run, not described.
@@ -49,15 +58,18 @@ the reviewer's evidence table and `PASS | CHANGES REQUIRED` verdict.
 
 **5. Per-invocation model override.** The caller can run a subagent at a tier
 other than the one its definition pins, for one invocation, without editing the
-definition. Used only by the worker retry ladder: three attempts at the Cheap
-tier, then two at the High tier before the orchestrator takes over.
+definition. Used by routing and by the retry ladder — Cheap x2, Mid x1, Top x1
+before a task is blocked (§47) — and to run the reviewer at the tier of the work
+it is judging.
 
-This is the one primitive with a clean degradation. A runtime without it should
-skip the escalated attempts and go straight from the Cheap tier to the
-orchestrator — the ladder loses two rungs and gets more expensive, but nothing
-becomes unsound. Do not emulate it by editing `model:` in `agents/worker.md`,
-which promotes *every* delegated task to the High tier permanently and quietly
-inverts the economics the routing rule exists to protect.
+A runtime without it must run every task and every review at one tier. The ladder
+then loses its rungs — more expensive, but not unsound. **The reviewer pairing is
+the part that does not degrade safely:** without an override, a milestone
+containing top-tier work is reviewed at the reviewer's pinned tier, which is the
+weak-reviewer failure this document warns about. On such a runtime, pin the
+reviewer to the top tier and accept the cost. Do not emulate it by editing `model:` in `agents/worker.md`,
+which promotes *every* delegated task permanently and quietly inverts the
+economics the routing rule exists to protect.
 
 ## Capability tiers
 
@@ -66,9 +78,9 @@ difference is not about size of output.
 
 | Role | Tier | Why |
 | --- | --- | --- |
-| `worker` | **Cheap** | Bounded, clearly-specified, low-risk tasks. Nothing it claims is trusted: the orchestrator re-verifies independently and a fresh reviewer checks the result. Failure degrades gracefully — the retry ladder already assumes workers fail. |
-| `orchestrator` | **Highest** | Holds the routing decision, the independent verification, and the escalation judgement. Unrestricted tools by design, because it keeps the risky work — and it is the only role that re-verifies a worker's claim before evidence is recorded. |
-| `reviewer` | **High** | The thing that verifies everything else. Nothing verifies it except a human. |
+| `worker` | **Cheap / Mid / Top** | The tier is chosen per task by risk (§47): `haiku` for bounded, clearly-specified, low-risk work; `sonnet` for ordinary implementation needing judgement; `opus` for architecture, security, cross-cutting or ambiguous work. Nothing it claims is trusted at any tier: the orchestrator re-verifies independently and a fresh reviewer checks the result. Failure degrades gracefully — the ladder assumes workers fail. |
+| `orchestrator` | **Highest** | Holds the routing decision, the independent verification, and the escalation judgement. It delegates every task and implements none (§46); risky work is routed to a worker at this same tier rather than retained. It is the only role that re-verifies a worker's claim before evidence is recorded. |
+| `reviewer` | **Derived — never below the work** | The thing that verifies everything else. Nothing verifies it except a human. Its tier is not fixed: it runs at no less than the highest tier that produced the work under review (§47), with `sonnet` as the floor and the final holistic review at the top tier. A reviewer weaker than the work it judges emits a confident `PASS` and the gate opens on nothing. |
 | `roast-requirements`, `architect` | **High** | Their entire value is asking the question nobody had considered — the capability weaker models lack most. |
 
 A weak reviewer does not fail loudly; it emits a confident, well-formatted,
@@ -101,7 +113,8 @@ in the B16 section of `.harness-dev/progress.md`.
 | To change | Edit | Note |
 | --- | --- | --- |
 | Which model runs the cheap tier | `model:` in `agents/worker.md` frontmatter | See the warning below |
-| Which model the worker escalates to | The tier named in `agents/orchestrator.md` §Task-level retry and escalation | A per-invocation override, not a second agent definition |
+| Which models the worker's three tiers use | The tier table in `agents/orchestrator.md` §Routing rule | Per-invocation overrides, not extra agent definitions |
+| Which tier reviews which work | `agents/orchestrator.md` §Review/fix loop | Derived from the work; never override the reviewer downwards |
 | Which model runs the highest tier | `model:` in `agents/orchestrator.md` frontmatter | Verification, routing, and escalation judgement live here |
 | Which model runs the high tier | `model:` in `agents/reviewer.md` frontmatter | Lowering it further trades away the last check before the gate; re-run fixtures 01 and 03 |
 | Which model runs the skills | The session model | `roast-requirements` and `architect` are high tier and are not subagents |

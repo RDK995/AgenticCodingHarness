@@ -109,25 +109,62 @@ itself. The file holds milestones only.
 Milestones represent **observable outcomes**, not implementation steps. Tests
 belong inside each milestone, not as a separate milestone.
 
-When `.harness/architecture.md` exists, milestones are sequenced to realise its
-components, and each milestone's `### Architecture` field lists the component ids
-it realises. Before finishing generation, check the coverage gate: **every
-component must be realised by at least one milestone.** A component no milestone
-builds is either a planning gap or a component that should not be in the
-architecture — resolve it rather than leaving it unbuilt. Milestones still
-describe outcomes, not components: `M1 — Accounts can be created`, not
+### Slice thin, end to end
+
+A milestone is a **thin vertical slice**: the narrowest behaviour that runs
+through the whole system, not one layer of it built out. The first slice is a
+walking skeleton — the thinnest path that works end to end — and later slices
+deepen it.
+
+Every milestone must carry at least one acceptance criterion **exercised through
+a real entry point**: a CLI invocation, an HTTP request, a public API call. If the
+only way to demonstrate a milestone is a unit test of an internal component, it is
+a component milestone and must be re-cut.
+
+Order slices by integration risk, not by convenience. The first one should prove
+the part most likely to be wrong, because that is the evidence worth having early.
+A layered plan defers every integration risk to the end, where it costs the most
+to act on.
+
+**Thin is not a shortcut through the architecture.** The pressure a slice creates
+is to bypass a boundary — to write persistence inline in the CLI because that is
+the fastest route to something working. Do not. A slice crosses every boundary the
+architecture defines; it crosses each one shallowly. A component may be a stub in
+an early slice, but the seam is real from the first slice onwards, and dissolving
+one silently is the defect this harness treats most seriously (see Architecture).
+
+When `.harness/architecture.md` exists, each milestone's `### Architecture` field
+lists the component ids that slice **advances**. A slice normally advances several
+components a little rather than completing any one, and a component is legitimately
+built across several slices — partial, or stubbed behind a real seam, in the early
+ones.
+
+Before finishing generation, check the coverage gate: **every component must be
+exercised by at least one milestone.** A component nothing exercises is either a
+planning gap or a component that should not be in the architecture — resolve it
+rather than leaving it unbuilt. The gate is about coverage, not about one
+milestone per component; mapping them one-to-one produces a layered plan.
+
+Milestones describe outcomes, not components: `M1 — Accounts can be created`, not
 `M1 — Build C1`.
 
 With no architecture file, write `N/A` in that field.
 
-Good:
+Good — each runs end to end and is demonstrable through the API:
+```
+M1 — An account can be created through the API and survives a restart
+M2 — Duplicate emails are rejected with a clear error
+M3 — Accounts can be listed and paged
+```
+
+Bad — layers. Nothing is demonstrable until the last one:
 ```
 M1 — User domain model supports account creation
 M2 — User creation API is exposed
 M3 — User creation is integrated with persistence
 ```
 
-Bad:
+Bad — implementation steps:
 ```
 M1 — Create files
 M2 — Add classes

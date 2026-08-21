@@ -67,7 +67,9 @@ LOOP:
 ## Final fresh review
 
 Once every milestone is DONE, invoke harness:reviewer in **final review mode**
-(see "Final review" in ${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md) with:
+(see "Final review" in ${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md), **overridden to
+the top tier** — it covers work from every tier, so it runs at the highest one —
+with:
 
 - the original requirements
 - the agreed architecture (.harness/architecture.md), if the project has one

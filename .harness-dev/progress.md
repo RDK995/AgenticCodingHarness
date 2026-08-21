@@ -2,13 +2,13 @@
 
 ## Current
 
-Milestone: none active. B22 is DONE.
-Open: B20 parts 1 and 3 (orchestrator tool restriction; delegation record) — see
-`.harness-dev/archive/B20.md`. That is the only outstanding mechanism.
+Milestone: none active. All 24 milestones are `DONE`.
+Open: B20 part 3 (recording tasks planned vs delegated) — partly covered by §47's
+per-task tier record. See `.harness-dev/archive/B24.md` §Follow-ups.
 
 ## Milestones
 
-`12 / 12 V1 build milestones DONE` · `22 / 22 milestones` · `B20 part 1+3 outstanding`
+`12 / 12 V1 build milestones DONE` · `24 / 24 including post-V1 additions DONE`
 
 1. B1 — Plugin scaffold loads — DONE
 2. B2 — Harness state templates exist — DONE
@@ -32,6 +32,8 @@ Open: B20 parts 1 and 3 (orchestrator tool restriction; delegation record) — s
 20. B20 — Enforced delegation and a milestone budget (post-V1) — PARTIAL (part 2 done)
 21. B21 — Milestones are thin end-to-end slices (post-V1) — DONE
 22. B22 — A planning fixture (post-V1) — DONE
+23. B23 — Route everything, tier by risk (post-V1) — DONE
+24. B24 — Three worker tiers, reviewer matched to the work (post-V1) — DONE
 
 ## Reading this file
 
@@ -40,7 +42,7 @@ milestone only. It does not grow as milestones complete.
 
 Completed milestone detail — tasks, acceptance criteria, evidence, validation,
 decisions, follow-ups, blockers — lives in `.harness-dev/archive/`, one file per
-milestone (`B1.md` … `B22.md`, plus `post-B11-retry-escalate.md`), verbatim as it
+milestone (`B1.md` … `B24.md`, plus `post-B11-retry-escalate.md`), verbatim as it
 was recorded.
 
 Read an archive file only when you need that milestone's evidence — to check what
@@ -48,6 +50,6 @@ was actually proven, or because the current milestone changes something an earli
 one verified. Never read the archive to answer "what is next"; the sections above
 answer that. Never load the whole archive.
 
-When the active milestone below reaches `DONE`, move its section to
-`.harness-dev/archive/B<n>.md` unchanged and replace it here with the next
-milestone.
+When a milestone reaches `DONE`, its section moves to
+`.harness-dev/archive/B<n>.md` unchanged. No milestone is active, so this file
+holds the pointer and the index only.

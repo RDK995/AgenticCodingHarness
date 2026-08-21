@@ -2043,21 +2043,12 @@ the prompt, and it was declined nine times in ten.
 
 ## Solution
 
-**1. Make delegation structural, not advisory.** The orchestrator declares no
-`tools:` line and is unrestricted. Give it a restricted set without `Write` and
-`Edit`, so implementation cannot happen in its context.
-
-This requires somewhere for escalated work to go, because today the ladder ends
-with "do the task yourself". Replace that final rung with a **worker invoked at
-the top tier**: the orchestrator's own model, a fresh context, the same task
-packet contract. Work then always runs in a subagent, at a tier matching its
-difficulty, and never in the coordinating context.
-
-The trade is real and must be stated: an escalated worker does not carry the
-orchestrator's accumulated understanding of the milestone, only its packet. That
-is already true of every other delegation, and the packet contract exists to carry
-what is needed — but the orchestrator currently escalates to itself *because* it
-holds that context, and this gives that up deliberately in exchange for the 87%.
+~~**1. Make delegation structural, not advisory** by removing `Write` and `Edit`
+from the orchestrator.~~ **Withdrawn — re-specified as §46.** The orchestrator must
+write `.harness/milestones.md`, which is the evidence the completion gate reads;
+and it must keep `Bash` to re-run validation independently, which means it can
+write any file regardless. A tool restriction here is a nudge, not a mechanism.
+See §46 for the replacement.
 
 **2. Give a milestone a stated budget, counted in acceptance criteria.**
 `CLAUDE.md` has required 3-7 bounded tasks per milestone since B16; no agent file
@@ -2097,10 +2088,10 @@ than a request.
 
 ## Acceptance criteria
 
-- `agents/orchestrator.md` declares a `tools:` set without `Write` or `Edit`.
-- The retry ladder's final rung is a top-tier worker invocation, not the
-  orchestrator implementing inline; `docs/runtime-contract.md` records the change
-  and its trade.
+- ~~`agents/orchestrator.md` declares a `tools:` set without `Write` or `Edit`.~~
+  **Withdrawn — see §46.**
+- ~~The retry ladder's final rung is a top-tier worker invocation.~~ **Subsumed
+  by §46**, which routes every task rather than only the escalated one.
 - A stated budget of acceptance criteria per milestone, with a split rule, in a
   file the orchestrator reads; and the existing "prefer a small number of
   meaningful milestones" wording reconciled with it, since it currently biases
@@ -2317,3 +2308,166 @@ catch a regression under a future model or prompt change.
 The weak-slice observation is retained as an under-specified follow-up rather than
 a fix: it is reproducible only on re-cuts. If it recurs, a re-cut-specific fixture
 is the right response, not a gate on generation.
+
+# 46. Post-V1 Addition — Route Everything, Choose the Tier by Risk
+
+## Problem
+
+§43 measured, on a real project, that 87% of orchestrator spend is accumulated
+growth rather than the per-turn constant, and that the orchestrator made 218
+`Edit`/`Write` calls itself against 21 delegations. It concluded that delegation
+had to be made structural by removing the orchestrator's edit tools.
+
+That conclusion was wrong on three counts, and the third matters most.
+
+**The orchestrator has to write.** Recording status, criteria, evidence,
+validation and review outcome into `.harness/milestones.md` is its job, and that
+record is what the completion gate reads. An orchestrator that cannot write cannot
+close a milestone.
+
+**A tool restriction is not enforcement while `Bash` is present.** The orchestrator
+needs `Bash` to re-run validation independently — the core invariant is that no
+claim is trusted without verification it performs itself. With `Bash` it can write
+any file. Removing `Write` and `Edit` is a speed bump.
+
+This also corrects `docs/runtime-contract.md`, which claims the reviewer "has no
+`Write` or `Edit`, so it can only ever report findings and never quietly fix what
+it is judging. That is a property of the runtime, not a promise in the prompt."
+The reviewer declares `tools: Read, Grep, Glob, Bash`. A reviewer with `Bash` can
+edit. The guarantee is weaker than stated, and §43 leaned on that overstatement.
+
+**The 1:10 ratio may be the routing rule being obeyed, not ignored.** The rule
+tells the orchestrator to keep "architecture, authentication, authorisation,
+security-sensitive changes, unclear bugs, migrations, public API design,
+cross-cutting behaviour, tightly coupled components". The measured project is a
+coding harness containing a policy engine, a sandbox seam and worktree isolation —
+a large share of its work lands squarely in those categories. Reading 1:10 as
+non-compliance was an assumption, not a finding.
+
+## Solution
+
+The defect is not that the orchestrator **retains** work. It is that retained work
+runs **in the coordinating context**, which is the context that compounds.
+
+So stop deciding *who* does the work, and decide *at what tier it runs*:
+
+1. **Every task is delegated.** The orchestrator plans, routes, verifies and
+   records. It does not implement.
+
+2. **Risk chooses the tier, not the venue.** Bounded, clearly-specified, low-risk
+   work goes to the Cheap tier. Architecture, security-sensitive changes,
+   cross-cutting behaviour, ambiguous bugs and public interfaces go to a worker at
+   the **top tier** — the orchestrator's own model, a fresh context, the same task
+   packet contract. The guarantee the routing rule protects is preserved: risky
+   work still gets maximum capability. Only the venue changes.
+
+3. **The retry ladder collapses into the same rule.** Cheap-tier failures escalate
+   by tier as today; the final rung becomes a top-tier worker rather than the
+   orchestrator implementing inline. When that also fails, the task is blocked and
+   goes to a human — the orchestrator has no implementation of its own to fall
+   back on.
+
+4. **No tool restriction.** It would not enforce anything, and it would break
+   evidence recording. Delegation is a rule about how the orchestrator works, and
+   the honest description of it is a rule, not a guarantee.
+
+## The trade, stated plainly
+
+A top-tier worker receives a task packet, not the orchestrator's accumulated
+understanding of the milestone. The orchestrator currently retains cross-cutting
+work *because* it holds that context, and this gives that up.
+
+That is the whole bet: that a packet plus a fresh read of the repository is enough
+for work the routing rule calls risky, and that the 87% is worth it. It is a bet,
+not a derivation, and if it is wrong the symptom will be more review cycles on
+retained-class work rather than a visible failure.
+
+## Scope
+
+Instructions in `agents/orchestrator.md`, the retry ladder, and a correction to
+`docs/runtime-contract.md`'s overstated tool-restriction claim. No frontmatter
+change, no new agent file, no infrastructure.
+
+## Acceptance criteria
+
+- The routing rule chooses a tier for every task; no task is retained for the
+  orchestrator to implement.
+- The top tier is reachable for the categories the rule previously told the
+  orchestrator to keep.
+- The retry ladder's final rung is a top-tier worker, and exhaustion escalates to
+  a human rather than to the orchestrator implementing.
+- `docs/runtime-contract.md` no longer claims tool restriction prevents a
+  `Bash`-capable role from writing, and says what it actually provides.
+- Fixtures 05, 06 and 07 still meet their `EXPECTED.md` outcomes. `06` is the one
+  at risk: its expectation is that the orchestrator implements the task itself and
+  explains why it did not delegate.
+- The delegation ratio and orchestrator growth share are re-measured on a real
+  milestone, before and after.
+# 47. Post-V1 Addition — Three Worker Tiers, and a Reviewer That Matches the Work
+
+## Problem
+
+Two defects in the tier scheme, both introduced by earlier sections of this plan.
+
+**There is no middle tier for work.** §46 routes every task, but only to Cheap or
+Top: `haiku` or `opus`. The reviewer runs at `sonnet` and no worker ever does. A
+task too risky for `haiku` and not architectural jumps straight to the most
+expensive model in the system, which is the majority of ordinary implementation
+work.
+
+**The reviewer can be weaker than the work it reviews.** B16 pinned the reviewer
+at one fixed tier; B17 set that tier to `sonnet`. §46 then routed risky work to a
+worker at `opus`. The result is a `sonnet` reviewer passing judgement on `opus`
+work — exactly the failure `docs/runtime-contract.md` names as the worst available
+to this system: a weak reviewer does not fail loudly, it emits a confident
+per-criterion `PASS` and the completion gate opens on nothing.
+
+A fixed reviewer tier cannot be correct, because the tier of the work is decided
+per task at routing time and is not known when the reviewer's frontmatter is
+written.
+
+## Solution
+
+**1. Three worker tiers.**
+
+| Tier | Model | For |
+| --- | --- | --- |
+| Cheap | `haiku` | Bounded, clearly-specified, low-risk, easily verified |
+| Mid | `sonnet` | Ordinary implementation that is none of those, but not architectural |
+| Top | `opus` | Architecture, security, cross-cutting behaviour, public interfaces, ambiguous bugs, no clear test oracle |
+
+**2. The ladder is `Cheap ×2 → Mid ×1 → Top ×1`, then blocked.** Four attempts
+rather than five, and each rung is a genuine capability increase instead of a
+repeat. A task routed to Mid starts at that rung; a task routed to Top gets its
+one attempt there. Exhaustion escalates to a human.
+
+**3. The reviewer runs at no less than the highest tier that produced the work.**
+`sonnet` reviews `sonnet` and `haiku`; `opus` work is reviewed by `opus`. The
+orchestrator records the highest tier used in the milestone and invokes the
+reviewer at that tier, using the per-invocation override that
+`docs/runtime-contract.md` already requires as primitive 5. The final holistic
+review runs at the top tier, because it covers work from every tier.
+
+`agents/reviewer.md` keeps `model: sonnet` as the floor — the tier used when a
+milestone is entirely Cheap or Mid work.
+
+## Scope
+
+The routing rule, the ladder, and the review invocation in
+`agents/orchestrator.md`; the final review in `skills/implement/SKILL.md`; the
+tier table in `docs/runtime-contract.md`. No frontmatter change, no new agent
+file.
+
+## Acceptance criteria
+
+- Routing selects one of three tiers, with the criteria for each stated.
+- The ladder is Cheap ×2 → Mid ×1 → Top ×1 → blocked, and a task routed above
+  Cheap enters at its own rung.
+- The reviewer is invoked at no less than the highest tier used in the milestone,
+  and the final review at the top tier.
+- The milestone records the tier each task ran at, so the review tier is
+  auditable after the fact rather than asserted.
+- `docs/runtime-contract.md` describes the reviewer tier as derived from the work
+  rather than fixed.
+- Fixtures 05, 06 and 07 still meet their `EXPECTED.md` outcomes, and 06's ladder
+  wording is updated to the new counts.

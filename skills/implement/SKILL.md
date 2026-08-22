@@ -4,8 +4,9 @@ description: Primary workflow entry point — reads agreed requirements, plans m
 ---
 
 Drive `.harness/requirements.md` to a fully implemented, reviewed, evidence-backed
-result — one milestone at a time — using the `harness:orchestrator` subagent to run
-each milestone and the `harness:reviewer` subagent for the final holistic review.
+result — one milestone at a time, and one phase of a milestone per invocation —
+using the `harness:orchestrator` subagent to run each phase and the
+`harness:reviewer` subagent for the final holistic review.
 
 > Work not required to satisfy the current requirements or acceptance criteria
 > must not be implemented unless necessary for correctness. If you notice
@@ -50,19 +51,51 @@ LOOP:
         STOP — report the milestone's escalation contract to the human, do not
         skip ahead to a later milestone
 
-    invoke harness:orchestrator to run that milestone to completion
-    (recon, task breakdown, routing, Red→Green→Refactor, focused validation,
-    fresh review, acceptance verification, evidence recording — see
-    ${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md for what it does)
+    IF its Status is TODO or IN_PROGRESS:
+        invoke harness:orchestrator for the IMPLEMENTATION phase
+        (recon, size/shape check, task breakdown, routing by tier,
+        Red→Green→Refactor, focused validation, evidence recording — see
+        ${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md for what it does)
 
-    the orchestrator returns the milestone as DONE or BLOCKED
-    (BLOCKED means it hit the 2-cycle review/fix cap with unresolved
-    BLOCKER/IMPORTANT findings)
+        it returns the milestone at REVIEW, or SPLIT, or BLOCKED
+
+        IF SPLIT: continue the LOOP — it found the milestone oversized, split
+        it in milestones.md, and implemented nothing. The loop now picks up
+        the first part.
+
+    WHILE its Status is REVIEW:
+        invoke a FRESH harness:orchestrator for ONE review/fix cycle
+        (fresh reviewer at the derived tier, findings routed as correction
+        tasks, validation, Review Cycles incremented)
+
+        it returns the milestone at DONE, REVIEW, or BLOCKED
+
+        IF it returns REVIEW without Review Cycles having increased,
+        or with Review Cycles already at 2:
+            STOP — the cap is not being honoured and the loop would not
+            terminate. Report it to the human as a harness defect.
 
     IF BLOCKED: STOP — report the escalation contract to the human
+    (BLOCKED means it hit the 2-cycle review/fix cap with unresolved
+    BLOCKER/IMPORTANT findings, or needs a human planning decision)
 
     otherwise: continue the LOOP
 ```
+
+## One invocation per phase, not per milestone
+
+Each `harness:orchestrator` invocation above is a **separate context**, and that
+is the point rather than an implementation detail. Measured on a real four-criterion
+milestone run as a single invocation, the review/fix phase was **62% of the
+orchestrator's total cost** — 221 turns against 306 for everything before it —
+because each review turn re-paid for the whole implementation phase sitting
+underneath it in the same context.
+
+`.harness/milestones.md` is the handoff. It is already required to be enough for a
+new session to resume, so this costs nothing to maintain; it only requires that the
+loop above actually re-invoke rather than let one context run on. Do not collapse
+these back into one invocation to save a round trip — the round trip is cheap and
+the context it discards is not.
 
 ## Final fresh review
 

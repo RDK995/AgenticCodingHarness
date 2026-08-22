@@ -16,6 +16,8 @@ Status: TODO
 ### Acceptance Criteria
 - [ ]
 
+### Baseline
+
 ### Evidence
 
 ### Validation
@@ -89,8 +91,14 @@ carry every template heading — the remaining headings are in its archive file.
   be enough for a new session to understand project status.
 - A milestone may only become `DONE` once its `Evidence` and `Validation`
   sections contain real implementation/test evidence, not a claim.
+- `### Baseline` records the commit the milestone started from, and the branch
+  (e.g. `8b81cf1 on m0-implementation`). The orchestrator writes it as its first
+  act on the implementation phase. A later phase runs in a fresh context and
+  computes the milestone's diff from it, so a milestone past `TODO` without a
+  baseline cannot be reviewed.
 - `### Review Cycles` counts completed review/fix cycles for that milestone and
-  is used to enforce the two-cycle cap.
+  is used to enforce the two-cycle cap. It is the only record of the count that
+  survives between invocations, since each phase runs in its own context.
 - `### Follow-ups` records out-of-scope ideas surfaced while working the
   milestone. It is a record, not a task list — items there must not be
   implemented as part of this milestone.

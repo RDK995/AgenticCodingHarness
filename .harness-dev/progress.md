@@ -3,8 +3,8 @@
 ## Current
 
 Milestone: B25 — The coordinating context is the cost (post-V1)
-Task: 2 — separate the review/fix cycle into its own orchestrator invocation
-Status: IN_PROGRESS (specification written; no implementation yet)
+Task: 3 — move per-task verification out of the orchestrator's context
+Status: IN_PROGRESS (tasks 1, 2, 4, 5, 6 done; 3 and 7 remain)
 
 Open: B20 part 3 (recording tasks planned vs delegated) — superseded in practice.
 The M1 measurement below reads the delegation ratio straight from the transcript,
@@ -112,34 +112,61 @@ The Cheap rung has not run a task on a real milestone.
 
 - [x] 1 — Specify as §48, marked post-V1; commit the measurement script
       (`.harness-dev/measure-context.py`, reproduces every figure above)
-- [ ] 2 — Separate the review/fix cycle into its own orchestrator invocation
-      (`skills/implement/SKILL.md`; `agents/orchestrator.md` already describes
-      this invocation shape and the skill never uses it)
+- [x] 2 — Separate the review/fix cycle into its own orchestrator invocation.
+      `SKILL.md` now drives phases (implementation → review/fix per cycle) with a
+      fresh orchestrator each; `orchestrator.md` gained §"Which invocation this
+      is" keyed on `Status`, and §"Review/fix loop" became §"One review/fix
+      cycle" returning after one. Handoff is `milestones.md` plus a new
+      `### Baseline` field so a fresh context can compute the milestone diff.
 - [ ] 3 — Move per-task verification out of the orchestrator's context; decide
       whether it reuses the reviewer or needs its own definition
-- [ ] 4 — Forbid reading subagent `.output` files and the background-and-poll
-      pattern
-- [ ] 5 — Correct `agents/orchestrator.md`'s frontmatter description ("or handles
+- [x] 4 — Forbid reading subagent `.output` files and the background-and-poll
+      pattern (`orchestrator.md` §Context boundaries, with the measured counts)
+- [x] 5 — Correct `agents/orchestrator.md`'s frontmatter description ("or handles
       risky work itself" — withdrawn by §46, contradicted by its own routing rule)
-- [ ] 6 — Re-run fixtures 01-07 and re-measure a real milestone against the M1
+- [x] 6 — Check a milestone's size and shape at pickup, not only at generation
+      (`orchestrator.md` §"When you pick up a milestone"); split oversized ones by
+      suffix with criteria conserved, escalate wrong-shaped ones
+- [ ] 7 — Re-run fixtures 01-07 and re-measure a real milestone against the M1
       baseline with `.harness-dev/measure-context.py`
 
 ### Acceptance criteria
 
-- [ ] Review/fix cycles run in a fresh orchestrator context; `milestones.md`
-      carries enough state to resume without the original conversation
+- [x] Review/fix cycles run in a fresh orchestrator context; `milestones.md`
+      carries enough state to resume without the original conversation.
+      Evidence: `SKILL.md` §Algorithm `WHILE its Status is REVIEW` invokes a
+      fresh orchestrator per cycle with a non-termination guard;
+      `orchestrator.md` §"One review/fix cycle" reconstructs from the milestone
+      entry, the `Baseline` diff and the requirements, and returns after one;
+      `### Baseline` and `### Review Cycles` carry the state between them
+      (`milestones-template.md` §Rules). **Not yet run** — see Validation
 - [ ] Per-task verification happens outside the orchestrator's context, with the
       recorded evidence unchanged in substance
-- [ ] No instruction directs the orchestrator to read a subagent `.output` file;
-      the polling pattern is named and forbidden
-- [ ] `agents/orchestrator.md`'s description matches its routing rule
+- [x] No instruction directs the orchestrator to read a subagent `.output` file;
+      the polling pattern is named and forbidden. Evidence: `orchestrator.md`
+      §Context boundaries, both stated with the M1 counts (52 of 58; 23 polls)
+- [x] `agents/orchestrator.md`'s description matches its routing rule. Evidence:
+      frontmatter now reads "routes every one of them to a worker by tier …
+      Implements nothing itself"
+- [ ] A milestone is size- and shape-checked at pickup; oversized ones split
+      before any task runs with criteria conserved and later numbers left valid;
+      wrong-shaped ones escalate. Implementation present
+      (`orchestrator.md` §"When you pick up a milestone"); **unproven** — no
+      fixture exercises an oversized existing milestone yet
 - [ ] Fixtures 01-07 meet their `EXPECTED.md` outcomes
 - [ ] Re-measured on a real milestone: orchestrator share < 25% (from 48.4%),
       peak context < 200,000 (from 370,706), tool-free turns < 45% (from 62%)
 
 ### Validation
 
-Not yet run. The binding one is the re-measurement, not the fixtures.
+**Not yet run.** Nothing here is proven; the text changes are implementation, not
+evidence. Two things must run before any of it counts:
+
+- Fixtures 01-07. `02` and `06` drive the orchestrator directly and their
+  single-shot `-p "Run milestone M1 to completion"` cannot reach a review cycle
+  now that phases are separate; both were changed to a per-phase loop, which is
+  the change most likely to have broken something.
+- The re-measurement, which is the binding one.
 
 ### Decisions
 
@@ -153,6 +180,23 @@ Not yet run. The binding one is the re-measurement, not the fixtures.
 - **No measurement of expected effect will be accepted.** §42, §43 and §46 each
   fixed something real and left growth at 87%. §48 states numeric targets against
   a recorded baseline so the next attempt can be falsified rather than argued.
+
+- **A split at pickup returns without implementing.** The orchestrator could
+  split and carry straight on into the first part, saving a round trip. It must
+  not: the context that just did the planning is the one §48 exists to discard,
+  and the round trip costs about 1M tokens against the 106M the phase separation
+  is trying to recover (the M0 planning invocation cost 965,134).
+
+- **Splitting suffixes rather than renumbers.** `M6` → `M6a`, `M6b`. Renumbering
+  invalidates every reference to later milestones — archive files, commit
+  messages, `architecture.md`, and whatever the human remembers. B20's re-plan
+  used suffixes on a real 13-criterion milestone and it held.
+
+- **Wrong shape escalates; oversize does not.** A split deals criteria into piles
+  and can be checked mechanically (counts match, wording unchanged). A re-cut
+  reorganises criteria into slices and rewords them, which is a planning decision
+  with no obviously correct answer. Automating the first and escalating the
+  second is the line between an operation and a judgement.
 
 - **B20 part 3 is dropped rather than carried.** Its purpose was to reveal the
   delegation ratio; the transcript gives it directly and cannot be self-reported

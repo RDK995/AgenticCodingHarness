@@ -18,6 +18,10 @@ N/A
 - [x] divide(6, 2) returns 3.0
 - [x] divide(1, 0) raises an error
 
+### Baseline
+
+`a1b2c3d` on `main`
+
 ### Evidence
 
 - `calculator.py` (new) — `divide(a, b)` returns `a / b` as a float; raises

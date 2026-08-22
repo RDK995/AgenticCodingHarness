@@ -2614,6 +2614,32 @@ by §46 and contradicted by the routing rule twenty lines below it. §47 recorde
 "no 'do it yourself' instruction survives anywhere"; the orchestrator's own
 frontmatter is a counterexample.
 
+**6. Check the milestone's size and shape when it is picked up, not only when it
+is planned.** §43's criteria budget and §44's slice rule are both subsections of
+"Generating milestones", which fires only when `.harness/milestones.md` does not
+exist. `SKILL.md` then picks the first milestone that is not `DONE` and runs it,
+whatever shape it is in. A plan written before those rules — or by a generation
+run that got them wrong — is never re-examined, and the same defect runs on every
+project that has one. `OpenWeightHarness` M5 is the worked example: 7 criteria,
+one component (C9), no criterion exercised through an entry point, run exactly as
+planned long after both rules existed.
+
+The gate belongs where the milestone is picked up, and reuses the thresholds
+already stated rather than restating them: 1-5 run it, 6-7 run it and note the
+size, 8 or more split it before running anything. A milestone with no criterion
+demonstrable through a real entry point fails on shape.
+
+Two different failures, needing two different responses. **Oversize is a
+mechanical split** the orchestrator performs itself — suffix rather than
+renumber (`M6` → `M6a`, `M6b`), conserve every criterion exactly, split on the
+outcome, and then *return without implementing*, so the parts are run by fresh
+contexts rather than by the one that just did the planning. B20 validated exactly
+this operation on a real 13-criterion milestone: 13 criteria in, 13 out, none
+lost, none added, cut along real boundaries. **Wrong shape is a re-cut**, which
+reorganises criteria into slices and may reword them — a planning decision with no
+obviously correct answer, so it escalates to a human rather than happening
+silently.
+
 ## Scope
 
 `skills/implement/SKILL.md`, `agents/orchestrator.md`, and one measurement script
@@ -2635,7 +2661,13 @@ expected effect has now failed three times and is not acceptable as evidence her
 - No instruction anywhere directs the orchestrator to read a subagent's `.output`
   file; the polling pattern is named and forbidden.
 - `agents/orchestrator.md`'s description matches its routing rule.
-- Fixtures 01-07 still meet their `EXPECTED.md` outcomes.
+- A milestone is checked for size and shape when it is picked up, not only when
+  it is generated; an oversized one is split before any task runs, with criteria
+  conserved exactly and later milestone numbers left valid; a wrong-shaped one
+  escalates rather than being silently re-cut.
+- Fixtures 01-07 still meet their `EXPECTED.md` outcomes — in particular `02` and
+  `06`, which drive the orchestrator directly and whose single-shot invocation
+  cannot reach a review cycle once phases are separate.
 - **Re-measured on a real milestone by the same method**, reporting orchestrator
   share, peak and median context, growth share, tool-free turn share, and
   `.output` reads, against the M1 baseline above. Targets: orchestrator share

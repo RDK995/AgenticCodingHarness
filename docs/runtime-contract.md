@@ -141,7 +141,7 @@ in the B16 section of `.harness-dev/progress.md`.
 | --- | --- | --- |
 | Which model runs the cheap tier | `model:` in `agents/worker.md` frontmatter | See the warning below |
 | Which models the worker's three tiers use | The tier table in `agents/orchestrator.md` §Routing rule | Per-invocation overrides, not extra agent definitions |
-| Which tier reviews which work | `agents/orchestrator.md` §Review/fix loop | Derived from the work; never override the reviewer downwards |
+| Which tier reviews which work | `agents/orchestrator.md` §One review/fix cycle | Derived from the work; never override the reviewer downwards |
 | Which model runs the highest tier | `model:` in `agents/orchestrator.md` frontmatter | Verification, routing, and escalation judgement live here |
 | Which model runs the high tier | `model:` in `agents/reviewer.md` frontmatter | Lowering it further trades away the last check before the gate; re-run fixtures 01 and 03 |
 | Which model runs the skills | The session model | `roast-requirements` and `architect` are high tier and are not subagents |

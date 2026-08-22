@@ -604,6 +604,10 @@ Unresolved Issues:
 
 # 13. Phase 9 — Routing Rule
 
+> **Superseded by §49.** The four questions below survive; the burden of proof
+> inverts. Requiring all four to be "yes" before using the Cheap tier was measured
+> routing 0 of 12 real tasks there.
+
 Avoid numeric complexity scoring.
 
 Use four questions:
@@ -2728,3 +2732,83 @@ share is therefore an upper bound on that particular figure. The orchestrator's
 turns are not sensitive to the third cycle. Comparisons with §43 are across
 different projects and tasks; the method is identical, the conclusion does not rest
 on a small difference, and no §43 run approached this one's cost.
+
+
+# 49. Post-V1 Addition — Cheap by Default
+
+## Problem
+
+**The Cheap tier has never run a task on a real milestone.** M1 of
+`openCodeOpenWeightHarness` routed 12 workers: 4 to `opus`, 8 to `sonnet`, **0 to
+`haiku`**. §47 built three tiers and the cheapest one is unused, so the ladder's
+first two rungs are decoration and every real task starts at `sonnet` or above.
+
+Three causes, all visible in `agents/orchestrator.md` §Routing rule as it stood.
+
+**It was an AND of four judgements.** Cheap required *all four* of clearly
+specified, bounded, low risk and easily verified to be "effectively yes". Any one
+falling short dropped the task to Mid. On real work something is nearly always
+slightly unclear, so the compound probability of clearing four gates is low by
+construction — the rule did not have to be disobeyed to produce this result.
+
+**The text said to default upward.** The description of Mid ended: "This is where
+most implementation belongs." That sentence is an instruction, and it was obeyed.
+
+**Nothing pushed back.** Routing up is never penalised. The orchestrator runs at
+the top tier, decides on behalf of a worker it never observes, has no record of
+the Cheap tier's success rate, and sees no cost signal. A failed cheap attempt
+looks like a mistake it caused; routing up looks like prudence. There is no
+counter-pressure anywhere in the file, and an upward drift is invisible.
+
+## Solution
+
+**1. Invert the burden of proof.** Cheap is the default. The four questions
+remain, asked the other way round: name which one fails and why, or route Cheap.
+"It seemed safer" is not a reason. The named reason goes in the packet, so the
+judgement is auditable rather than felt.
+
+**2. Name the work that is Cheap regardless of the milestone.** A risky milestone
+does not make its mechanical tasks risky. Tests written from an assertion the
+packet already states, decision records, renames, exports, fixtures, stubs behind
+a settled interface, repetitive changes, small isolated functions with a stated
+input and output — Cheap unless there is a reason *this instance* is not. The
+§47 examples already gestured at this and read as illustration; they become a
+rule. Top stays Top, unchanged.
+
+**3. Price a failed Cheap attempt.** The ladder already budgets two of them; the
+orchestrator does not behave as though spending one is acceptable. Put the
+measured numbers in the file — Cheap ~285k tokens against Mid's 1.0-11.4M and
+Top's 6.9-10.8M, from this project's own runs — and state the asymmetry plainly:
+a wrong guess downward costs one cheap attempt, a wrong guess upward costs the
+whole difference on every task routed that way, and fails silently. Routing up is
+the expensive choice, not the cautious one.
+
+**4. Record the outcome, not just the tier.** §47 records which tier ran each
+task. It does not record whether that rung *succeeded*. The tier shows what was
+chosen; the outcome shows whether the choice was right, and it is the only record
+from which upward drift is visible. Without it there is nothing to tune on and the
+default reverts to whatever feels safe.
+
+## Scope
+
+`agents/orchestrator.md` §Routing rule and its evidence-recording instruction; one
+rule in `milestones-template.md`; the `worker` row in `docs/runtime-contract.md`.
+No new agent, no frontmatter change, no mechanism — the pins and the ladder are
+exactly as §47 left them.
+
+## Acceptance criteria
+
+- Cheap is stated as the default, and going above it requires a named reason
+  recorded in the packet.
+- A category list makes mechanical work Cheap independent of the surrounding
+  milestone's risk.
+- The relative cost of the tiers, and the asymmetry between guessing down and
+  guessing up, are stated where the routing decision is made.
+- Each task's record carries the rung it entered at, the reason if not Cheap, and
+  the outcome at each rung attempted.
+- Fixtures 01-09 still meet their `EXPECTED.md` outcomes.
+- **Re-measured on a real milestone: the Cheap tier runs a non-zero share of
+  tasks, reported as a count against the total.** §48's lesson applies here
+  exactly — three sections in a row have argued a cost improvement into existence
+  and left the measured number unmoved. A run that routes 0 of N to Cheap again
+  has not satisfied this section, whatever else it improves.

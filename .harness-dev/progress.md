@@ -19,7 +19,7 @@ which is stronger than a self-reported count.
 
 ## Milestones
 
-`12 / 12 V1 build milestones DONE` · `24 / 25 including post-V1 additions DONE`
+`12 / 12 V1 build milestones DONE` · `24 / 26 including post-V1 additions DONE`
 
 1. B1 — Plugin scaffold loads — DONE
 2. B2 — Harness state templates exist — DONE
@@ -46,6 +46,7 @@ which is stronger than a self-reported count.
 23. B23 — Route everything, tier by risk (post-V1) — DONE
 24. B24 — Three worker tiers, reviewer matched to the work (post-V1) — DONE
 25. B25 — The coordinating context is the cost (post-V1) — IN_PROGRESS
+26. B26 — Cheap by default (post-V1) — DRAFTED, unvalidated
 
 ## Reading this file
 
@@ -587,6 +588,139 @@ Both fixed on this branch; `05` has not been re-run since.
   chosen to be easy, which is exactly the thing in question. This cannot be closed
   without task 7's real milestone, and it should be read off that run's tier
   table rather than argued.
+
+### Blockers
+
+None.
+
+## B26 — Cheap by default (post-V1)
+
+Status: DRAFTED — implementation written, **nothing validated**
+
+Specified in `docs/implementation-plan.md` §49, which supersedes §13's routing
+rule. Written at the human's request off B25's finding that the Cheap tier has
+never run a real task.
+
+### The finding
+
+M1 of `openCodeOpenWeightHarness` routed 12 workers: **4 `opus`, 8 `sonnet`, 0
+`haiku`**. Three causes, all in the routing rule's own text:
+
+- **An AND of four judgements.** Cheap needed all four of clearly specified,
+  bounded, low risk, easily verified. Any one falling short dropped to Mid, and on
+  real work something is nearly always slightly unclear. The rule did not have to
+  be disobeyed to produce this result.
+- **The text said to default upward** — "Mid… this is where most implementation
+  belongs" was an instruction, and it was obeyed.
+- **Nothing pushed back.** Routing up is never penalised, the orchestrator never
+  observes the worker, and upward drift is invisible.
+
+### Changes drafted
+
+- **B — inverted burden of proof.** Cheap is the default; the four questions are
+  asked as "which fails, and why", and the named reason goes in the packet. "It
+  seemed safer" is explicitly not a reason. The "most implementation belongs" line
+  is gone.
+- **D — a category list that is Cheap regardless of the milestone.** Tests from a
+  stated assertion, decision records, renames, exports, fixtures, stubs behind a
+  settled interface, repetitive changes, small isolated functions. Top is
+  unchanged.
+- **C — the price of being wrong.** The measured tier costs (Cheap ~285k, Mid
+  1.0-11.4M, Top 6.9-10.8M) sit next to the routing decision, with the asymmetry
+  stated: a wrong guess downward costs one cheap attempt, a wrong guess upward
+  costs the whole difference on every task routed that way and fails silently.
+- **E — record the outcome, not just the tier.** Each task's record carries the
+  rung it entered at, the reason if not Cheap, and what happened at each rung, so
+  upward drift is visible. Also added as a rule in `milestones-template.md`.
+
+Files: `agents/orchestrator.md` §Routing rule and its evidence instruction,
+`skills/implement/references/milestones-template.md`,
+`docs/runtime-contract.md` (the `worker` row).
+
+### Validation
+
+**Fixtures: 10 / 10 invocations, all meeting `EXPECTED.md`.** Run from
+copies with `EXPECTED.md` removed, `08` and `09` on their two-commit setups, all
+against `--plugin-dir` this repository.
+
+| Fixture | Result | Evidence |
+| --- | --- | --- |
+| `01` | PASS | `CHANGES REQUIRED`, `BLOCKER` on `float("inf")`, criterion 2 `FAIL` with "Test Evidence: none found", five contract fields per finding |
+| `02` | unchanged (known-stale) | `BLOCKED`, `Review Cycles: 0`, no subagent — and now **demonstrates** the blocker: "Contradiction demonstrated by execution rather than asserted", exhaustive scan over `range(-1000, 1001)` |
+| `03` | PASS | `IMPORTANT`, both criteria `PASS`, names C1 not calling `store.add`/`read_all` and states the `## Deviations` section is empty so the divergence is undeclared |
+| `04` | PASS | `PASS`, D1 recognised: "a recorded deviation with a reason is a decision, not a finding" |
+| `05` | PASS | `DONE`, 4/4 criteria checked, template headings in order, `Architecture: N/A`, suite re-runs independently (`Ran 4 tests`, `OK`), `divide(1, 0)` raises; review `PASS` at cycle 1 with tier `sonnet` and the derivation stated |
+| `06` | unchanged (known-stale) | `BLOCKED`, 0 cycles, no subagent — exhaustive search computed against `test_split.py`'s own `is_prime` |
+| `07` | PASS | 5/4/4/3 criteria; components 4/4/3/3, none exactly one; C1 and C2 in all four; every milestone has an HTTP-path criterion; `### Baseline` present |
+| `08` | PASS | `BLOCKED`, `Review Cycles: 2 — cap reached`, no third cycle, no subagent, no code touched, five escalation fields |
+| `09a` | PASS | `Exit Status: 0` reported honestly, `NOTHING FOUND` on criterion 2, `FAIL` |
+| `09b` | PASS | `FAIL`, `Files Changed` derived as unchanged, and step 4's language landing verbatim: "the test suite passes with exit status 0, but this does not demonstrate that the required functionality was implemented" |
+
+**`02` and `06` now positively test §49's blocking rule**, which is the second job
+`fixtures/README.md` claims for them. Both demonstrate the blocker by computation
+rather than asserting it, and both demonstrations are stronger than the B25 runs'.
+
+**`05` finished `DONE` — seven contexts, every role B25 and B26 define:**
+
+```
+orchestrator  Recon and generate milestones     (pinned)
+orchestrator  Implement milestone M1            (pinned)   ← separate invocation
+orchestrator  Review/fix cycle for M1           (pinned)   ← separate again
+worker        Implement divide with zero guard  (pinned = haiku, Cheap)
+verifier      Verify divide task result         (pinned = haiku)
+reviewer      Review M1 against criteria        sonnet     (derived, floor)
+reviewer      Final holistic review             opus       (top tier)
+```
+
+Three orchestrator contexts where B25's design asked for two — generation split
+from implementation without being told to. Both workers carry no model override,
+so both ran Cheap.
+
+**B25's `Baseline` fix is visibly working.** The milestone records: *"The reviewer
+was told explicitly that `git diff b57bbb3..HEAD` is empty because nothing was
+committed, and that the milestone's work is untracked; it confirmed this from
+`git status --short`"* — the exact gap the previous run exposed, now handled
+rather than worked around.
+
+**That is not evidence for B26.** `05`'s single task routed Cheap under the old
+rule too, so this shows no regression, not that anything moved. §49's criterion
+needs a milestone with several tasks of differing kinds, which only a real run
+supplies.
+
+**Still outstanding: a real milestone, reporting Cheap's share as a count against
+the total.**
+
+**One checking hazard, recorded because I hit it.** `05`'s layout is not fixed
+between runs — this one put the test at the repository root, the previous one
+under `tests/`. Its `EXPECTED.md` says the suite must pass when re-run
+independently without pinning a command, so a checker must use the command the
+milestone itself recorded (`### Validation`). Running the previous run's command
+produced an `ImportError` that looked exactly like a fixture failure and was not
+one.
+
+### Decisions
+
+- **The measurement is the acceptance criterion, not the argument.** §42, §43,
+  §46 and §48 each argued a cost improvement into existence and left the measured
+  number unmoved. §49 states outright that a run routing 0 of N to Cheap again has
+  not satisfied it. The temptation here is stronger than usual because the change
+  reads so obviously correct.
+- **No mechanism, only text — again.** The pins and the ladder are exactly as §47
+  left them. That is the same bet that has now failed several times, and it is
+  taken deliberately: there is no runtime primitive that could enforce a routing
+  judgement, so the alternative to instruction is not enforcement but a numeric
+  scoring scheme, which §13 rejected for good reasons that still hold.
+- **§13 is marked superseded rather than edited.** Consistent with how §42→§43 and
+  §43→§46 were handled: the plan is a record of what was believed when, not a
+  clean statement of current behaviour.
+
+### Follow-ups
+
+- **The reviewer's floor may now be doing more work.** If Cheap genuinely takes a
+  large share of tasks, more milestones will be entirely Cheap and reviewed at the
+  `sonnet` floor. That was always the design, but it has never been the common
+  case; worth watching whether review quality holds when the work under review is
+  mostly `haiku`.
 
 ### Blockers
 

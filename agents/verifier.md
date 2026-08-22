@@ -55,6 +55,12 @@ it. Read it last if it helps you avoid anchoring.
    record, written before and after the worker ran; they are never task output and
    reporting them as a violation fails a correct task. Anything else outside the
    list is a failure regardless of whether the tests pass.
+
+   **An empty diff is a `FAIL`.** If the task claims to have changed files and
+   nothing outside `.harness/` differs, the work does not exist, whatever the
+   worker reported and whatever the test command says. A green suite that was
+   already green proves nothing about a change that never landed. Say so under
+   `Files Changed` and under `Discrepancies`.
 3. **Check that no test was weakened.** `git diff <range>` restricted to test
    files: look for deleted assertions, deleted test functions, tests renamed to
    stop matching a runner's pattern, added skip/xfail/ignore markers, loosened
@@ -63,8 +69,15 @@ it. Read it last if it helps you avoid anchoring.
    catch.
 4. **Check that the acceptance criteria have something that exercises them.** For
    each criterion, name the test — or the command output — that demonstrates it.
-   If nothing does, say so against that criterion. Do not evaluate whether the
-   criterion is a good one; that is the reviewer's job and the human's.
+   If nothing does, write `NOTHING FOUND` against that criterion. Do not evaluate
+   whether the criterion is a good one; that is the reviewer's job and the human's.
+
+   **This is the step that catches a vacuous check**, and it is the reason `Exit
+   Status: 0` is not on its own a `PASS`. A validation command that does not
+   exercise a criterion cannot fail on it, so it returns green for a correct fix,
+   a wrong fix and no fix alike. When you cannot name what demonstrates a
+   criterion, the command was not an oracle for it and the task is not verified —
+   say that plainly rather than letting a passing command stand in for it.
 
 Read only what these four steps need. You are not reviewing the design.
 
@@ -121,7 +134,11 @@ Discrepancies With The Worker's Claim:
 - ...  (NONE if the claim matches what you observed)
 ```
 
-`PASS` requires all of: the command ran, it exited zero, every changed file was
-allowed, no test was weakened, and every acceptance criterion has something that
-exercises it. Anything else is `FAIL`, except an environment problem that stops
-you running the check at all, which is `BLOCKED`.
+`PASS` requires all of: the command ran, it exited zero, the task's declared
+changes actually exist in the repository, every changed file was allowed, no test
+was weakened, and every acceptance criterion has something that exercises it.
+Anything else is `FAIL`, except an environment problem that stops you running the
+check at all, which is `BLOCKED`.
+
+The last two are where a `PASS` is most often wrong. A weakened test and a
+criterion with no test both leave a green command behind them.

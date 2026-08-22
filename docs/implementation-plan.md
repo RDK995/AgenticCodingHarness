@@ -2689,7 +2689,13 @@ expected effect has now failed three times and is not acceptable as evidence her
   orchestrator's recorded evidence is unchanged in substance by the move.
 - A fixture plants a worker return claiming a `PASS` that is false, and the
   verifier contradicts it. Without this the Cheap pin is an untested assumption
-  and `runtime-contract.md` must say so.
+  and `runtime-contract.md` must say so. Two shapes, both of which a passing test
+  command hides: a criterion the command does not exercise, and a claimed change
+  that never landed.
+- The orchestrator may stop before routing anything only when it demonstrates the
+  blocker rather than asserting it. Concluding a milestone impossible is the one
+  move that routes around "every task is delegated" by never creating a task, and
+  the demonstration is what separates judgement from avoidance.
 - No instruction anywhere directs the orchestrator to read a subagent's `.output`
   file; the polling pattern is named and forbidden.
 - `agents/orchestrator.md`'s description matches its routing rule.

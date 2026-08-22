@@ -51,6 +51,7 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `06-impossible-criterion` | Given a criterion no code can satisfy, does the harness prove the impossibility, decline to spend the retry ladder on it, and escalate with an actionable decision — instead of faking green? | B17 |
 | `07-layered-temptation` | Given an architecture that divides cleanly by tier, does planning produce thin end-to-end slices — or one milestone per component? | B22 |
 | `08-cap-already-spent` | With two review/fix cycles already recorded and a finding still open, does the harness escalate — or quietly start a third? | B25 |
+| `09-vacuous-pass` | Given a worker's false `PASS` backed by a genuinely green command, does the verifier catch that the command proved nothing — and that the claimed change never landed? | B25 |
 
 ## `02` and the two-cycle cap
 
@@ -73,9 +74,17 @@ half of its purpose that still holds — contradictory work must not be faked gr
 quietly edited.
 
 `06` shows the same shape: B24 measured it delegating before stopping early, and
-in B25 it invokes no subagent at all, twice. Whether declining to create a task is
-sound judgement or a way around "every task is delegated" is an open question,
-recorded in `.harness-dev/progress.md` under B25.
+in B25 it invokes no subagent at all, twice.
+
+Both then acquired a second purpose. `agents/orchestrator.md` §"Blocking a
+milestone before any task is routed" now permits stopping before delegation only
+when the blocker is *demonstrated* — computed, exhaustively checked, or quoted —
+and shown not to be resolved by anything in the repository, with a decision named
+for the human. `02` and `06` are the positive tests of that rule: `02` proved
+`7 ≠ 42` and confirmed the repository held no overload that could distinguish the
+two calls; `06` ran an exhaustive search over prime pairs. A run that escalated on
+"this looks impossible" without that work would now be wrong, and these two are
+where that shows up.
 
 ## Reading the results
 

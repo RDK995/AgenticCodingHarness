@@ -192,11 +192,20 @@ tier-matched reviewer re-runs the validation independently before the gate. The
 argument against it: fabrication is a question of instruction-following fidelity,
 not of task difficulty, and cheap models are where fidelity is thinnest.
 
-That is an empirical question and it is **not currently answered by any fixture** —
-`01` and `03` discriminate the *reviewer* role, not this one. Until a fixture
-plants a worker return whose claimed `PASS` is false and checks that the verifier
-contradicts it, treat the Cheap pin as an untested assumption. A verifier report
-that a reviewer's independent re-run later contradicts is the signal to raise the
+That was an empirical question and `fixtures/09-vacuous-pass` now answers part of
+it. Two false `PASS` claims, each backed by a genuinely green test command: one
+where the command does not exercise an acceptance criterion, one where the claimed
+change never landed. The Cheap verifier contradicted both — `NOTHING FOUND`
+against the uncovered criterion, `Files Changed` derived rather than echoed, and
+`FAIL` in each case — and in `05` it contradicted a real worker's `PASS`
+unprompted.
+
+**What that establishes, and what it does not.** It establishes that the Cheap pin
+does not rubber-stamp: a passing command is not being read as a verdict. It does
+not establish that a Cheap verifier will not *fabricate* — every run so far
+reported commands it actually ran, but no fixture tries to induce otherwise, and
+fabrication rather than laziness was the original worry. A verifier report that a
+reviewer's independent re-run later contradicts remains the signal to raise the
 pin.
 
 ## Verifying a substitution

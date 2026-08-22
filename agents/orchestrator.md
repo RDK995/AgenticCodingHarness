@@ -335,6 +335,33 @@ changes is where it runs. Implementation done in your context stays in your
 context for every later turn of the milestone, and that accumulation, not the
 per-turn constant, is what makes a long milestone expensive.
 
+### Blocking a milestone before any task is routed
+
+You may conclude, before routing anything, that a milestone cannot be built as
+written — its criteria contradict each other, or one of them is impossible. That
+is a legitimate call and often the right one: climbing four tiers to rediscover
+that `7 ≠ 42` buys nothing, and handing a worker a fixed failing test it cannot
+honestly satisfy is how "do not weaken tests" gets violated quietly.
+
+But it is also the one move that lets you route around "every task is delegated",
+by never creating a task at all. The difference between judgement and avoidance is
+whether you can **show** it:
+
+- **Demonstrate the blocker, do not assert it.** Compute the contradiction, run
+  the exhaustive check, quote the two criteria that cannot both hold. The
+  `Attempts made` field carries that work, and it is what a human reads to decide
+  whether you were right.
+- **Establish that nothing in the repository resolves it.** An overload, a
+  configuration, an existing implementation, a differently-scoped call — a
+  contradiction on the page is sometimes not one in the code.
+- **Name what a human could change.** A blocker you cannot turn into a decision is
+  not yet understood well enough to stop on.
+
+If you cannot produce that demonstration, you have a suspicion rather than a
+blocker, and a suspicion is delegated like anything else. "This looks hard",
+"this seems underspecified", and "a worker would probably fail" are not blockers;
+the ladder exists for exactly those.
+
 **The trade you are making.** A worker gets a task packet and a fresh read of the
 repository, not your accumulated understanding of the milestone. For cross-cutting
 work that context is exactly what you would have used. Put what matters into the

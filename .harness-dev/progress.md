@@ -3,10 +3,11 @@
 ## Current
 
 Milestone: B25 — The coordinating context is the cost (post-V1)
-Task: 7 — re-measure a real milestone. Fixtures are run and the `02` / `06`
-decision is taken: **option C** — keep both fixtures as they are, and add
-`08-cap-already-spent` to test the two-cycle cap directly.
-Status: IN_PROGRESS (tasks 1-6 and 9 done; 7 and 8 remain)
+Task: 7 — re-measure a real milestone. It is the only task left, and the only
+acceptance criterion with no evidence.
+Status: IN_PROGRESS (8 of 9 tasks done; 5 of 7 acceptance criteria proven).
+Every follow-up is closed except the Cheap tier on real work, which task 7
+answers by measurement rather than argument.
 
 Open: B20 part 3 (recording tasks planned vs delegated) — superseded in practice.
 The M1 measurement below reads the delegation ratio straight from the transcript,
@@ -135,10 +136,10 @@ The Cheap rung has not run a task on a real milestone.
       suffix with criteria conserved, escalate wrong-shaped ones
 - [ ] 7 — Re-run fixtures 01-07 and re-measure a real milestone against the M1
       baseline with `.harness-dev/measure-context.py`
-- [ ] 8 — Add a fixture that plants a worker return claiming a false `PASS`, and
-      check the verifier contradicts it. Blocks `DONE`: without it the verifier's
-      Cheap pin is an untested assumption, which `runtime-contract.md` currently
-      says outright.
+- [x] 8 — Add a fixture that plants a worker return claiming a false `PASS`, and
+      check the verifier contradicts it. `fixtures/09-vacuous-pass`, two commands:
+      A a criterion the green command does not exercise, B a claimed change that
+      never landed. Both returned `FAIL` on first run — see Validation.
 - [x] 9 — Restore coverage of the two-cycle cap, which `02` stopped providing.
       New `fixtures/08-cap-already-spent`: a milestone seeded at `REVIEW` with
       `Review Cycles: 2` and an unresolved IMPORTANT finding, where the only
@@ -162,7 +163,11 @@ The Cheap rung has not run a task on a real milestone.
       files, weakened tests and per-criterion coverage — a superset of what the
       orchestrator recorded before; `orchestrator.md` §"Verifying a task result"
       is judgement over that return only. **Not yet run**
-- [ ] A planted false `PASS` is contradicted by the verifier (task 8)
+- [x] A planted false `PASS` is contradicted by the verifier. Evidence:
+      `fixtures/09-vacuous-pass`, both commands `FAIL` on first run at the pinned
+      Cheap tier — A named `NOTHING FOUND` against the uncovered criterion and
+      checked by hand that `to_celsius(100)` returns `37.77777777777778`; B
+      derived `Files Changed` as empty rather than echoing the worker's list
 - [x] No instruction directs the orchestrator to read a subagent `.output` file;
       the polling pattern is named and forbidden. Evidence: `orchestrator.md`
       §Context boundaries, both stated with the M1 counts (52 of 58; 23 polls)
@@ -172,11 +177,15 @@ The Cheap rung has not run a task on a real milestone.
 - [ ] A milestone is size- and shape-checked at pickup; oversized ones split
       before any task runs with criteria conserved and later numbers left valid;
       wrong-shaped ones escalate. Implementation present
-      (`orchestrator.md` §"When you pick up a milestone"); **unproven** — no
-      fixture exercises an oversized existing milestone yet
-- [ ] Fixtures meet their `EXPECTED.md` outcomes — **5 / 7** plus `08` pending its
-      first run. `01`, `03`, `04`, `05`, `07` PASS. `02` and `06` are retained
-      with their results recorded as known-stale rather than rewritten
+      (`orchestrator.md` §"When you pick up a milestone"); **partially proven** —
+      `02`'s escalation records running both checks and reports the outcome of
+      each ("Size passes… Shape passes… The blocker is neither size nor shape"),
+      so the gate demonstrably runs. No fixture yet supplies an oversized existing
+      milestone, so the *split* path is still unexercised
+- [x] Fixtures meet their `EXPECTED.md` outcomes — **7 / 9**. `01`, `03`, `04`,
+      `05`, `07` PASS; `08` PASS on its corrected setup; `09` PASS on first run.
+      `02` and `06` are retained with their results recorded as known-stale
+      rather than rewritten, which is the decision taken rather than a gap
 - [ ] Re-measured on a real milestone: orchestrator share < 25% (from 48.4%),
       peak context < 200,000 (from 370,706), tool-free turns < 45% (from 62%)
 
@@ -291,6 +300,30 @@ gate on a `BLOCKED` milestone. Correcting an expectation I wrote minutes earlier
 and had never run is calibration. It is not the move `02` and `06` were protected
 from, which is changing a *previously validated* expectation to match a later
 divergence — the distinction is whether the expectation ever held.
+
+### Fixture `09` — first run
+
+Both commands met every expectation, at the verifier's pinned Cheap tier, with no
+retry:
+
+| | A — vacuous check | B — empty diff |
+| --- | --- | --- |
+| `Exit Status` reported honestly as `0` | ✓ | ✓ |
+| `Result` | **`FAIL`** | **`FAIL`** |
+| `Criteria Exercised` | `test_boiling_point` for criterion 1, `NOTHING FOUND` for criterion 2 | `NOTHING FOUND` |
+| `Files Changed` | three files, all allowed | derived as **nothing changed**, not echoed from the claim |
+| `Discrepancies` | contradicts "both criteria… covered by the suite" | names each claimed file as unchanged |
+| Nothing repaired | ✓ | ✓ |
+
+A went further than required and checked by hand that `to_celsius(100)` returns
+`37.77777777777778` — establishing the criterion is *unmet*, which is stronger
+than establishing it is untested. B noticed on its own that `HEAD..HEAD` "suggests
+no commits were made for this task".
+
+This closes what `runtime-contract.md` had recorded as an untested assumption
+behind the verifier's Cheap pin, though only in part: it shows the tier does not
+rubber-stamp a green command, not that it will not fabricate one. No fixture tries
+to induce fabrication, and that was the original worry.
 
 ### Defects the fixtures found in B25's own changes
 
@@ -430,29 +463,39 @@ Both fixed on this branch; `05` has not been re-run since.
   delegated". Both runs of each were correct on the merits; the concern is a
   weaker run using the same move to avoid work.
 
-- **`verifier.md` step 4 is the answer to `08`'s diagnosis, and it is untested.**
-  The run showed the harness accepting no-op corrections because the validation
-  command had no oracle for the failing criterion. Step 4 already requires naming
-  what exercises each acceptance criterion, with `NOTHING FOUND` when nothing
-  does — which would have caught it. `08`'s recorded history predates the
-  verifier, so the fixture does not exercise that step; something should.
+- **CLOSED — `verifier.md` step 4 and the empty diff.** Both were `08`'s
+  findings and both are now rules: an empty diff for a task claiming file changes
+  is an automatic `FAIL`, and step 4 states that a command which does not exercise
+  a criterion is not an oracle for it, so `Exit Status: 0` says nothing about that
+  criterion. `PASS` now additionally requires that the declared changes exist.
+  `fixtures/09-vacuous-pass` tests both, and closes task 8 as well — its command A
+  is a false `PASS` over a vacuous check, its command B a false `PASS` over work
+  that never landed.
 
-- **An empty diff should fail a task, and currently does not.** `08`'s first run
-  surfaced it: a worker can report `PASS`, the verifier can accept it, and nothing
-  checks that the declared `Files Allowed To Change` actually changed. This is the
-  same blind spot as task 8's false-`PASS` fixture approached from the other side,
-  and it is a cheaper rule to state than to detect — `verifier.md` should treat an
-  empty diff for a task claiming file changes as an automatic `FAIL`.
+- **CLOSED — decline-to-delegate is now bounded rather than open.**
+  `orchestrator.md` §"Blocking a milestone before any task is routed" keeps the
+  behaviour `02` and `06` showed, which was right on the merits both times, and
+  removes the loophole: blocking before routing requires *demonstrating* the
+  blocker (compute it, run the exhaustive check, quote the two criteria),
+  establishing that nothing in the repository resolves it, and naming what a human
+  could change. Without that demonstration it is a suspicion, not a blocker, and
+  suspicions are delegated — "this looks hard" and "a worker would probably fail"
+  are what the ladder is for. `02` and `06` become the positive tests of the rule:
+  both produced exactly that demonstration.
 
-- **The Cheap tier has never run a real task** (0 of 12 workers at `haiku`).
-  Either §47's Cheap criteria never match real work, or routing is defaulting
-  upward. Worth measuring before concluding the tier is useless.
-- **`OpenWeightHarness` M1-M5 predate §43/§44** and were never re-cut; M5 ran at
-  7 criteria on one component (C9) with no entry-point criterion. Nothing
-  re-examines an existing milestone's size or shape before running it —
-  `SKILL.md` picks the first non-`DONE` milestone and runs it, and the slice and
-  budget rules are subsections of §"Generating milestones", which only fires when
-  `milestones.md` is absent. A separate concern from §48; record it if it bites.
+- **CLOSED — nothing re-examined an existing milestone's size or shape.** Fixed by
+  task 6: `orchestrator.md` §"When you pick up a milestone" runs the size and
+  shape checks at pickup, not only at generation. `OpenWeightHarness` M1-M5 remain
+  as planned, but its board will now be checked as each milestone is picked up
+  rather than run as written.
+
+- **STILL OPEN — the Cheap tier on real work.** M1 of `openCodeOpenWeightHarness`
+  routed 0 of 12 workers to `haiku`. Fixture `05` has since run a task at Cheap
+  and it succeeded on attempt 1, and the `verifier` is pinned Cheap and performed
+  correctly in `05` and `09` — so the tier is not inert. But a fixture task is
+  chosen to be easy, which is exactly the thing in question. This cannot be closed
+  without task 7's real milestone, and it should be read off that run's tier
+  table rather than argued.
 
 ### Blockers
 

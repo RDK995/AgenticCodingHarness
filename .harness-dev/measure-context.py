@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 """Measure a harness run's context cost from its Claude Code transcript.
 
-Method used for the §48 baseline. Point it at a session directory:
+Method used for the §48 baseline. Point it at one or more session directories:
 
-    ./measure-context.py ~/.claude/projects/<project>/<session-uuid>
+    ./measure-context.py ~/.claude/projects/<project>/<session-uuid> [more...]
+    ./measure-context.py --top-level-role orchestrator <dir> [more...]
+
+Since §48 a milestone runs as several invocations, so it spans several sessions;
+pass them all and the totals aggregate. `--top-level-role` labels each session's
+own transcript, which is the orchestrator when invoked with
+`--agent harness:orchestrator` and the skill session when invoked with
+`/harness:implement` (the default).
 
 It reads <session-uuid>.jsonl and <session-uuid>/subagents/*.jsonl, counting
 input + cache_creation + cache_read + output tokens per assistant turn.
 `fixed` is the smallest context observed times the turn count; `growth` is the
-rest. Reports per-context totals, the orchestrator's turn profile, and the split
+rest. Reports per-context totals, each orchestrator's turn profile, and the split
 between the implementation phase and the review/fix phase.
 """
 import json
@@ -106,22 +113,34 @@ def orchestrator_profile(path):
               f"({100 * post / (pre + post):.0f}%)")
 
 
-def main(session_dir):
+def collect(session_dir, top_level_role):
     d = Path(session_dir).expanduser()
     rows = []
-    for meta in sorted((d / "subagents").glob("*.meta.json")):
-        m = json.loads(meta.read_text())
-        a = analyse(meta.with_suffix("").with_suffix(".jsonl"))
-        if not a:
-            continue
-        a.update(kind=m.get("agentType", "?").replace("harness:", ""),
-                 desc=m.get("description", ""),
-                 model=m.get("model", "(default)"), path=meta)
-        rows.append(a)
-    main_a = analyse(d.with_suffix(".jsonl"))
+    subagents = d / "subagents"
+    if subagents.is_dir():
+        for meta in sorted(subagents.glob("*.meta.json")):
+            m = json.loads(meta.read_text())
+            jsonl = meta.with_suffix("").with_suffix(".jsonl")
+            a = analyse(jsonl)
+            if not a:
+                continue
+            a.update(kind=m.get("agentType", "?").replace("harness:", ""),
+                     desc=m.get("description", ""),
+                     model=m.get("model", "(default)"), path=jsonl)
+            rows.append(a)
+    top = d.with_suffix(".jsonl")
+    main_a = analyse(top)
     if main_a:
-        main_a.update(kind="skill session", desc="", model="", path=None)
+        main_a.update(kind=top_level_role, desc=f"[{d.name[:8]}]",
+                      model="", path=top)
         rows.append(main_a)
+    return rows
+
+
+def main(session_dirs, top_level_role):
+    rows = []
+    for sd in session_dirs:
+        rows += collect(sd, top_level_role)
 
     print(f"{'kind':<14}{'model':<12}{'description':<40}"
           f"{'turns':>6}{'peak':>9}{'median':>9}{'tokens':>13}{'growth':>8}")
@@ -133,7 +152,8 @@ def main(session_dir):
 
     grand = sum(r["total"] for r in rows)
     print(f"\nTOTAL {sum(r['turns'] for r in rows)} turns, {grand:,} tokens")
-    for kind in ("orchestrator", "worker", "reviewer", "skill session"):
+    for kind in ("orchestrator", "worker", "verifier", "reviewer",
+                 "skill session"):
         s = [r for r in rows if r["kind"] == kind]
         if not s:
             continue
@@ -144,10 +164,16 @@ def main(session_dir):
     for r in rows:
         if r["kind"] == "orchestrator":
             print(f"\norchestrator — {r['desc']}")
-            orchestrator_profile(r["path"].with_suffix("").with_suffix(".jsonl"))
+            orchestrator_profile(r["path"])
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    args = sys.argv[1:]
+    role = "skill session"
+    if "--top-level-role" in args:
+        i = args.index("--top-level-role")
+        role = args[i + 1]
+        del args[i:i + 2]
+    if not args:
         sys.exit(__doc__)
-    main(sys.argv[1])
+    main(args, role)

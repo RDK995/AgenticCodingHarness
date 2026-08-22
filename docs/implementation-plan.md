@@ -2497,3 +2497,158 @@ opened gate, and a milestone recording a review that did not occur.
 that an override actually changed the model before trusting the pairing on a new
 runtime. Where it cannot be confirmed, pin the reviewer to the top tier: a known
 cost beats an unverifiable guarantee.
+# 48. Post-V1 Addition — The Coordinating Context Is the Cost
+
+## Problem
+
+§43 measured 87% context growth and blamed retained implementation. §46 removed
+retained implementation. **The growth is still 87%.**
+
+Measured on `openCodeOpenWeightHarness` M1 — the first milestone planned under the
+§44 slice rule and the §43 criteria budget, and the first run under §46/§47
+routing. Method: every `assistant` message in the session transcript and its
+`subagents/*.jsonl`, counting `input + cache_creation + cache_read + output`
+tokens per turn; `fixed` is the smallest context observed multiplied by the turn
+count, and `growth` is the remainder.
+
+**One milestone. Four acceptance criteria. 18 contexts, 2,039 turns,
+221,806,363 tokens.**
+
+| Context | n | Turns | Tokens | Share |
+| --- | --- | --- | --- | --- |
+| **orchestrator** | 2 | 548 | **107,246,808** | **48.4%** |
+| worker | 12 | 1,097 | 77,885,133 | 35.1% |
+| reviewer | 3 | 262 | 21,588,436 | 9.7% |
+| skill session | 1 | 132 | 15,085,986 | 6.8% |
+
+The M1 orchestrator alone: **527 turns, 106,281,674 tokens, 87% growth, peak
+context 370,706, median 199,638.** Half its turns ran above 200k; 18% ran above
+300k. For comparison, §43's seven orchestrator runs averaged 37.5M and peaked at
+62.2M each — and those milestones carried 7 to 13 criteria. This one carried four.
+
+**The three fixes already applied all worked, and none of them moved the number.**
+
+- *Retained implementation is gone.* The orchestrator made 17 `Edit` calls and
+  **all 17 were to `.harness/milestones.md`.** Zero source edits. §43's 1:10
+  delegation ratio is now 15 delegations against 0 retained implementations.
+- *The milestone was thin.* Four criteria, inside the §43 budget, demonstrated
+  end to end through the adapter — a §44 slice, not a component build-out.
+- *Routing worked.* 12 workers and 3 reviewers, tiers recorded per task.
+
+So the cause is not what the work is, nor who does it. It is that **one context
+holds the whole milestone from planning to completion**, and every later turn
+re-pays for all of it.
+
+Four things fill that context, in order of size.
+
+**1. The review/fix phase runs at peak context and costs more than everything
+before it.** Splitting the orchestrator run at its first reviewer invocation:
+
+| Phase | Turns | Tokens | Share |
+| --- | --- | --- | --- |
+| Planning through implementation | 306 | 40,771,418 | 38% |
+| Review/fix cycles | 221 | **65,510,256** | **62%** |
+
+The cheapest turns run first and the most expensive run last, because the review
+phase pays for the implementation phase on every single turn. B20 recorded this as
+an open question — "4x the milestones means 4x the review cycles… unverified either
+way." It is now verified, and it is unfavourable.
+
+**2. Verification is paid twice.** The orchestrator spent 72 tool calls verifying
+work itself (29 git inspections, 18 file reads, 14 greps, 11 test/type-check runs).
+The three reviewers then spent 117 `Bash` calls doing it again — independently, in
+fresh contexts, which is exactly what they are for. Both are correct under the
+current instructions; together they are redundant, and only one of them happens in
+a context that compounds.
+
+**3. Delegated work returns through the front door.** Of the orchestrator's 58
+`Read` calls, **52 were on subagent `.output` files and 6 were on repository
+files** — several output files read three to six times each. Delegation is supposed
+to keep a worker's reading out of the coordinating context; re-reading its full
+output transcript puts the expensive half back. It also means the orchestrator's
+"independent verification" leans on the agent's own report, which the core
+invariant forbids.
+
+**4. Turns that do nothing are not free.** **62% of the orchestrator's 527 turns
+issued no tool at all** — §43 measured ~45%, so this is worse, not better. At a
+median 199,638-token context, 326 tool-free turns are roughly 65M tokens of pure
+re-payment. 23 further `Bash` calls were sleeps and polling loops waiting on
+backgrounded subagents; each poll re-pays the full context to learn nothing.
+
+**The design already anticipated the fix and never used it.**
+`agents/orchestrator.md` describes itself as coordinating "one milestone at a time
+(**or one review/fix correction cycle**)" — a correction cycle as a *separate
+invocation*. `skills/implement/SKILL.md` instead says "invoke harness:orchestrator
+to run that milestone to completion", one invocation from reconnaissance to `DONE`.
+The 62% is the cost of that gap.
+
+## Solution
+
+**1. A milestone is more than one orchestrator invocation.** `SKILL.md` drives
+phases, not milestones: plan → implement → review/fix (per cycle) → complete. Each
+is a fresh orchestrator context that reads `.harness/milestones.md` and writes back
+to it. This is not new infrastructure — it is the handoff the file already provides
+for a fresh human session, and the invocation shape `orchestrator.md` already
+describes. The review/fix cycle is the one that must be separate; the others are
+worth it if the same measurement says so.
+
+**2. The orchestrator retains verdicts, not evidence.** Per-task verification moves
+to a fresh context that receives the task packet, the claimed result and the diff,
+re-runs validation, and returns a verdict with its evidence for the record. The
+orchestrator writes the evidence to `milestones.md` without the diff and test
+output ever entering its context. The core invariant is unchanged — an independent
+context still checks every claim, which is precisely what the reviewer already does
+and what the orchestrator currently duplicates. What changes is that the checking
+does not happen in the context that compounds.
+
+**3. Never read a subagent's `.output` file.** The invocation returns the result;
+the file is the full transcript. Read the repository to verify a claim, not the
+claimant's account of it.
+
+**4. Do not background a worker and poll for it.** A blocking invocation costs one
+turn; polling costs a turn per check at full context.
+
+**5. Correct `agents/orchestrator.md`'s description**, which still says the
+orchestrator "routes tasks to the worker or handles risky work itself" — withdrawn
+by §46 and contradicted by the routing rule twenty lines below it. §47 recorded
+"no 'do it yourself' instruction survives anywhere"; the orchestrator's own
+frontmatter is a counterexample.
+
+## Scope
+
+`skills/implement/SKILL.md`, `agents/orchestrator.md`, and one measurement script
+under `.harness-dev/`. No runner, no token accounting at runtime, no new agent file
+unless per-task verification proves to need one rather than reusing the reviewer.
+
+This is the fourth section to target this number. §42 targeted the per-turn
+constant, §43 retained implementation and milestone size, §46 who does the work.
+Each fixed something real and left the number where it was. **Reasoning about
+expected effect has now failed three times and is not acceptable as evidence here.**
+
+## Acceptance criteria
+
+- A milestone's review/fix cycles run in orchestrator contexts separate from the
+  one that planned and implemented it, and `milestones.md` carries enough state for
+  the fresh context to resume without the original conversation.
+- Per-task verification happens in a context other than the orchestrator's, and the
+  orchestrator's recorded evidence is unchanged in substance by the move.
+- No instruction anywhere directs the orchestrator to read a subagent's `.output`
+  file; the polling pattern is named and forbidden.
+- `agents/orchestrator.md`'s description matches its routing rule.
+- Fixtures 01-07 still meet their `EXPECTED.md` outcomes.
+- **Re-measured on a real milestone by the same method**, reporting orchestrator
+  share, peak and median context, growth share, tool-free turn share, and
+  `.output` reads, against the M1 baseline above. Targets: orchestrator share
+  below 25% (from 48.4%), peak context below 200,000 (from 370,706), tool-free
+  turns below 45% (from 62%). A run that does not move these has not satisfied
+  this section, whatever else it improves.
+
+## Caveats on the baseline
+
+M1 ran **three** review cycles, not the two the cap allows, and ended `BLOCKED`; a
+milestone that passes at cycle 1 or 2 is cheaper than this. The 62% review-phase
+share is therefore an upper bound on that particular figure. The orchestrator's
+87% growth, its 48.4% share, the 52-of-58 `.output` reads and the 62% tool-free
+turns are not sensitive to the third cycle. Comparisons with §43 are across
+different projects and tasks; the method is identical, the conclusion does not rest
+on a small difference, and no §43 run approached this one's cost.

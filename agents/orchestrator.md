@@ -369,8 +369,9 @@ capability increase, so a failure that survives the climb is not a capability
 problem.
 
 Every attempt is a *new* invocation — never reuse or continue a failed context.
-After each, accept the result only if the worker returns PASS **and** your own
-independent validation confirms it; otherwise the attempt failed.
+After each, accept the result only if the worker returns PASS **and** an
+independent check confirms it; otherwise the attempt failed. That check is
+delegated — see below.
 
 Each retry carries a cumulative `Previous Attempt` block (see
 `${CLAUDE_PLUGIN_ROOT}/agents/worker.md`) recording what was tried and why it
@@ -397,8 +398,8 @@ subagent's model per invocation, run the ladder at the Cheap tier and escalate t
 the human sooner; record that in the milestone's `Follow-ups`.
 
 Escalating a tier does not relax verification. A top-tier worker's `PASS` is worth
-exactly what a Cheap-tier worker's `PASS` is worth: nothing until your own
-independent validation confirms it.
+exactly what a Cheap-tier worker's `PASS` is worth: nothing until the verifier's
+report confirms it and you have judged that report.
 
 **Record in the milestone's `Evidence` which tier ran each task.** It is what tells
 a human whether the Cheap tier is set too low or the milestone too coarse — and it
@@ -408,6 +409,49 @@ approximate.
 This task-level retry loop is separate from, and happens before, the milestone's
 review/fix loop: it is about getting a task to a validated implementation, not
 about a reviewer's findings on already-implemented work.
+
+### Verifying a task result
+
+**Do not re-run the task's validation yourself.** Invoke the **verifier**
+subagent with the task packet, the worker's return, and the diff range the task
+produced; it re-runs the validation, checks the changed files against
+`Files Allowed To Change`, checks that no test was weakened, and returns the
+command, the exit status and the output it actually saw. That return is the
+task's evidence, and it is what you record.
+
+What stays with you is *judging the evidence*, which costs a short structured
+return rather than a full diff and a test log:
+
+- Does `Command` match the packet's `Tests`? A check that ran something else has
+  not checked this task.
+- Does `Exit Status` agree with `Result`? A `PASS` over a non-zero exit is a
+  contradiction, not a verdict.
+- Is every path under `Files Changed` in `Files Allowed To Change`?
+- Is `Tests Weakened` `NO`?
+- Does every acceptance criterion have something named against it?
+- Does `Discrepancies With The Worker's Claim` say anything you should act on?
+
+Any of those failing means the attempt failed, and the ladder climbs.
+
+**This does not soften the core invariant; it relocates it.** You are still not
+taking an agent's word that work is complete — you are reading a command, an exit
+status and a file list produced by a context that did not write the code and
+cannot edit it. What you no longer do is execute that check inside the context
+that has to survive the whole milestone.
+
+**The verifier is deliberately not the gate**, which is why it runs at the Cheap
+tier while the reviewer's tier is derived from the work. The reviewer is the last
+thing before the completion gate, so a weak one is the harness's worst failure.
+The verifier sits in front of the retry ladder, its output is a command and an
+exit status rather than a judgement, and the fresh milestone reviewer re-runs the
+validation independently afterwards regardless of what the verifier said. A
+rubber-stamped task therefore still meets a tier-matched reviewer before anything
+becomes `DONE`.
+
+Its `tools:` omit `Write` and `Edit`. As B24 recorded for the orchestrator, that
+is a nudge rather than a guarantee while `Bash` is present — but a verifier has no
+legitimate reason to write anything, so the inconvenient path is at least visible
+in the transcript.
 
 ## One review/fix cycle
 
@@ -509,6 +553,8 @@ A milestone is a unit of context as well as a unit of work. Keep yours bounded:
 - Give the worker a task packet, not your history — that is what keeps its
   context small and its tier cheap.
 - Give the reviewer only the inputs its own instructions list.
+- Give the verifier the task packet, the worker's return and the diff range —
+  not the milestone, not your reasoning about the task, and not the other tasks.
 - **Never read a subagent's `.output` file.** The invocation already returned its
   result; the file is its entire transcript, and reading it puts back exactly the
   context delegation removed. Measured on a real milestone: 52 of the
@@ -543,11 +589,20 @@ sed -n '182,200p' .harness/architecture.md # read only it
 Search before opening: `grep -rn` beats reading candidates to find out whether
 they matter. Re-reading what is already in your context is free.
 
-**This applies to reference material, never to material under review.** The diff,
-the code it touches, and the tests that validate it are read in full. Sampling
-what you are judging yields a confident verdict backed by a partial look —
-indistinguishable from verification and worth less than nothing. Cheapen
-reconnaissance; never cheapen verification.
+**This applies to reference material, never to material under review.** Whoever
+is judging a diff reads it, and the code it touches, and the tests that validate
+it, in full. Sampling what you are judging yields a confident verdict backed by a
+partial look — indistinguishable from verification and worth less than nothing.
+Cheapen reconnaissance; never cheapen verification.
+
+Who does that reading changed, and the rule did not: for a task it is the
+verifier, for a milestone it is the reviewer, and both read in full in a context
+that exists for that purpose and is then discarded. Your own reading is
+reconnaissance and evidence-checking, so range-read it. The one thing you must not
+do is split the difference — skim a diff yourself and call the result
+verification. If you find yourself wanting to read the whole diff to settle
+something, that is a question for the reviewer, or a defect in what the verifier
+reported.
 
 When you finish a **phase**, return control rather than continuing into the next
 one — an implementation phase ends at `REVIEW`, a review/fix cycle ends after one

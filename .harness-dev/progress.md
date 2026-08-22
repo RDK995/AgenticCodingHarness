@@ -3,8 +3,8 @@
 ## Current
 
 Milestone: B25 — The coordinating context is the cost (post-V1)
-Task: 3 — move per-task verification out of the orchestrator's context
-Status: IN_PROGRESS (tasks 1, 2, 4, 5, 6 done; 3 and 7 remain)
+Task: 7 — run the fixtures and re-measure a real milestone
+Status: IN_PROGRESS (tasks 1-6 done; 7 and 8 remain, and both are validation)
 
 Open: B20 part 3 (recording tasks planned vs delegated) — superseded in practice.
 The M1 measurement below reads the delegation ratio straight from the transcript,
@@ -118,8 +118,12 @@ The Cheap rung has not run a task on a real milestone.
       is" keyed on `Status`, and §"Review/fix loop" became §"One review/fix
       cycle" returning after one. Handoff is `milestones.md` plus a new
       `### Baseline` field so a fresh context can compute the milestone diff.
-- [ ] 3 — Move per-task verification out of the orchestrator's context; decide
-      whether it reuses the reviewer or needs its own definition
+- [x] 3 — Move per-task verification out of the orchestrator's context. New
+      `agents/verifier.md` (Cheap, no `Write`/`Edit`) re-runs one task's stated
+      validation and returns the command, exit status, output, changed-file list
+      and any weakened tests; `orchestrator.md` §"Verifying a task result" keeps
+      judging that return and no longer re-runs anything itself. Its own
+      definition rather than the reviewer's — see Decisions.
 - [x] 4 — Forbid reading subagent `.output` files and the background-and-poll
       pattern (`orchestrator.md` §Context boundaries, with the measured counts)
 - [x] 5 — Correct `agents/orchestrator.md`'s frontmatter description ("or handles
@@ -129,6 +133,10 @@ The Cheap rung has not run a task on a real milestone.
       suffix with criteria conserved, escalate wrong-shaped ones
 - [ ] 7 — Re-run fixtures 01-07 and re-measure a real milestone against the M1
       baseline with `.harness-dev/measure-context.py`
+- [ ] 8 — Add a fixture that plants a worker return claiming a false `PASS`, and
+      check the verifier contradicts it. Blocks `DONE`: without it the verifier's
+      Cheap pin is an untested assumption, which `runtime-contract.md` currently
+      says outright.
 
 ### Acceptance criteria
 
@@ -140,8 +148,13 @@ The Cheap rung has not run a task on a real milestone.
       entry, the `Baseline` diff and the requirements, and returns after one;
       `### Baseline` and `### Review Cycles` carry the state between them
       (`milestones-template.md` §Rules). **Not yet run** — see Validation
-- [ ] Per-task verification happens outside the orchestrator's context, with the
-      recorded evidence unchanged in substance
+- [x] Per-task verification happens outside the orchestrator's context, with the
+      recorded evidence unchanged in substance. Evidence: `agents/verifier.md`
+      return contract carries the command, exit status, quoted output, changed
+      files, weakened tests and per-criterion coverage — a superset of what the
+      orchestrator recorded before; `orchestrator.md` §"Verifying a task result"
+      is judgement over that return only. **Not yet run**
+- [ ] A planted false `PASS` is contradicted by the verifier (task 8)
 - [x] No instruction directs the orchestrator to read a subagent `.output` file;
       the polling pattern is named and forbidden. Evidence: `orchestrator.md`
       §Context boundaries, both stated with the M1 counts (52 of 58; 23 polls)
@@ -167,6 +180,11 @@ evidence. Two things must run before any of it counts:
   now that phases are separate; both were changed to a per-phase loop, which is
   the change most likely to have broken something.
 - The re-measurement, which is the binding one.
+
+The verifier has never been invoked. Fixture `05` is the first thing that will
+run it, and the most likely failure is contract drift — a Cheap model
+paraphrasing the return structure instead of filling it in, which
+`runtime-contract.md` already lists as the characteristic weak-tier failure.
 
 ### Decisions
 
@@ -197,6 +215,30 @@ evidence. Two things must run before any of it counts:
   reorganises criteria into slices and rewords them, which is a planning decision
   with no obviously correct answer. Automating the first and escalating the
   second is the line between an operation and a judgement.
+
+- **The verifier is its own agent, not the reviewer aimed at a task.**
+  `reviewer.md` is written end to end around a milestone — diff since milestone
+  start, acceptance criteria, architecture drift, graded findings — so pointing it
+  at one task means overriding most of its instructions in the invocation, which
+  `runtime-contract.md` already calls a request rather than a property. Its tier
+  floors at `sonnet`, so reuse would add fifteen `sonnet`+ contexts per milestone
+  to re-run fifteen commands. And a task-level check must not be confusable with
+  the milestone review that opens the gate.
+
+- **Per-task verification moved rather than being deleted.** Deleting it looks
+  cheaper — the milestone reviewer catches the same defects eventually — but the
+  retry ladder needs to know an *attempt* failed in order to climb a tier.
+  Without a per-task verdict, a false `PASS` advances the milestone and surfaces
+  at review as a correction task, losing the escalation mechanism §47 built.
+
+- **The verifier is Cheap, and that is the weakest point in B25.** §47 answered
+  fabricated evidence with a top-tier orchestrator re-running validation itself;
+  this puts the re-run on `haiku`. The mitigation is structural — it did not write
+  the code, cannot edit it, returns a command and an exit status rather than a
+  judgement, and a tier-matched reviewer re-runs everything before the gate — but
+  it is an argument, and §48 exists because arguments have been wrong three times.
+  Recorded as an untested assumption in `runtime-contract.md` rather than asserted
+  away, and task 8 is the fixture that answers it.
 
 - **B20 part 3 is dropped rather than carried.** Its purpose was to reveal the
   delegation ratio; the transcript gives it directly and cannot be self-reported

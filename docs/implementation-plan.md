@@ -2601,6 +2601,35 @@ context still checks every claim, which is precisely what the reviewer already d
 and what the orchestrator currently duplicates. What changes is that the checking
 does not happen in the context that compounds.
 
+This needs its own agent rather than reusing the reviewer, on three grounds.
+`reviewer.md` is written end to end around a *milestone* — the diff since milestone
+start, the acceptance criteria, architecture drift, a per-criterion evidence table,
+graded findings — so aiming it at one task means overriding most of its
+instructions in the invocation, which is the failure `runtime-contract.md` already
+names: an instruction in a prompt is a request, not a property. Its tier is derived
+and floors at `sonnet`, so reusing it would put fifteen `sonnet`-or-higher contexts
+into a milestone to re-run fifteen commands. And keeping the roles distinct is what
+stops a task-level check being mistaken for the milestone review that opens the
+gate.
+
+The new role is Cheap on purpose, **and that is the one part of this section that
+is not obviously safe.** §47 answered fabricated evidence by having the
+orchestrator re-run validation at the top tier; moving the re-run to `haiku`
+changes what that answer promises. The mitigation is structural rather than
+capability-based — the verifier did not write the code, cannot edit it, returns a
+command and an exit status rather than a judgement, and a tier-matched reviewer
+re-runs everything before the gate — but the mitigation is an argument, and this
+plan has been wrong about arguments three times. It needs a fixture that plants a
+false `PASS` and checks the verifier contradicts it; `01` and `03` discriminate the
+reviewer role and do not cover this one.
+
+**Do not delete per-task verification instead of moving it.** It looks like the
+cheaper simplification — the milestone reviewer would eventually catch the same
+defects — but the retry ladder depends on knowing that an *attempt* failed in
+order to escalate a tier. Without a per-task verdict a lying `PASS` advances the
+milestone, and the failure surfaces at review as a correction task rather than as
+a tier escalation, which is the mechanism §47 built.
+
 **3. Never read a subagent's `.output` file.** The invocation returns the result;
 the file is the full transcript. Read the repository to verify a claim, not the
 claimant's account of it.
@@ -2658,6 +2687,9 @@ expected effect has now failed three times and is not acceptable as evidence her
   the fresh context to resume without the original conversation.
 - Per-task verification happens in a context other than the orchestrator's, and the
   orchestrator's recorded evidence is unchanged in substance by the move.
+- A fixture plants a worker return claiming a `PASS` that is false, and the
+  verifier contradicts it. Without this the Cheap pin is an untested assumption
+  and `runtime-contract.md` must say so.
 - No instruction anywhere directs the orchestrator to read a subagent's `.output`
   file; the polling pattern is named and forbidden.
 - `agents/orchestrator.md`'s description matches its routing rule.

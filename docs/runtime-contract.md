@@ -19,7 +19,7 @@ The coupling is small enough to list in full:
 | Coupling | Where |
 | --- | --- |
 | Model pinning | `agents/worker.md` frontmatter — one line |
-| Tool restriction | `agents/worker.md`, `agents/reviewer.md` frontmatter |
+| Tool restriction | `agents/worker.md`, `agents/reviewer.md`, `agents/verifier.md` frontmatter |
 | Plugin packaging | `.claude-plugin/plugin.json`, the `agents/` + `skills/` layout |
 | Path resolution | `${CLAUDE_PLUGIN_ROOT}` in agent and skill bodies |
 | Invocation | `/harness:*` skills, `harness:*` subagent names |
@@ -105,8 +105,9 @@ difference is not about size of output.
 
 | Role | Tier | Why |
 | --- | --- | --- |
-| `worker` | **Cheap / Mid / Top** | The tier is chosen per task by risk (§47): `haiku` for bounded, clearly-specified, low-risk work; `sonnet` for ordinary implementation needing judgement; `opus` for architecture, security, cross-cutting or ambiguous work. Nothing it claims is trusted at any tier: the orchestrator re-verifies independently and a fresh reviewer checks the result. Failure degrades gracefully — the ladder assumes workers fail. |
-| `orchestrator` | **Highest** | Holds the routing decision, the independent verification, and the escalation judgement. It delegates every task and implements none (§46); risky work is routed to a worker at this same tier rather than retained. It is the only role that re-verifies a worker's claim before evidence is recorded. |
+| `worker` | **Cheap / Mid / Top** | The tier is chosen per task by risk (§47): `haiku` for bounded, clearly-specified, low-risk work; `sonnet` for ordinary implementation needing judgement; `opus` for architecture, security, cross-cutting or ambiguous work. Nothing it claims is trusted at any tier: a verifier re-runs the validation in a context that did not write the code, and a fresh reviewer checks the result. Failure degrades gracefully — the ladder assumes workers fail. |
+| `orchestrator` | **Highest** | Holds the routing decision, the escalation judgement, and the judgement of evidence. It delegates every task and implements none (§46), and since §48 it delegates the re-running of a task's validation too — what it retains is deciding whether the returned command, exit status and file list actually support the claim. Risky work is routed to a worker at this same tier rather than retained. |
+| `verifier` | **Cheap** | Re-runs one task's stated validation and reports the command, exit status, output and changed files. Deliberately not the gate, which is what makes a cheap tier safe here: its output is a command and an exit status rather than a judgement, and a tier-matched reviewer re-runs the validation independently before anything becomes `DONE` (§48). It cannot edit what it checks. |
 | `reviewer` | **Derived — never below the work** | The thing that verifies everything else. Nothing verifies it except a human. Its tier is not fixed: it runs at no less than the highest tier that produced the work under review (§47), with `sonnet` as the floor and the final holistic review at the top tier. A reviewer weaker than the work it judges emits a confident `PASS` and the gate opens on nothing. |
 | `roast-requirements`, `architect` | **High** | Their entire value is asking the question nobody had considered — the capability weaker models lack most. |
 
@@ -120,10 +121,12 @@ dangerous failure mode regardless of which tier the reviewer runs at.
 B16 this document put the reviewer at the top tier and called it the one to
 protect. The pins were subsequently inverted by explicit instruction:
 `orchestrator` to `opus`, `reviewer` to `sonnet`. The reasoning above is retained
-because it states a real risk, and the risk is now carried by the orchestrator's
-independent re-verification rather than by reviewer capability alone — two
-verification passes still stand between a worker's claim and a `DONE`, and the
-higher-tier one now runs first. Whether that substitution holds is an empirical
+because it states a real risk, and the risk is now carried by independent
+re-verification rather than by reviewer capability alone — two verification
+passes still stand between a worker's claim and a `DONE`. §48 moved the first of
+them out of the orchestrator and into the `verifier`, which changes what that
+sentence promises: the pass that runs first is now the *cheap* one, and the
+tier-matched pass is the reviewer at the end. Whether that substitution holds is an empirical
 question, and `fixtures/01-requirement-violation` and `fixtures/03-drift-undeclared`
 are the tests that answer it: they are the two that discriminate whether a model
 can hold the `reviewer` role at all. Re-run both after any change to these pins.
@@ -144,6 +147,7 @@ in the B16 section of `.harness-dev/progress.md`.
 | Which tier reviews which work | `agents/orchestrator.md` §One review/fix cycle | Derived from the work; never override the reviewer downwards |
 | Which model runs the highest tier | `model:` in `agents/orchestrator.md` frontmatter | Verification, routing, and escalation judgement live here |
 | Which model runs the high tier | `model:` in `agents/reviewer.md` frontmatter | Lowering it further trades away the last check before the gate; re-run fixtures 01 and 03 |
+| Which model re-runs a task's validation | `model:` in `agents/verifier.md` frontmatter | Cheap on purpose — it is not the gate. Raising it buys little; the reviewer is the check that matters |
 | Which model runs the skills | The session model | `roast-requirements` and `architect` are high tier and are not subagents |
 | Tool restrictions per role | `tools:` frontmatter | Loosening the reviewer's set removes a structural guarantee |
 
@@ -177,8 +181,23 @@ or guesses.
 
 **Fabricated evidence.** The gate accepts a criterion only with real test
 evidence. A model that writes a plausible `Validation` section without running
-anything defeats the entire design. The orchestrator's independent re-verification
-exists for exactly this, so it must not run on the weak tier.
+anything defeats the entire design.
+
+Through §47 this was answered by the orchestrator re-running the validation itself
+at the top tier — "it must not run on the weak tier". **§48 moved that re-run to
+the `verifier` at the Cheap tier, and this is the one place that trade is not
+obviously safe.** The argument for it: the verifier did not write the code and has
+no stake in the verdict, its job is mechanical rather than judgemental, and a
+tier-matched reviewer re-runs the validation independently before the gate. The
+argument against it: fabrication is a question of instruction-following fidelity,
+not of task difficulty, and cheap models are where fidelity is thinnest.
+
+That is an empirical question and it is **not currently answered by any fixture** —
+`01` and `03` discriminate the *reviewer* role, not this one. Until a fixture
+plants a worker return whose claimed `PASS` is false and checks that the verifier
+contradicts it, treat the Cheap pin as an untested assumption. A verifier report
+that a reviewer's independent re-run later contradicts is the signal to raise the
+pin.
 
 ## Verifying a substitution
 

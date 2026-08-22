@@ -4,10 +4,11 @@
 
 Milestone: B25 — The coordinating context is the cost (post-V1)
 Task: 7 — re-measure a real milestone. It is the only task left, and the only
-acceptance criterion with no evidence. **Needs a target**: `OpenWeightHarness` is
-parked and cannot supply one (see Validation), so the candidates are unparking
-that repo or a live milestone in `openCodeOpenWeightHarness`, whose M1 is
-`BLOCKED` awaiting a human decision and whose M2 is `TODO`.
+acceptance criterion with no evidence. **It now waits on a real run rather than a
+dedicated one**: a measurement run costs 20-40M tokens for a single review/fix
+cycle, so the next milestone built on the OpenCode build supplies the numbers
+instead, measured after the fact from its transcripts. Blocked on B25 reaching
+`main` and `~/tools/harness` pulling it — until then real runs exercise B24.
 Status: IN_PROGRESS (8 of 9 tasks done; 5 of 7 acceptance criteria proven).
 Every follow-up is closed except the Cheap tier on real work, which task 7
 answers by measurement rather than argument.
@@ -366,6 +367,54 @@ untested, and fixture `05` checks heading order precisely because it matters.
 Nothing was implemented. `OpenWeightHarness` is restored to `main` at `144d145`
 with a clean tree and the branch deleted; the phase-3 file state is kept at
 `.harness-dev/` scratch only as evidence for the heading-order defect.
+
+### Task 7 — attempt 2 on `openCodeOpenWeightHarness` M1 cycle 4, cancelled
+
+Authorised as a human decision (`2a07a69` on branch `m1-cycle4-b25-remeasure`),
+run for roughly 12 minutes, and **cancelled by the human on cost**. Not a
+measurement. What it did produce is a price for one, and some directional signal.
+
+**Cost of the partial run — 103 turns, 4,157,661 tokens**, covering an
+orchestrator review/fix invocation through routing two correction tasks, with no
+reviewer yet run:
+
+| Context | Turns | Peak | Tokens |
+| --- | --- | --- | --- |
+| orchestrator (review/fix cycle) | 34 | **71,866** | 1,595,805 |
+| worker `opus` — R10.4 error-path redaction | 44 | 43,344 | 1,380,068 |
+| worker `opus` — AC2 extractor call shapes | 25 | 65,440 | 1,181,788 |
+
+A completed cycle would add a reviewer — `opus`, and 10,117,647 tokens when it
+ran for cycle 3 — plus verifiers and the orchestrator's remaining turns. **Call a
+finished cycle 20-40M tokens, and a whole milestone the baseline's 221.8M.** That
+is the price of a dedicated measurement, and it is why the human stopped it.
+
+**Directional signal, not evidence.** The workers may have been killed mid-task
+and no reviewer ran, so shares and totals mean nothing. Three numbers do not
+depend on completion:
+
+| | M1 baseline | This run | Target |
+| --- | --- | --- | --- |
+| orchestrator peak context | 370,706 | **71,866** | < 200,000 |
+| `.output` file reads | 52 | **0** | 0 |
+| poll/sleep calls | 23 | **0** | 0 |
+| tool-free turns | 62% | 47% | < 45% |
+
+The two `opus` workers cost 1.2-1.4M each against 8-11M for the same class of
+correction task in cycle 3 of the baseline. That is a large enough gap to be
+worth checking rather than believing — an unfinished task is cheap for reasons
+that have nothing to do with B25.
+
+**Decision: no dedicated measurement run.** Task 7 measures the next real
+milestone the harness runs on the OpenCode build, at zero marginal cost, using
+`.harness-dev/measure-context.py` against that run's session directories. The
+instrument is committed and takes multiple sessions; what it needs is a run that
+was going to happen anyway.
+
+**That requires B25 to be the plugin those runs use.** `~/tools/harness` is a
+clone of `RDK995/AgenticCodingHarness` at `99f9044` — B24, with no `verifier.md`
+and no fixtures `08`/`09`. Until this branch lands on `main` and that clone
+pulls, real runs exercise B24 and measure nothing about B25.
 
 ### Defects the fixtures found in B25's own changes
 

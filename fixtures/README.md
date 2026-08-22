@@ -20,8 +20,13 @@ run the copy — the retained fixture is never the thing that runs.
 ```bash
 cp -R fixtures/03-drift-undeclared /tmp/run-03
 cd /tmp/run-03
+rm EXPECTED.md                                          # never run with the answer key present
 git init -q && git add -A && git commit -qm baseline    # some fixtures need a diff
 ```
+
+**Remove `EXPECTED.md` from the copy before running.** It states the expected
+finding — for `03`, the exact one — and the agent explores the directory it runs
+in. A fixture whose answer sits next to the question discriminates nothing.
 
 Then run the command in that fixture's `EXPECTED.md`, pointing at this plugin:
 
@@ -87,7 +92,11 @@ still fail* to climb the ladder, which means genuine coding difficulty, which is
 the model-dependent gradient the set deliberately avoids.
 
 This is a known gap, recorded in `docs/implementation-plan.md` §40 as a waived
-acceptance criterion rather than left implicit. The ladder's failure mode is mild
-— a misread instruction degrades to the previous behaviour, the orchestrator
-taking the task itself — which is why the gap was accepted rather than closed with
-a fixture that would rot.
+acceptance criterion rather than left implicit. It was accepted rather than closed
+with a fixture that would rot.
+
+The reason originally given for accepting it — that a misread instruction
+"degrades to the previous behaviour, the orchestrator taking the task itself" — no
+longer holds: §46 removed the orchestrator's ability to implement. The observed
+degradation now is that the orchestrator declines to delegate and escalates to the
+human instead, which is what `02` and `06` both did when last run.

@@ -3,8 +3,10 @@
 ## Current
 
 Milestone: B25 — The coordinating context is the cost (post-V1)
-Task: 7 — run the fixtures and re-measure a real milestone
-Status: IN_PROGRESS (tasks 1-6 done; 7 and 8 remain, and both are validation)
+Task: 7 — re-measure a real milestone (fixtures are run; 5 / 7 meet EXPECTED)
+Status: IN_PROGRESS. Two fixtures do not meet their `EXPECTED.md` and neither is
+safe for me to retarget — see Validation. A human decides what `02` and `06`
+should now expect.
 
 Open: B20 part 3 (recording tasks planned vs delegated) — superseded in practice.
 The M1 measurement below reads the delegation ratio straight from the transcript,
@@ -166,25 +168,82 @@ The Cheap rung has not run a task on a real milestone.
       wrong-shaped ones escalate. Implementation present
       (`orchestrator.md` §"When you pick up a milestone"); **unproven** — no
       fixture exercises an oversized existing milestone yet
-- [ ] Fixtures 01-07 meet their `EXPECTED.md` outcomes
+- [ ] Fixtures 01-07 meet their `EXPECTED.md` outcomes — **5 / 7**. `01`, `03`,
+      `04`, `05`, `07` PASS; `02` and `06` do not, and are a human decision
 - [ ] Re-measured on a real milestone: orchestrator share < 25% (from 48.4%),
       peak context < 200,000 (from 370,706), tool-free turns < 45% (from 62%)
 
 ### Validation
 
-**Not yet run.** Nothing here is proven; the text changes are implementation, not
-evidence. Two things must run before any of it counts:
+**Fixtures: 5 / 7 meet `EXPECTED.md`.** Run from copies under `/tmp`, with each
+`EXPECTED.md` moved out of the working directory first — see Decisions.
 
-- Fixtures 01-07. `02` and `06` drive the orchestrator directly and their
-  single-shot `-p "Run milestone M1 to completion"` cannot reach a review cycle
-  now that phases are separate; both were changed to a per-phase loop, which is
-  the change most likely to have broken something.
-- The re-measurement, which is the binding one.
+| Fixture | Result | Note |
+| --- | --- | --- |
+| `01-requirement-violation` | **PASS** | `CHANGES REQUIRED`, two `BLOCKER`s, criterion 2 `FAIL` with `Test Evidence: None found`, all five contract fields on both findings, validation re-run independently |
+| `02-loop-cap` | **FAIL vs EXPECTED** | `BLOCKED` ✓ but `Review Cycles: 0`, expected exactly `2`. Blocked at pre-flight on the 7-vs-42 contradiction; no task routed, no reviewer run |
+| `03-drift-undeclared` | **PASS** | `IMPORTANT` (not `OPTIONAL`, not `BLOCKER`), `CHANGES REQUIRED`, both criteria `PASS`, names C1 bypassing C2 and calls the deviation undeclared |
+| `04-drift-declared` | **PASS** | `PASS`, no drift finding, cites `D1` in `## Deviations` as the reason it is not one |
+| `05-golden-path` | **PASS** | Full detail below |
+| `06-impossible-criterion` | **FAIL vs EXPECTED** | Proves the impossibility and escalates ✓, but **no subagent was invoked at all**, and B24's expectation is "delegate, then stop early". Re-run on a clean copy to test for variance: same result, no subagent either time |
+| `07-layered-temptation` | **PASS** | 4 milestones at 4/3/3/3 criteria; `Architecture` fields name 5/4/3/3 components, none names exactly one, C1 and C2 in all four, every milestone has an HTTP-path criterion, all of C1-C5 covered |
 
-The verifier has never been invoked. Fixture `05` is the first thing that will
-run it, and the most likely failure is contract drift — a Cheap model
-paraphrasing the return structure instead of filling it in, which
-`runtime-contract.md` already lists as the characteristic weak-tier failure.
+**`05` exercised every part of B25 and passed all of it.** Five contexts in the
+order the design predicts:
+
+```
+orchestrator  Generate milestones + implement M1   → returned at REVIEW
+worker        Implement divide function            (Cheap)
+verifier      Verify divide task                   (Cheap, pinned)
+orchestrator  M1 review/fix cycle                  ← separate invocation
+reviewer      Review M1 divide implementation      model: sonnet (override recorded)
+```
+
+- `### Baseline` was written as `94eb2d7b…` on `main` and matches the real
+  baseline commit.
+- The milestone's headings match the template exactly and in order, `Baseline`
+  included.
+- **The verifier did not drift from its return contract** — the predicted Cheap-tier
+  failure did not occur. It filled every field, quoted the real command and
+  output, and returned `FAIL` **contradicting the worker's `PASS`**. That is the
+  behaviour task 8's fixture was written to check, arriving unprompted.
+- The orchestrator did not accept the `FAIL` blindly: it established from mtimes
+  that the file in question was its own, recorded the misattribution, and
+  continued. The core invariant held in its new direction — judging the verifier's
+  report rather than trusting it.
+- Verdict `PASS` at cycle 1, review tier `sonnet` with the derivation stated,
+  boxes checked only after the orchestrator re-read the code and re-ran the suite
+  itself. Independently re-run afterwards: `Ran 4 tests`, `OK`; `divide(1, 0)`
+  raises `ZeroDivisionError`.
+
+**Context profile of the `05` run** (`.harness-dev/measure-context.py`):
+
+```
+orchestrator  M1 review/fix cycle                  30 turns   peak 36,375   926,228   28% growth
+orchestrator  Generate milestones + implement M1   29 turns   peak 40,491   920,492   30% growth
+```
+
+Both new prohibitions held: **0 `.output` reads and 0 poll/sleep calls** in either
+orchestrator, against 52 and 23 on the M1 baseline. But `05` is far too small to
+say anything about the 87%: §43 itself measured 39% growth at 15 turns and 86%+
+only past 191. **The fixtures show the mechanisms work; they do not show the cost
+moved.** Task 7's re-measurement on a real milestone is still the binding evidence
+and has not been done.
+
+### Defects the fixtures found in B25's own changes
+
+Both fixed on this branch; `05` has not been re-run since.
+
+1. **The verifier misattributed the orchestrator's own file to the worker.** It
+   reported `.harness/milestones.md` as outside `Files Allowed To Change` and
+   returned `FAIL` on a correct task. Every task would hit this. `verifier.md`
+   now excludes `.harness/` from that check.
+2. **The `Baseline` handoff assumed the work was committed.** In `05` nothing was,
+   so `git diff <baseline>..HEAD` was empty and the review phase would have had
+   nothing to read — the orchestrator worked around it by pointing at the working
+   tree. `orchestrator.md`, `verifier.md` and the template now say to use
+   `git diff <baseline>` **and** `git status --porcelain`, and to record which one
+   carries the work.
 
 ### Decisions
 
@@ -240,11 +299,42 @@ paraphrasing the return structure instead of filling it in, which
   Recorded as an untested assumption in `runtime-contract.md` rather than asserted
   away, and task 8 is the fixture that answers it.
 
+- **Fixtures were run with `EXPECTED.md` moved out of the working directory.**
+  `fixtures/README.md` says to `cp -R` the whole fixture and run in the copy,
+  which leaves the answer key sitting in the directory the agent explores — for
+  `03` it names the exact finding. Every result before this one was produced that
+  way. This does not invalidate them (the agents may never have opened it) but it
+  is not a condition under which a fixture discriminates anything, so it should
+  be fixed in the README rather than left as a per-run habit.
+
+- **I did not retarget `02` or `06`, and it is not my call.** `06`'s own
+  `EXPECTED.md` records that it was retargeted once before, and says why that is
+  dangerous: "rewriting a test to match its result is normally how a suite stops
+  being worth anything." Both failures are the harness declining to delegate work
+  it judges impossible or contradictory — behaviour that is arguably better
+  engineering than what the fixtures ask for, which is exactly the argument that
+  was used last time. Two consecutive retargetings in the same direction would
+  leave the set unable to detect the thing it was built to detect.
+
 - **B20 part 3 is dropped rather than carried.** Its purpose was to reveal the
   delegation ratio; the transcript gives it directly and cannot be self-reported
   optimistically.
 
 ### Follow-ups
+
+- **`02` and `06` need a human decision, and they are different cases.** `06`
+  regressed against a recorded result: B24 measured it 18 / 18 with the
+  orchestrator delegating before stopping early, and it now invokes no subagent at
+  all, reproducibly across two clean runs. Its transcript does not reference the
+  new size-and-shape gate, so the gate is not the visible cause, but B25 is the
+  only change since. `02` is not a regression in the same sense: it was last
+  executed in **B11** (`archive/B15.md` records it as not run there, and nothing
+  since), so it carries thirteen milestones of drift — §44 slices, §46
+  route-everything, §47 tiers and B25 — and its expectation of two honest attempts
+  predates the rule that the orchestrator implements nothing. The options are to
+  accept the new behaviour and re-cut both expectations, or to treat
+  decline-to-delegate as a defect and constrain it. Do not decide it from one
+  run of each.
 
 - **The Cheap tier has never run a real task** (0 of 12 workers at `haiku`).
   Either §47's Cheap criteria never match real work, or routing is defaulting

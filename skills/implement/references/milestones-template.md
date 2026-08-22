@@ -95,7 +95,9 @@ carry every template heading — the remaining headings are in its archive file.
   (e.g. `8b81cf1 on m0-implementation`). The orchestrator writes it as its first
   act on the implementation phase. A later phase runs in a fresh context and
   computes the milestone's diff from it, so a milestone past `TODO` without a
-  baseline cannot be reviewed.
+  baseline cannot be reviewed. The harness does not commit after every task, so
+  the milestone's work may be uncommitted or untracked: whoever records evidence
+  says whether it is in `git diff <baseline>` or in `git status --porcelain`.
 - `### Review Cycles` counts completed review/fix cycles for that milestone and
   is used to enforce the two-cycle cap. It is the only record of the count that
   survives between invocations, since each phase runs in its own context.

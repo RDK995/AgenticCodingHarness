@@ -47,8 +47,14 @@ it. Read it last if it helps you avoid anchoring.
 1. **Run the validation command yourself.** Exactly the `Tests` command. Capture
    the real exit status and the real summary output.
 2. **Check the changed files against `Files Allowed To Change`.** `git diff
-   --name-only <range>`. Anything outside the list is a failure regardless of
-   whether the tests pass.
+   --name-only <range>`, plus `git status --porcelain` — the harness does not
+   commit after every task, so a task's output is often uncommitted or untracked
+   and a diff of committed history alone will show nothing.
+
+   **Exclude `.harness/` from this check.** Those files are the orchestrator's own
+   record, written before and after the worker ran; they are never task output and
+   reporting them as a violation fails a correct task. Anything else outside the
+   list is a failure regardless of whether the tests pass.
 3. **Check that no test was weakened.** `git diff <range>` restricted to test
    files: look for deleted assertions, deleted test functions, tests renamed to
    stop matching a runner's pattern, added skip/xfail/ignore markers, loosened

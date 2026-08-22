@@ -426,7 +426,9 @@ return rather than a full diff and a test log:
   not checked this task.
 - Does `Exit Status` agree with `Result`? A `PASS` over a non-zero exit is a
   contradiction, not a verdict.
-- Is every path under `Files Changed` in `Files Allowed To Change`?
+- Is every path under `Files Changed` in `Files Allowed To Change`? `.harness/`
+  is yours and does not count — if the verifier reports it as a violation, that
+  is a misattribution to correct, not a failed attempt.
 - Is `Tests Weakened` `NO`?
 - Does every acceptance criterion have something named against it?
 - Does `Discrepancies With The Worker's Claim` say anything you should act on?
@@ -465,7 +467,12 @@ Reconstruct what you need and no more:
 
 - the milestone entry — criteria, `Evidence`, `Validation`, `Review Cycles`, and
   the tier recorded against each task;
-- the diff from `### Baseline` to `HEAD` (`git diff <baseline>..HEAD`);
+- the diff from `### Baseline` (`git diff <baseline>`), **and
+  `git status --porcelain` for uncommitted and untracked work** — the harness does
+  not commit after every task, so `git diff <baseline>..HEAD` alone is routinely
+  empty even though the milestone was fully implemented. Say in `Evidence` which
+  of the two carries this milestone's work, so the review context does not have to
+  discover it;
 - the requirements the milestone answers to;
 - any findings recorded by a previous cycle.
 

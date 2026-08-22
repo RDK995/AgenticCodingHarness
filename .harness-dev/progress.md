@@ -211,6 +211,9 @@ reviewer      Review M1 divide implementation      model: sonnet (override recor
   that the file in question was its own, recorded the misattribution, and
   continued. The core invariant held in its new direction — judging the verifier's
   report rather than trusting it.
+- The **final holistic review ran as a sixth context, `harness:reviewer` at
+  `opus`**, and returned PASS — confirmed from the run's subagent metadata, not
+  from the session's own report of itself.
 - Verdict `PASS` at cycle 1, review tier `sonnet` with the derivation stated,
   boxes checked only after the orchestrator re-read the code and re-ran the suite
   itself. Independently re-run afterwards: `Ran 4 tests`, `OK`; `divide(1, 0)`
@@ -238,6 +241,13 @@ Both fixed on this branch; `05` has not been re-run since.
    reported `.harness/milestones.md` as outside `Files Allowed To Change` and
    returned `FAIL` on a correct task. Every task would hit this. `verifier.md`
    now excludes `.harness/` from that check.
+1b. **The verifier turned an uncertainty into a `FAIL`.** The same misattribution
+   above did not merely appear as a note — it flipped the whole `Result`, which
+   would have cost a ladder rung and a tier escalation on correct work if the
+   orchestrator had not disproved it. Excluding `.harness/` removes this instance;
+   `verifier.md` now also says the `Result` must summarise the observations rather
+   than outrun them, and that an unattributable observation is reported as one.
+
 2. **The `Baseline` handoff assumed the work was committed.** In `05` nothing was,
    so `git diff <baseline>..HEAD` was empty and the review phase would have had
    nothing to read — the orchestrator worked around it by pointing at the working

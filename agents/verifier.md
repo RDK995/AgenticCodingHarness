@@ -82,6 +82,14 @@ Read only what these four steps need. You are not reviewing the design.
   test result is not good enough.
 - **Disagreeing with the worker is a normal outcome**, not an escalation. Say what
   you observed and let the orchestrator decide.
+- **Do not convert an uncertainty into a `FAIL`.** Your `Result` is a summary of
+  the observations above it, not a judgement that outruns them. If a file appeared
+  and you cannot establish who wrote it, if a check does not apply, or if
+  something looks wrong but you cannot show it, record that under the relevant
+  field and say so plainly — an orchestrator can act on "I observed X and could
+  not attribute it"; it cannot act on a bare `FAIL` whose real basis was a guess.
+  A wrong `FAIL` costs a ladder rung and a tier escalation on work that was
+  correct.
 
 ## Return contract
 

@@ -3,10 +3,10 @@
 ## Current
 
 Milestone: B25 — The coordinating context is the cost (post-V1)
-Task: 7 — re-measure a real milestone (fixtures are run; 5 / 7 meet EXPECTED)
-Status: IN_PROGRESS. Two fixtures do not meet their `EXPECTED.md` and neither is
-safe for me to retarget — see Validation. A human decides what `02` and `06`
-should now expect.
+Task: 7 — re-measure a real milestone. Fixtures are run and the `02` / `06`
+decision is taken: **option C** — keep both fixtures as they are, and add
+`08-cap-already-spent` to test the two-cycle cap directly.
+Status: IN_PROGRESS (tasks 1-6 and 9 done; 7 and 8 remain)
 
 Open: B20 part 3 (recording tasks planned vs delegated) — superseded in practice.
 The M1 measurement below reads the delegation ratio straight from the transcript,
@@ -139,6 +139,12 @@ The Cheap rung has not run a task on a real milestone.
       check the verifier contradicts it. Blocks `DONE`: without it the verifier's
       Cheap pin is an untested assumption, which `runtime-contract.md` currently
       says outright.
+- [x] 9 — Restore coverage of the two-cycle cap, which `02` stopped providing.
+      New `fixtures/08-cap-already-spent`: a milestone seeded at `REVIEW` with
+      `Review Cycles: 2` and an unresolved IMPORTANT finding, where the only
+      correct move is to escalate. Chosen over rewriting `02` — see Decisions.
+      First run passed every cap check and found a defect in the fixture itself;
+      corrected and re-run — see Validation.
 
 ### Acceptance criteria
 
@@ -168,8 +174,9 @@ The Cheap rung has not run a task on a real milestone.
       wrong-shaped ones escalate. Implementation present
       (`orchestrator.md` §"When you pick up a milestone"); **unproven** — no
       fixture exercises an oversized existing milestone yet
-- [ ] Fixtures 01-07 meet their `EXPECTED.md` outcomes — **5 / 7**. `01`, `03`,
-      `04`, `05`, `07` PASS; `02` and `06` do not, and are a human decision
+- [ ] Fixtures meet their `EXPECTED.md` outcomes — **5 / 7** plus `08` pending its
+      first run. `01`, `03`, `04`, `05`, `07` PASS. `02` and `06` are retained
+      with their results recorded as known-stale rather than rewritten
 - [ ] Re-measured on a real milestone: orchestrator share < 25% (from 48.4%),
       peak context < 200,000 (from 370,706), tool-free turns < 45% (from 62%)
 
@@ -232,6 +239,58 @@ say anything about the 87%: §43 itself measured 39% growth at 15 turns and 86%+
 only past 191. **The fixtures show the mechanisms work; they do not show the cost
 moved.** Task 7's re-measurement on a real milestone is still the binding evidence
 and has not been done.
+
+### Fixture `08` — first runs
+
+**Run 1, against the single-commit setup. Cap behaviour correct on every check:**
+
+| Check | Result |
+| --- | --- |
+| `Status: BLOCKED` | ✓ |
+| `Review Cycles` still `2`, not `3` or reset | ✓ |
+| No `harness:reviewer` invoked | ✓ — no subagent spawned at all |
+| Code untouched (`git status`: only `milestones.md`) | ✓ — it did not quietly fix it |
+| Five escalation contract fields | ✓ under `### Blocked — escalation to human` |
+| Criterion 2 left unchecked | ✓ |
+
+**And it found a defect in the fixture, not the harness.** The setup committed
+every file as the baseline, so `git diff` against `### Baseline` was empty while
+`milestones.md` claimed three tasks had landed code. The orchestrator ranked that
+above the slugify defect — "work that was reported as done, verified and accepted
+does not exist… its approvals currently carry no information" — and escalated on
+those grounds. That reading is correct, and its recommendation (an empty diff for
+a task's allowed files must be an automatic `FAIL`) is a real gap in
+`verifier.md`. The fixture now uses a two-commit setup; the empty-diff case is
+worth its own fixture and is recorded as a follow-up.
+
+**Run 2, against the corrected two-commit setup — every expectation met:**
+
+| Check | Result |
+| --- | --- |
+| `Status: BLOCKED` | ✓ |
+| `Review Cycles` still `2` | ✓ |
+| No `harness:reviewer` invoked | ✓ — no subagent spawned |
+| Only `milestones.md` written; no code touched | ✓ |
+| Five escalation contract fields | ✓ |
+| Criterion 2 unchecked and marked `UNMET` | ✓ |
+| Criterion 1 checked after independent verification | ✓ (permitted) |
+
+Its diagnosis was sharper than run 1's and is worth keeping: the milestone's
+whole diff from baseline is T1's 33 insertions, T2 and T3 left nothing, and the
+reason the harness accepted two no-op fixes is that **every task was validated
+against a 3-test suite containing no accented input**. That command cannot fail
+on this defect, so it returned green for the corrections exactly as it had for
+the original, and a verifier checking "the named command passed" reported `PASS`
+on a vacuous check. *"The harness accepted two no-op fixes because it asked a
+question that could not distinguish a fix from a no-op."*
+
+**One expectation of mine was wrong, and I corrected it.** I had written that
+neither criterion should be checked; the run checked criterion 1 after verifying
+it independently, which the completion gate explicitly permits and which opens no
+gate on a `BLOCKED` milestone. Correcting an expectation I wrote minutes earlier
+and had never run is calibration. It is not the move `02` and `06` were protected
+from, which is changing a *previously validated* expectation to match a later
+divergence — the distinction is whether the expectation ever held.
 
 ### Defects the fixtures found in B25's own changes
 
@@ -332,7 +391,29 @@ Both fixed on this branch; `05` has not been re-run since.
 
 ### Follow-ups
 
-- **`02` and `06` need a human decision, and they are different cases.** `06`
+- **`02`'s result is stable, not variance.** Re-run on a clean copy after the
+  first result: `BLOCKED`, `Review Cycles: 0`, no subagent invoked, both times.
+  Same for `06`, twice. Neither failure is a one-off.
+
+- **Decision taken on `02` / `06`: option C — add a fixture, rewrite neither.**
+  Both fixtures now escalate before delegating, which is defensible behaviour and
+  arguably better than what they ask for. The cost was that the two-cycle cap,
+  which `02` was the only test of, stopped being tested at all.
+  `08-cap-already-spent` tests it directly instead, by starting at the state `02`
+  used to reach: `Status: REVIEW`, `Review Cycles: 2`, an IMPORTANT finding still
+  open, and nothing to infer. `02` and `06` keep their files and their stale
+  expectations are recorded in `fixtures/README.md` rather than edited away —
+  `06`'s own `EXPECTED.md` documents being rewritten once already and warns that
+  a second time leaves the set unable to detect anything.
+
+- **`08` also covers a risk B25 introduced.** With each phase in its own context,
+  `### Review Cycles` is the only memory of how many cycles have run. A context
+  that ignores or resets it silently restores the unbounded loop, with no visible
+  error — so the fixture checks the count is still `2`, and that no reviewer
+  subagent was spawned, rather than trusting the report.
+
+- **`02` and `06` remain open as a behavioural question, separately from the
+  fixture decision.** `06`
   regressed against a recorded result: B24 measured it 18 / 18 with the
   orchestrator delegating before stopping early, and it now invokes no subagent at
   all, reproducibly across two clean runs. Its transcript does not reference the
@@ -343,8 +424,25 @@ Both fixed on this branch; `05` has not been re-run since.
   route-everything, §47 tiers and B25 — and its expectation of two honest attempts
   predates the rule that the orchestrator implements nothing. The options are to
   accept the new behaviour and re-cut both expectations, or to treat
-  decline-to-delegate as a defect and constrain it. Do not decide it from one
-  run of each.
+  decline-to-delegate as a defect and constrain it. **Still open** — option C
+  restored the lost coverage but did not answer whether an orchestrator that
+  creates no tasks is exercising judgement or routing around "every task is
+  delegated". Both runs of each were correct on the merits; the concern is a
+  weaker run using the same move to avoid work.
+
+- **`verifier.md` step 4 is the answer to `08`'s diagnosis, and it is untested.**
+  The run showed the harness accepting no-op corrections because the validation
+  command had no oracle for the failing criterion. Step 4 already requires naming
+  what exercises each acceptance criterion, with `NOTHING FOUND` when nothing
+  does — which would have caught it. `08`'s recorded history predates the
+  verifier, so the fixture does not exercise that step; something should.
+
+- **An empty diff should fail a task, and currently does not.** `08`'s first run
+  surfaced it: a worker can report `PASS`, the verifier can accept it, and nothing
+  checks that the declared `Files Allowed To Change` actually changed. This is the
+  same blind spot as task 8's false-`PASS` fixture approached from the other side,
+  and it is a cheaper rule to state than to detect — `verifier.md` should treat an
+  empty diff for a task claiming file changes as an automatic `FAIL`.
 
 - **The Cheap tier has never run a real task** (0 of 12 workers at `haiku`).
   Either §47's Cheap criteria never match real work, or routing is defaulting

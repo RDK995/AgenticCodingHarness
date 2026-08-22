@@ -2697,9 +2697,15 @@ expected effect has now failed three times and is not acceptable as evidence her
   it is generated; an oversized one is split before any task runs, with criteria
   conserved exactly and later milestone numbers left valid; a wrong-shaped one
   escalates rather than being silently re-cut.
-- Fixtures 01-07 still meet their `EXPECTED.md` outcomes — in particular `02` and
+- Fixtures still meet their `EXPECTED.md` outcomes — in particular `02` and
   `06`, which drive the orchestrator directly and whose single-shot invocation
   cannot reach a review cycle once phases are separate.
+- The two-cycle review/fix cap has a fixture that tests it directly. `02` reached
+  the cap by way of contradictory criteria and no longer does — the harness now
+  escalates before routing anything — so the cap has been uncovered since §46
+  without that being visible. A fixture that starts at `Review Cycles: 2` with an
+  open finding tests the cap itself, and with it the B25-specific risk that the
+  count only survives between phases through `milestones.md`.
 - **Re-measured on a real milestone by the same method**, reporting orchestrator
   share, peak and median context, growth share, tool-free turn share, and
   `.output` reads, against the M1 baseline above. Targets: orchestrator share

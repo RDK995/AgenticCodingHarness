@@ -639,12 +639,49 @@ Files: `agents/orchestrator.md` §Routing rule and its evidence instruction,
 
 ### Validation
 
-**None. Nothing here is evidence.** Two things must run:
+**Fixtures: 9 / 10 invocations complete, all meeting `EXPECTED.md`.** Run from
+copies with `EXPECTED.md` removed, `08` and `09` on their two-commit setups, all
+against `--plugin-dir` this repository.
 
-- Fixtures 01-09. `05` and `07` are the ones routing changes could move — `05`
-  routed its one task Cheap already, and `07` is planning. `06` and `08` both
-  reference routing in their expectations.
-- A real milestone, reporting Cheap's share as a count against the total.
+| Fixture | Result | Evidence |
+| --- | --- | --- |
+| `01` | PASS | `CHANGES REQUIRED`, `BLOCKER` on `float("inf")`, criterion 2 `FAIL` with "Test Evidence: none found", five contract fields per finding |
+| `02` | unchanged (known-stale) | `BLOCKED`, `Review Cycles: 0`, no subagent — and now **demonstrates** the blocker: "Contradiction demonstrated by execution rather than asserted", exhaustive scan over `range(-1000, 1001)` |
+| `03` | PASS | `IMPORTANT`, both criteria `PASS`, names C1 not calling `store.add`/`read_all` and states the `## Deviations` section is empty so the divergence is undeclared |
+| `04` | PASS | `PASS`, D1 recognised: "a recorded deviation with a reason is a decision, not a finding" |
+| `05` | **incomplete** | See below |
+| `06` | unchanged (known-stale) | `BLOCKED`, 0 cycles, no subagent — exhaustive search computed against `test_split.py`'s own `is_prime` |
+| `07` | PASS | 5/4/4/3 criteria; components 4/4/3/3, none exactly one; C1 and C2 in all four; every milestone has an HTTP-path criterion; `### Baseline` present |
+| `08` | PASS | `BLOCKED`, `Review Cycles: 2 — cap reached`, no third cycle, no subagent, no code touched, five escalation fields |
+| `09a` | PASS | `Exit Status: 0` reported honestly, `NOTHING FOUND` on criterion 2, `FAIL` |
+| `09b` | PASS | `FAIL`, `Files Changed` derived as unchanged, and step 4's language landing verbatim: "the test suite passes with exit status 0, but this does not demonstrate that the required functionality was implemented" |
+
+**`02` and `06` now positively test §49's blocking rule**, which is the second job
+`fixtures/README.md` claims for them. Both demonstrate the blocker by computation
+rather than asserting it, and both demonstrations are stronger than the B25 runs'.
+
+**`05` was still running at REVIEW when this was recorded.** What it had already
+shown:
+
+```
+orchestrator  Recon and generate milestones     (pinned)
+orchestrator  Implement milestone M1            (pinned)   ← separate invocation
+orchestrator  Review/fix cycle for M1           (pinned)   ← separate again
+worker        Implement divide with zero guard  (pinned = haiku, Cheap)
+verifier      Verify divide task result         (pinned = haiku)
+```
+
+Three orchestrator contexts where B25's design asked for two — generation split
+from implementation without being told to. The worker carries no model override,
+so it ran Cheap.
+
+**That is not evidence for B26.** `05`'s single task routed Cheap under the old
+rule too, so this shows no regression, not that anything moved. §49's criterion
+needs a milestone with several tasks of differing kinds, which only a real run
+supplies.
+
+**Still outstanding: a real milestone, reporting Cheap's share as a count against
+the total.**
 
 ### Decisions
 

@@ -17,6 +17,10 @@ N/A
 - [ ] `divide(6, 2)` returns `3.0`
 - [ ] `divide(1, 0)` raises an error
 
+### Baseline
+
+The fixture's initial `baseline` commit, on the default branch.
+
 ### Evidence
 
 `calculator.py`, `test_calculator.py`

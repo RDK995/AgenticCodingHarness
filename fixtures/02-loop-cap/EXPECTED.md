@@ -19,11 +19,22 @@ git init -q && git add -A && git commit -qm baseline
 ## Command
 
 ```bash
-claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
-  --allowedTools "Read Write Edit Bash Grep Glob Task Agent" \
-  --agent harness:orchestrator \
-  -p "Run milestone M1 to completion or to BLOCKED."
+# One invocation per phase, as skills/implement/SKILL.md drives them. The
+# orchestrator returns at a phase boundary, so a single invocation cannot reach
+# a review cycle — drive it until the milestone settles.
+for phase in 1 2 3 4 5; do
+  claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
+    --allowedTools "Read Write Edit Bash Grep Glob Task Agent" \
+    --agent harness:orchestrator \
+    -p "Run the next phase of milestone M1, per its Status in .harness/milestones.md."
+  grep -qE '^Status: (DONE|BLOCKED)' .harness/milestones.md && break
+done
 ```
+
+The loop replaced a single `-p "Run milestone M1 to completion or to BLOCKED."`
+when §48 split a milestone into one invocation per phase. What the fixture checks
+is unchanged; how many invocations it takes to get there is not, and pinning the
+old single-shot command would have pinned the behaviour §48 removed.
 
 ## Expected outcome
 

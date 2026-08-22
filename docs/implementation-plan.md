@@ -2471,3 +2471,260 @@ file.
   rather than fixed.
 - Fixtures 05, 06 and 07 still meet their `EXPECTED.md` outcomes, and 06's ladder
   wording is updated to the new counts.
+
+## Amendment — the degradation analysis was wrong (2026-08-21)
+
+§47 and `docs/runtime-contract.md` both claimed that a runtime lacking the
+per-invocation override "would review top-tier work at the reviewer's pinned
+tier". That is self-contradictory: routing to the top tier uses the same
+primitive, so a runtime without it has no top-tier work to mis-review. Total
+absence degrades safely — everything runs at `haiku`, `sonnet` reviews it, and the
+reviewer remains stronger than the work.
+
+The real risk is narrower and worse. **Partial support** — the override honoured
+for workers but not the reviewer, or `worker.md` pinned upward while the reviewer
+stays fixed — violates the pairing with nothing reporting it. **Silent support** —
+a runtime that accepts the model parameter and ignores it — is worse still: the
+orchestrator records `Review tier: opus` while `sonnet` ran, so the evidence
+asserts a pairing that never happened.
+
+The asymmetry is the point. A silently ignored override in the ladder fails
+loudly: the attempt runs weaker, fails, the task blocks, nothing false is
+recorded. The same failure at the reviewer is silent — a confident `PASS`, an
+opened gate, and a milestone recording a review that did not occur.
+
+`runtime-contract.md` now states this, and requires confirming from the transcript
+that an override actually changed the model before trusting the pairing on a new
+runtime. Where it cannot be confirmed, pin the reviewer to the top tier: a known
+cost beats an unverifiable guarantee.
+# 48. Post-V1 Addition — The Coordinating Context Is the Cost
+
+## Problem
+
+§43 measured 87% context growth and blamed retained implementation. §46 removed
+retained implementation. **The growth is still 87%.**
+
+Measured on `openCodeOpenWeightHarness` M1 — the first milestone planned under the
+§44 slice rule and the §43 criteria budget, and the first run under §46/§47
+routing. Method: every `assistant` message in the session transcript and its
+`subagents/*.jsonl`, counting `input + cache_creation + cache_read + output`
+tokens per turn; `fixed` is the smallest context observed multiplied by the turn
+count, and `growth` is the remainder.
+
+**One milestone. Four acceptance criteria. 18 contexts, 2,039 turns,
+221,806,363 tokens.**
+
+| Context | n | Turns | Tokens | Share |
+| --- | --- | --- | --- | --- |
+| **orchestrator** | 2 | 548 | **107,246,808** | **48.4%** |
+| worker | 12 | 1,097 | 77,885,133 | 35.1% |
+| reviewer | 3 | 262 | 21,588,436 | 9.7% |
+| skill session | 1 | 132 | 15,085,986 | 6.8% |
+
+The M1 orchestrator alone: **527 turns, 106,281,674 tokens, 87% growth, peak
+context 370,706, median 199,638.** Half its turns ran above 200k; 18% ran above
+300k. For comparison, §43's seven orchestrator runs averaged 37.5M and peaked at
+62.2M each — and those milestones carried 7 to 13 criteria. This one carried four.
+
+**The three fixes already applied all worked, and none of them moved the number.**
+
+- *Retained implementation is gone.* The orchestrator made 17 `Edit` calls and
+  **all 17 were to `.harness/milestones.md`.** Zero source edits. §43's 1:10
+  delegation ratio is now 15 delegations against 0 retained implementations.
+- *The milestone was thin.* Four criteria, inside the §43 budget, demonstrated
+  end to end through the adapter — a §44 slice, not a component build-out.
+- *Routing worked.* 12 workers and 3 reviewers, tiers recorded per task.
+
+So the cause is not what the work is, nor who does it. It is that **one context
+holds the whole milestone from planning to completion**, and every later turn
+re-pays for all of it.
+
+Four things fill that context, in order of size.
+
+**1. The review/fix phase runs at peak context and costs more than everything
+before it.** Splitting the orchestrator run at its first reviewer invocation:
+
+| Phase | Turns | Tokens | Share |
+| --- | --- | --- | --- |
+| Planning through implementation | 306 | 40,771,418 | 38% |
+| Review/fix cycles | 221 | **65,510,256** | **62%** |
+
+The cheapest turns run first and the most expensive run last, because the review
+phase pays for the implementation phase on every single turn. B20 recorded this as
+an open question — "4x the milestones means 4x the review cycles… unverified either
+way." It is now verified, and it is unfavourable.
+
+**2. Verification is paid twice.** The orchestrator spent 72 tool calls verifying
+work itself (29 git inspections, 18 file reads, 14 greps, 11 test/type-check runs).
+The three reviewers then spent 117 `Bash` calls doing it again — independently, in
+fresh contexts, which is exactly what they are for. Both are correct under the
+current instructions; together they are redundant, and only one of them happens in
+a context that compounds.
+
+**3. Delegated work returns through the front door.** Of the orchestrator's 58
+`Read` calls, **52 were on subagent `.output` files and 6 were on repository
+files** — several output files read three to six times each. Delegation is supposed
+to keep a worker's reading out of the coordinating context; re-reading its full
+output transcript puts the expensive half back. It also means the orchestrator's
+"independent verification" leans on the agent's own report, which the core
+invariant forbids.
+
+**4. Turns that do nothing are not free.** **62% of the orchestrator's 527 turns
+issued no tool at all** — §43 measured ~45%, so this is worse, not better. At a
+median 199,638-token context, 326 tool-free turns are roughly 65M tokens of pure
+re-payment. 23 further `Bash` calls were sleeps and polling loops waiting on
+backgrounded subagents; each poll re-pays the full context to learn nothing.
+
+**The design already anticipated the fix and never used it.**
+`agents/orchestrator.md` describes itself as coordinating "one milestone at a time
+(**or one review/fix correction cycle**)" — a correction cycle as a *separate
+invocation*. `skills/implement/SKILL.md` instead says "invoke harness:orchestrator
+to run that milestone to completion", one invocation from reconnaissance to `DONE`.
+The 62% is the cost of that gap.
+
+## Solution
+
+**1. A milestone is more than one orchestrator invocation.** `SKILL.md` drives
+phases, not milestones: plan → implement → review/fix (per cycle) → complete. Each
+is a fresh orchestrator context that reads `.harness/milestones.md` and writes back
+to it. This is not new infrastructure — it is the handoff the file already provides
+for a fresh human session, and the invocation shape `orchestrator.md` already
+describes. The review/fix cycle is the one that must be separate; the others are
+worth it if the same measurement says so.
+
+**2. The orchestrator retains verdicts, not evidence.** Per-task verification moves
+to a fresh context that receives the task packet, the claimed result and the diff,
+re-runs validation, and returns a verdict with its evidence for the record. The
+orchestrator writes the evidence to `milestones.md` without the diff and test
+output ever entering its context. The core invariant is unchanged — an independent
+context still checks every claim, which is precisely what the reviewer already does
+and what the orchestrator currently duplicates. What changes is that the checking
+does not happen in the context that compounds.
+
+This needs its own agent rather than reusing the reviewer, on three grounds.
+`reviewer.md` is written end to end around a *milestone* — the diff since milestone
+start, the acceptance criteria, architecture drift, a per-criterion evidence table,
+graded findings — so aiming it at one task means overriding most of its
+instructions in the invocation, which is the failure `runtime-contract.md` already
+names: an instruction in a prompt is a request, not a property. Its tier is derived
+and floors at `sonnet`, so reusing it would put fifteen `sonnet`-or-higher contexts
+into a milestone to re-run fifteen commands. And keeping the roles distinct is what
+stops a task-level check being mistaken for the milestone review that opens the
+gate.
+
+The new role is Cheap on purpose, **and that is the one part of this section that
+is not obviously safe.** §47 answered fabricated evidence by having the
+orchestrator re-run validation at the top tier; moving the re-run to `haiku`
+changes what that answer promises. The mitigation is structural rather than
+capability-based — the verifier did not write the code, cannot edit it, returns a
+command and an exit status rather than a judgement, and a tier-matched reviewer
+re-runs everything before the gate — but the mitigation is an argument, and this
+plan has been wrong about arguments three times. It needs a fixture that plants a
+false `PASS` and checks the verifier contradicts it; `01` and `03` discriminate the
+reviewer role and do not cover this one.
+
+**Do not delete per-task verification instead of moving it.** It looks like the
+cheaper simplification — the milestone reviewer would eventually catch the same
+defects — but the retry ladder depends on knowing that an *attempt* failed in
+order to escalate a tier. Without a per-task verdict a lying `PASS` advances the
+milestone, and the failure surfaces at review as a correction task rather than as
+a tier escalation, which is the mechanism §47 built.
+
+**3. Never read a subagent's `.output` file.** The invocation returns the result;
+the file is the full transcript. Read the repository to verify a claim, not the
+claimant's account of it.
+
+**4. Do not background a worker and poll for it.** A blocking invocation costs one
+turn; polling costs a turn per check at full context.
+
+**5. Correct `agents/orchestrator.md`'s description**, which still says the
+orchestrator "routes tasks to the worker or handles risky work itself" — withdrawn
+by §46 and contradicted by the routing rule twenty lines below it. §47 recorded
+"no 'do it yourself' instruction survives anywhere"; the orchestrator's own
+frontmatter is a counterexample.
+
+**6. Check the milestone's size and shape when it is picked up, not only when it
+is planned.** §43's criteria budget and §44's slice rule are both subsections of
+"Generating milestones", which fires only when `.harness/milestones.md` does not
+exist. `SKILL.md` then picks the first milestone that is not `DONE` and runs it,
+whatever shape it is in. A plan written before those rules — or by a generation
+run that got them wrong — is never re-examined, and the same defect runs on every
+project that has one. `OpenWeightHarness` M5 is the worked example: 7 criteria,
+one component (C9), no criterion exercised through an entry point, run exactly as
+planned long after both rules existed.
+
+The gate belongs where the milestone is picked up, and reuses the thresholds
+already stated rather than restating them: 1-5 run it, 6-7 run it and note the
+size, 8 or more split it before running anything. A milestone with no criterion
+demonstrable through a real entry point fails on shape.
+
+Two different failures, needing two different responses. **Oversize is a
+mechanical split** the orchestrator performs itself — suffix rather than
+renumber (`M6` → `M6a`, `M6b`), conserve every criterion exactly, split on the
+outcome, and then *return without implementing*, so the parts are run by fresh
+contexts rather than by the one that just did the planning. B20 validated exactly
+this operation on a real 13-criterion milestone: 13 criteria in, 13 out, none
+lost, none added, cut along real boundaries. **Wrong shape is a re-cut**, which
+reorganises criteria into slices and may reword them — a planning decision with no
+obviously correct answer, so it escalates to a human rather than happening
+silently.
+
+## Scope
+
+`skills/implement/SKILL.md`, `agents/orchestrator.md`, and one measurement script
+under `.harness-dev/`. No runner, no token accounting at runtime, no new agent file
+unless per-task verification proves to need one rather than reusing the reviewer.
+
+This is the fourth section to target this number. §42 targeted the per-turn
+constant, §43 retained implementation and milestone size, §46 who does the work.
+Each fixed something real and left the number where it was. **Reasoning about
+expected effect has now failed three times and is not acceptable as evidence here.**
+
+## Acceptance criteria
+
+- A milestone's review/fix cycles run in orchestrator contexts separate from the
+  one that planned and implemented it, and `milestones.md` carries enough state for
+  the fresh context to resume without the original conversation.
+- Per-task verification happens in a context other than the orchestrator's, and the
+  orchestrator's recorded evidence is unchanged in substance by the move.
+- A fixture plants a worker return claiming a `PASS` that is false, and the
+  verifier contradicts it. Without this the Cheap pin is an untested assumption
+  and `runtime-contract.md` must say so. Two shapes, both of which a passing test
+  command hides: a criterion the command does not exercise, and a claimed change
+  that never landed.
+- The orchestrator may stop before routing anything only when it demonstrates the
+  blocker rather than asserting it. Concluding a milestone impossible is the one
+  move that routes around "every task is delegated" by never creating a task, and
+  the demonstration is what separates judgement from avoidance.
+- No instruction anywhere directs the orchestrator to read a subagent's `.output`
+  file; the polling pattern is named and forbidden.
+- `agents/orchestrator.md`'s description matches its routing rule.
+- A milestone is checked for size and shape when it is picked up, not only when
+  it is generated; an oversized one is split before any task runs, with criteria
+  conserved exactly and later milestone numbers left valid; a wrong-shaped one
+  escalates rather than being silently re-cut.
+- Fixtures still meet their `EXPECTED.md` outcomes — in particular `02` and
+  `06`, which drive the orchestrator directly and whose single-shot invocation
+  cannot reach a review cycle once phases are separate.
+- The two-cycle review/fix cap has a fixture that tests it directly. `02` reached
+  the cap by way of contradictory criteria and no longer does — the harness now
+  escalates before routing anything — so the cap has been uncovered since §46
+  without that being visible. A fixture that starts at `Review Cycles: 2` with an
+  open finding tests the cap itself, and with it the B25-specific risk that the
+  count only survives between phases through `milestones.md`.
+- **Re-measured on a real milestone by the same method**, reporting orchestrator
+  share, peak and median context, growth share, tool-free turn share, and
+  `.output` reads, against the M1 baseline above. Targets: orchestrator share
+  below 25% (from 48.4%), peak context below 200,000 (from 370,706), tool-free
+  turns below 45% (from 62%). A run that does not move these has not satisfied
+  this section, whatever else it improves.
+
+## Caveats on the baseline
+
+M1 ran **three** review cycles, not the two the cap allows, and ended `BLOCKED`; a
+milestone that passes at cycle 1 or 2 is cheaper than this. The 62% review-phase
+share is therefore an upper bound on that particular figure. The orchestrator's
+87% growth, its 48.4% share, the 52-of-58 `.output` reads and the 62% tool-free
+turns are not sensitive to the third cycle. Comparisons with §43 are across
+different projects and tasks; the method is identical, the conclusion does not rest
+on a small difference, and no §43 run approached this one's cost.

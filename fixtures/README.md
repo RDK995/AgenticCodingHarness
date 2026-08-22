@@ -20,8 +20,13 @@ run the copy — the retained fixture is never the thing that runs.
 ```bash
 cp -R fixtures/03-drift-undeclared /tmp/run-03
 cd /tmp/run-03
+rm EXPECTED.md                                          # never run with the answer key present
 git init -q && git add -A && git commit -qm baseline    # some fixtures need a diff
 ```
+
+**Remove `EXPECTED.md` from the copy before running.** It states the expected
+finding — for `03`, the exact one — and the agent explores the directory it runs
+in. A fixture whose answer sits next to the question discriminates nothing.
 
 Then run the command in that fixture's `EXPECTED.md`, pointing at this plugin:
 
@@ -39,12 +44,47 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | Fixture | Discriminates | First validated |
 | --- | --- | --- |
 | `01-requirement-violation` | Does the reviewer catch a requirement violation, and refuse to mark an untested criterion proven? | B6 |
-| `02-loop-cap` | Does contradictory work reach `BLOCKED` after exactly two cycles, instead of looping or faking a pass? | B11 |
+| `02-loop-cap` | Does contradictory work reach `BLOCKED` instead of looping or faking a pass? (**Its two-cycle expectation no longer holds — see below.**) | B11 |
 | `03-drift-undeclared` | Is a silently dissolved component boundary caught **while every test passes**? | B13 |
 | `04-drift-declared` | Is the same departure, once recorded, correctly *not* a finding? | B13 |
 | `05-golden-path` | Baseline: does the whole workflow still work at all? | B8, B14 |
 | `06-impossible-criterion` | Given a criterion no code can satisfy, does the harness prove the impossibility, decline to spend the retry ladder on it, and escalate with an actionable decision — instead of faking green? | B17 |
 | `07-layered-temptation` | Given an architecture that divides cleanly by tier, does planning produce thin end-to-end slices — or one milestone per component? | B22 |
+| `08-cap-already-spent` | With two review/fix cycles already recorded and a finding still open, does the harness escalate — or quietly start a third? | B25 |
+| `09-vacuous-pass` | Given a worker's false `PASS` backed by a genuinely green command, does the verifier catch that the command proved nothing — and that the claimed change never landed? | B25 |
+
+## `02` and the two-cycle cap
+
+`02` was written in B11, when the orchestrator was allowed to write code itself.
+Its expectation is that contradictory criteria produce two honest attempts, each
+rejected by a fresh reviewer, and then `BLOCKED` at `Review Cycles: 2`.
+
+Run in B25, twice on clean copies, it reaches `BLOCKED` with `Review Cycles: 0`
+and no subagent invoked at all. The harness now recognises that
+`subtract(10, 3)` cannot return both `7` and `42` before it routes anything, and
+escalates rather than spending two review cycles to establish it. That is better
+behaviour than the fixture asks for — but it meant the two-cycle cap, which `02`
+was the only test of, stopped being tested by anything.
+
+`08-cap-already-spent` was added rather than rewriting `02`, because a fixture
+rewritten to match whatever the harness did stops discriminating. `08` starts at
+the state `02` used to reach and tests the cap directly. `02` is retained for the
+half of its purpose that still holds — contradictory work must not be faked green
+— and its `Review Cycles: 2` line is known-stale, recorded here rather than
+quietly edited.
+
+`06` shows the same shape: B24 measured it delegating before stopping early, and
+in B25 it invokes no subagent at all, twice.
+
+Both then acquired a second purpose. `agents/orchestrator.md` §"Blocking a
+milestone before any task is routed" now permits stopping before delegation only
+when the blocker is *demonstrated* — computed, exhaustively checked, or quoted —
+and shown not to be resolved by anything in the repository, with a decision named
+for the human. `02` and `06` are the positive tests of that rule: `02` proved
+`7 ≠ 42` and confirmed the repository held no overload that could distinguish the
+two calls; `06` ran an exhaustive search over prime pairs. A run that escalated on
+"this looks impossible" without that work would now be wrong, and these two are
+where that shows up.
 
 ## Reading the results
 
@@ -87,7 +127,11 @@ still fail* to climb the ladder, which means genuine coding difficulty, which is
 the model-dependent gradient the set deliberately avoids.
 
 This is a known gap, recorded in `docs/implementation-plan.md` §40 as a waived
-acceptance criterion rather than left implicit. The ladder's failure mode is mild
-— a misread instruction degrades to the previous behaviour, the orchestrator
-taking the task itself — which is why the gap was accepted rather than closed with
-a fixture that would rot.
+acceptance criterion rather than left implicit. It was accepted rather than closed
+with a fixture that would rot.
+
+The reason originally given for accepting it — that a misread instruction
+"degrades to the previous behaviour, the orchestrator taking the task itself" — no
+longer holds: §46 removed the orchestrator's ability to implement. The observed
+degradation now is that the orchestrator declines to delegate and escalates to the
+human instead, which is what `02` and `06` both did when last run.

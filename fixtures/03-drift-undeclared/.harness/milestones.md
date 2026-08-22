@@ -17,6 +17,10 @@ C1, C2
 - [ ] A note added in one process run is listed in a later run
 - [ ] `note list` with no notes prints nothing and exits 0
 
+### Baseline
+
+The fixture's initial `baseline` commit, on the default branch.
+
 ### Evidence
 
 `note/cli.py`, `note/store.py`, `note/__main__.py`, `tests/test_note.py`

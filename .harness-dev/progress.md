@@ -639,7 +639,7 @@ Files: `agents/orchestrator.md` §Routing rule and its evidence instruction,
 
 ### Validation
 
-**Fixtures: 9 / 10 invocations complete, all meeting `EXPECTED.md`.** Run from
+**Fixtures: 10 / 10 invocations, all meeting `EXPECTED.md`.** Run from
 copies with `EXPECTED.md` removed, `08` and `09` on their two-commit setups, all
 against `--plugin-dir` this repository.
 
@@ -649,7 +649,7 @@ against `--plugin-dir` this repository.
 | `02` | unchanged (known-stale) | `BLOCKED`, `Review Cycles: 0`, no subagent — and now **demonstrates** the blocker: "Contradiction demonstrated by execution rather than asserted", exhaustive scan over `range(-1000, 1001)` |
 | `03` | PASS | `IMPORTANT`, both criteria `PASS`, names C1 not calling `store.add`/`read_all` and states the `## Deviations` section is empty so the divergence is undeclared |
 | `04` | PASS | `PASS`, D1 recognised: "a recorded deviation with a reason is a decision, not a finding" |
-| `05` | **incomplete** | See below |
+| `05` | PASS | `DONE`, 4/4 criteria checked, template headings in order, `Architecture: N/A`, suite re-runs independently (`Ran 4 tests`, `OK`), `divide(1, 0)` raises; review `PASS` at cycle 1 with tier `sonnet` and the derivation stated |
 | `06` | unchanged (known-stale) | `BLOCKED`, 0 cycles, no subagent — exhaustive search computed against `test_split.py`'s own `is_prime` |
 | `07` | PASS | 5/4/4/3 criteria; components 4/4/3/3, none exactly one; C1 and C2 in all four; every milestone has an HTTP-path criterion; `### Baseline` present |
 | `08` | PASS | `BLOCKED`, `Review Cycles: 2 — cap reached`, no third cycle, no subagent, no code touched, five escalation fields |
@@ -660,8 +660,7 @@ against `--plugin-dir` this repository.
 `fixtures/README.md` claims for them. Both demonstrate the blocker by computation
 rather than asserting it, and both demonstrations are stronger than the B25 runs'.
 
-**`05` was still running at REVIEW when this was recorded.** What it had already
-shown:
+**`05` finished `DONE` — seven contexts, every role B25 and B26 define:**
 
 ```
 orchestrator  Recon and generate milestones     (pinned)
@@ -669,11 +668,19 @@ orchestrator  Implement milestone M1            (pinned)   ← separate invocati
 orchestrator  Review/fix cycle for M1           (pinned)   ← separate again
 worker        Implement divide with zero guard  (pinned = haiku, Cheap)
 verifier      Verify divide task result         (pinned = haiku)
+reviewer      Review M1 against criteria        sonnet     (derived, floor)
+reviewer      Final holistic review             opus       (top tier)
 ```
 
 Three orchestrator contexts where B25's design asked for two — generation split
-from implementation without being told to. The worker carries no model override,
-so it ran Cheap.
+from implementation without being told to. Both workers carry no model override,
+so both ran Cheap.
+
+**B25's `Baseline` fix is visibly working.** The milestone records: *"The reviewer
+was told explicitly that `git diff b57bbb3..HEAD` is empty because nothing was
+committed, and that the milestone's work is untracked; it confirmed this from
+`git status --short`"* — the exact gap the previous run exposed, now handled
+rather than worked around.
 
 **That is not evidence for B26.** `05`'s single task routed Cheap under the old
 rule too, so this shows no regression, not that anything moved. §49's criterion
@@ -682,6 +689,14 @@ supplies.
 
 **Still outstanding: a real milestone, reporting Cheap's share as a count against
 the total.**
+
+**One checking hazard, recorded because I hit it.** `05`'s layout is not fixed
+between runs — this one put the test at the repository root, the previous one
+under `tests/`. Its `EXPECTED.md` says the suite must pass when re-run
+independently without pinning a command, so a checker must use the command the
+milestone itself recorded (`### Validation`). Running the previous run's command
+produced an `ImportError` that looked exactly like a fixture failure and was not
+one.
 
 ### Decisions
 

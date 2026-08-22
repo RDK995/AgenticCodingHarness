@@ -19,7 +19,7 @@ which is stronger than a self-reported count.
 
 ## Milestones
 
-`12 / 12 V1 build milestones DONE` · `24 / 25 including post-V1 additions DONE`
+`12 / 12 V1 build milestones DONE` · `24 / 26 including post-V1 additions DONE`
 
 1. B1 — Plugin scaffold loads — DONE
 2. B2 — Harness state templates exist — DONE
@@ -46,6 +46,7 @@ which is stronger than a self-reported count.
 23. B23 — Route everything, tier by risk (post-V1) — DONE
 24. B24 — Three worker tiers, reviewer matched to the work (post-V1) — DONE
 25. B25 — The coordinating context is the cost (post-V1) — IN_PROGRESS
+26. B26 — Cheap by default (post-V1) — DRAFTED, unvalidated
 
 ## Reading this file
 
@@ -587,6 +588,87 @@ Both fixed on this branch; `05` has not been re-run since.
   chosen to be easy, which is exactly the thing in question. This cannot be closed
   without task 7's real milestone, and it should be read off that run's tier
   table rather than argued.
+
+### Blockers
+
+None.
+
+## B26 — Cheap by default (post-V1)
+
+Status: DRAFTED — implementation written, **nothing validated**
+
+Specified in `docs/implementation-plan.md` §49, which supersedes §13's routing
+rule. Written at the human's request off B25's finding that the Cheap tier has
+never run a real task.
+
+### The finding
+
+M1 of `openCodeOpenWeightHarness` routed 12 workers: **4 `opus`, 8 `sonnet`, 0
+`haiku`**. Three causes, all in the routing rule's own text:
+
+- **An AND of four judgements.** Cheap needed all four of clearly specified,
+  bounded, low risk, easily verified. Any one falling short dropped to Mid, and on
+  real work something is nearly always slightly unclear. The rule did not have to
+  be disobeyed to produce this result.
+- **The text said to default upward** — "Mid… this is where most implementation
+  belongs" was an instruction, and it was obeyed.
+- **Nothing pushed back.** Routing up is never penalised, the orchestrator never
+  observes the worker, and upward drift is invisible.
+
+### Changes drafted
+
+- **B — inverted burden of proof.** Cheap is the default; the four questions are
+  asked as "which fails, and why", and the named reason goes in the packet. "It
+  seemed safer" is explicitly not a reason. The "most implementation belongs" line
+  is gone.
+- **D — a category list that is Cheap regardless of the milestone.** Tests from a
+  stated assertion, decision records, renames, exports, fixtures, stubs behind a
+  settled interface, repetitive changes, small isolated functions. Top is
+  unchanged.
+- **C — the price of being wrong.** The measured tier costs (Cheap ~285k, Mid
+  1.0-11.4M, Top 6.9-10.8M) sit next to the routing decision, with the asymmetry
+  stated: a wrong guess downward costs one cheap attempt, a wrong guess upward
+  costs the whole difference on every task routed that way and fails silently.
+- **E — record the outcome, not just the tier.** Each task's record carries the
+  rung it entered at, the reason if not Cheap, and what happened at each rung, so
+  upward drift is visible. Also added as a rule in `milestones-template.md`.
+
+Files: `agents/orchestrator.md` §Routing rule and its evidence instruction,
+`skills/implement/references/milestones-template.md`,
+`docs/runtime-contract.md` (the `worker` row).
+
+### Validation
+
+**None. Nothing here is evidence.** Two things must run:
+
+- Fixtures 01-09. `05` and `07` are the ones routing changes could move — `05`
+  routed its one task Cheap already, and `07` is planning. `06` and `08` both
+  reference routing in their expectations.
+- A real milestone, reporting Cheap's share as a count against the total.
+
+### Decisions
+
+- **The measurement is the acceptance criterion, not the argument.** §42, §43,
+  §46 and §48 each argued a cost improvement into existence and left the measured
+  number unmoved. §49 states outright that a run routing 0 of N to Cheap again has
+  not satisfied it. The temptation here is stronger than usual because the change
+  reads so obviously correct.
+- **No mechanism, only text — again.** The pins and the ladder are exactly as §47
+  left them. That is the same bet that has now failed several times, and it is
+  taken deliberately: there is no runtime primitive that could enforce a routing
+  judgement, so the alternative to instruction is not enforcement but a numeric
+  scoring scheme, which §13 rejected for good reasons that still hold.
+- **§13 is marked superseded rather than edited.** Consistent with how §42→§43 and
+  §43→§46 were handled: the plan is a record of what was believed when, not a
+  clean statement of current behaviour.
+
+### Follow-ups
+
+- **The reviewer's floor may now be doing more work.** If Cheap genuinely takes a
+  large share of tasks, more milestones will be entirely Cheap and reviewed at the
+  `sonnet` floor. That was always the design, but it has never been the common
+  case; worth watching whether review quality holds when the work under review is
+  mostly `haiku`.
 
 ### Blockers
 

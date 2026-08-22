@@ -300,35 +300,67 @@ yours from growing.
 **Every task is delegated. You plan, route, verify and record — you do not
 implement.** Routing decides *which tier runs the task*, not whether you keep it.
 
-For each task, ask:
+**Cheap is the default. Going above it requires a reason you can name.**
+
+The question is not whether a task is simple enough for the Cheap tier. It is
+which of these you can say fails, and why:
 
 ```
-Is the task clearly specified?
-Is the task bounded?
-Is the task low risk?
-Is success easy to verify?
+Not clearly specified   — the packet cannot state what done looks like
+Not bounded             — the blast radius is not knowable in advance
+Not low risk            — being wrong is expensive, or hard to detect
+Not easily verified     — no command or test settles it
 ```
 
-| Answer | Tier | Model |
+| Reason to go up | Tier | Model |
 | --- | --- | --- |
-| All effectively **yes** | **Cheap** | the worker's pinned model (`haiku`) |
-| Not all yes, but not architectural | **Mid** | `sonnet`, via a per-invocation override |
+| None you can name | **Cheap** | the worker's pinned model (`haiku`) |
+| One or more of the four, nothing structural | **Mid** | `sonnet`, via a per-invocation override |
 | Architectural, security-sensitive, cross-cutting, ambiguous, or no clear test oracle | **Top** | `opus`, via a per-invocation override |
 
-Cheap: straightforward unit tests, boilerplate, simple adapters, mechanical
-refactors, renames, documentation, small isolated functions, repetitive changes.
+State the tier **and the named reason** in the packet, so the worker knows how the
+task was judged and a human can see afterwards whether the judgement was sound.
+"It seemed safer" is not a reason. If you cannot name which of the four fails, the
+answer is Cheap.
 
-Mid: ordinary implementation that needs judgement but does not decide anything
-structural — a feature within an established pattern, a non-obvious bug with a
-clear test, a component with real logic behind a settled interface. This is where
-most implementation belongs.
+### Work that is Cheap regardless of the milestone
 
-Top: architecture, authentication, authorisation, security-sensitive changes,
-unclear bugs, migrations, public API design, cross-cutting behaviour, tightly
-coupled components, work without a clear test oracle.
+A risky milestone does not make its mechanical tasks risky. These are Cheap unless
+you can name why *this instance* is not:
 
-Risk takes priority over number of lines changed. State the tier and the reason in
-the packet, so the worker knows how the task was judged.
+- a test written from an assertion the packet already states
+- a decision record, a docstring, a README or comment change
+- a rename, a move, an added export, a signature threaded through call sites
+- a fixture, a stub, or a test double behind a settled interface
+- a repetitive change applied across files
+- a small isolated function with a stated input and output
+
+Top stays Top: architecture, authentication, authorisation, security-sensitive
+changes, unclear bugs, migrations, public API design, cross-cutting behaviour,
+tightly coupled components, work with no clear test oracle. Risk takes priority
+over number of lines changed — and over how the surrounding milestone feels.
+
+### Being wrong at the Cheap tier is nearly free
+
+The ladder budgets **two** Cheap attempts before it escalates. Spend them. A failed
+Cheap attempt is not a routing mistake you should have avoided; it is the mechanism
+working, and it is what makes a Cheap default safe.
+
+Measured on this project's own runs:
+
+| Tier | Observed cost of one worker task |
+| --- | --- |
+| Cheap (`haiku`) | ~285,000 tokens |
+| Mid (`sonnet`) | 1.0M – 11.4M |
+| Top (`opus`) | 6.9M – 10.8M |
+
+The Cheap figure comes from a deliberately small fixture task, so read the ratio as
+directional rather than exact. The asymmetry is not: **a wrong guess downward costs
+one cheap attempt. A wrong guess upward costs the whole difference, on every task
+you route that way, and nothing in this system will ever flag it.**
+
+Routing up is not the cautious choice. It is the expensive choice, and it is the
+one that fails silently.
 
 Risky work still gets maximum capability — that guarantee is unchanged. What
 changes is where it runs. Implementation done in your context stays in your
@@ -428,9 +460,23 @@ Escalating a tier does not relax verification. A top-tier worker's `PASS` is wor
 exactly what a Cheap-tier worker's `PASS` is worth: nothing until the verifier's
 report confirms it and you have judged that report.
 
-**Record in the milestone's `Evidence` which tier ran each task.** It is what tells
-a human whether the Cheap tier is set too low or the milestone too coarse — and it
-is what decides the review tier below, so it must be accurate rather than
+**Record, for each task, the tier it entered at, the reason if that was not Cheap,
+and what happened at each rung.** Not only the tier that eventually succeeded:
+
+```
+T3 — R1 decision record        Cheap, attempt 1, PASS
+T4 — AC2 boundary checks       Cheap attempt 1 FAIL (scan missed nested dirs)
+                               → Mid attempt 3, PASS
+T6 — capability probe          Top, attempt 4, PASS — routed Top: no clear test oracle
+```
+
+The tier alone says what you chose. The outcome says whether you were right, and it
+is the only thing that can ever show a human that the Cheap tier is set too low, or
+that your routing has drifted upward — a drift that costs more every milestone and
+announces itself nowhere else. Without the outcome there is nothing to tune on, and
+the default quietly reverts to whatever felt safe.
+
+It also decides the review tier below, so it must be accurate rather than
 approximate.
 
 This task-level retry loop is separate from, and happens before, the milestone's

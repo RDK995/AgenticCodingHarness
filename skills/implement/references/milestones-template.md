@@ -91,6 +91,10 @@ carry every template heading — the remaining headings are in its archive file.
   be enough for a new session to understand project status.
 - A milestone may only become `DONE` once its `Evidence` and `Validation`
   sections contain real implementation/test evidence, not a claim.
+- `### Evidence` records, per task, the tier it entered at, the named reason if
+  that was not Cheap, and the outcome at each rung attempted. The tier alone shows
+  what was chosen; the outcome is what shows whether the choice was right, and it
+  is the only record from which a human can see routing drifting upward over time.
 - `### Baseline` records the commit the milestone started from, and the branch
   (e.g. `8b81cf1 on m0-implementation`). The orchestrator writes it as its first
   act on the implementation phase. A later phase runs in a fresh context and

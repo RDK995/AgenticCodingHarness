@@ -4,7 +4,10 @@
 
 Milestone: B25 — The coordinating context is the cost (post-V1)
 Task: 7 — re-measure a real milestone. It is the only task left, and the only
-acceptance criterion with no evidence.
+acceptance criterion with no evidence. **Needs a target**: `OpenWeightHarness` is
+parked and cannot supply one (see Validation), so the candidates are unparking
+that repo or a live milestone in `openCodeOpenWeightHarness`, whose M1 is
+`BLOCKED` awaiting a human decision and whose M2 is `TODO`.
 Status: IN_PROGRESS (8 of 9 tasks done; 5 of 7 acceptance criteria proven).
 Every follow-up is closed except the Cheap tier on real work, which task 7
 answers by measurement rather than argument.
@@ -324,6 +327,45 @@ This closes what `runtime-contract.md` had recorded as an untested assumption
 behind the verifier's Cheap pin, though only in part: it shows the tier does not
 rubber-stamp a green command, not that it will not fabricate one. No fixture tries
 to induce fabrication, and that was the original worry.
+
+### Task 7 — attempt on `OpenWeightHarness` M6a, abandoned
+
+**Not measured. M6a is not available to run: that repository was parked on
+2026-08-21, after M5.** `.harness/milestones.md` carries a banner saying so and
+`.harness/handover-opencode.md` records M6a-M11b as "NOT STARTED — not being
+built here"; the work moved to `openCodeOpenWeightHarness`. The `TODO` on M6a is
+a fossil, not a queue position. I picked the target from the milestone index
+without reading the banner eight lines above it.
+
+Three phase invocations ran before I stopped the loop. They did not agree with
+each other, which is the finding worth keeping:
+
+- **Phases 1 and 2 refused**, correctly and in detail: they quoted the banner and
+  the handover table, declined to implement, declined to set `BLOCKED` ("nothing
+  was tried and nothing failed", and overwriting the `TODO` would destroy the
+  record that stopped them), and asked for a human decision. Phase 1 also noticed
+  the branch I had just cut — "a branch name is not an agreement to unpark a
+  build" — and named it as the likely source of the instruction.
+- **Phase 3 proceeded**, setting `Status: IN_PROGRESS` and writing `### Baseline`.
+  Same prompt, same repository state, opposite conclusion.
+
+That inconsistency is the substantive result of the attempt. The new
+§"Blocking a milestone before any task is routed" rule requires a demonstrated
+blocker before stopping, and phases 1-2 met it comfortably; nothing requires the
+converse — that a demonstrable stop condition *must* stop a later invocation. A
+run is one sample of a decision, and repeating the invocation until one agrees is
+exactly the loop the harness's own escalation contract exists to prevent.
+
+**One real defect, found only because this board predates B25.** Phase 3 wrote
+`### Baseline` in the wrong place — immediately after `Status:`, before
+`### Outcome`, rather than between `### Acceptance Criteria` and `### Evidence`
+where the template puts it. Every fixture I seeded already had the heading, so
+none of them could catch this: inserting the field into a board that lacks it is
+untested, and fixture `05` checks heading order precisely because it matters.
+
+Nothing was implemented. `OpenWeightHarness` is restored to `main` at `144d145`
+with a clean tree and the branch deleted; the phase-3 file state is kept at
+`.harness-dev/` scratch only as evidence for the heading-order defect.
 
 ### Defects the fixtures found in B25's own changes
 

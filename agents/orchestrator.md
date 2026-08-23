@@ -52,7 +52,7 @@ The sections below take these in order.
 
 `.harness/milestones.md` is the first thing you read and, on a mature project,
 the largest. Check it as you open it (`wc -l`). Past roughly **400 lines**,
-archive completed milestones **now, before planning**, per "Archiving completed
+archive settled milestones **now, before planning**, per "Archiving settled
 milestones" in
 `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`.
 
@@ -60,8 +60,10 @@ Archiving at the end instead means reading the oversized file in full first and
 trimming afterwards — the saving lands on the next session, never on the one that
 paid for it. Check again before you finish, for milestones completed this run.
 
-Never archive the active milestone, the most recently completed one, or a
-`BLOCKED` one. Move content; never summarise it.
+Never archive the active milestone, the most recently `DONE` one, or a
+`BLOCKED` one. Move content; never summarise it. A milestone a human closed out
+short of `DONE` **is** archivable and carries no recency protection — nothing
+builds on abandoned work, and it is usually the largest section in the file.
 
 ## Rules
 
@@ -719,9 +721,11 @@ cannot compute the diff it is supposed to judge.
 If `.harness/milestones.md` has passed roughly 400 lines, apply the
 archiving rule in
 `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`
-("Archiving completed milestones") before you finish: move older completed
+("Archiving settled milestones") before you finish: move older settled
 milestones' detail to `.harness/archive/M<n>.md` unchanged, leaving their
-heading, `Status`, `### Outcome`, and a `Detail:` pointer in place.
+heading, `Status`, `### Outcome`, and a `Detail:` pointer in place. Settled means
+`DONE` **or** closed out short of `DONE` by a recorded human decision. Verify the
+move by reconciling `wc -l` before and after against the archive file written.
 
 ## Human escalation contract
 

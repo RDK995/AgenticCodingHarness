@@ -52,13 +52,13 @@ TODO → IN_PROGRESS → REVIEW → DONE
 
 Use `BLOCKED` from any state whenever the milestone requires human intervention.
 
-## Archiving completed milestones
+## Archiving settled milestones
 
 On a long project this file accumulates the full evidence of every completed
 milestone, and every session then pays to read all of it to find the one
 milestone that is still open.
 
-Once the file passes roughly **400 lines**, move the detail of completed
+Once the file passes roughly **400 lines**, move the detail of **settled**
 milestones into `.harness/archive/M<n>.md` — one file per milestone, content
 unchanged. Leave in `milestones.md`:
 
@@ -74,12 +74,34 @@ Status: DONE
 Detail: `.harness/archive/M1.md`
 ```
 
+A milestone is **settled** when no further work will be done on it. That is
+either of:
+
+- it reached `DONE`; or
+- a human explicitly closed it out short of `DONE`, and that decision is recorded
+  in the milestone itself.
+
+Both are archivable. Restricting archiving to `DONE` alone is what strands a
+file: a milestone abandoned mid-flight keeps every line of its evidence forever,
+and abandoned milestones are usually the largest, because they are the ones that
+went wrong.
+
 Rules for archiving:
 
-- Never archive the active milestone, the most recently completed one, or any
-  milestone that is `BLOCKED`.
+- Never archive the active milestone, or any milestone that is `BLOCKED`.
+- Never archive the most recently `DONE` milestone. The milestone in progress
+  most likely builds on it, so its detail is the most likely to be needed. This
+  protection covers **exactly one** milestone.
+- That protection **never** extends to a milestone settled short of `DONE`.
+  Nothing builds on abandoned work, so its detail is the least likely to be
+  needed and the first that should go — regardless of how recently it was
+  closed out.
 - Move content; never summarise or drop it. The evidence is the record of what
   was actually verified.
+- Archiving moves bytes, so verify it moved them: record `wc -l` of
+  `milestones.md` before and after and of the archive file written, and confirm
+  they reconcile. State files have been lost to rewrites that were assumed to
+  have worked.
 - Below the threshold, archive nothing. A short project keeps every milestone
   here in full, matching the template above exactly.
 

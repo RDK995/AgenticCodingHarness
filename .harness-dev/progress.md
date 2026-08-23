@@ -2,24 +2,22 @@
 
 ## Current
 
-Milestone: B25 — The coordinating context is the cost (post-V1)
-Task: 7 — re-measure a real milestone. It is the only task left, and the only
-acceptance criterion with no evidence. **It now waits on a real run rather than a
-dedicated one**: a measurement run costs 20-40M tokens for a single review/fix
-cycle, so the next milestone built on the OpenCode build supplies the numbers
-instead, measured after the fact from its transcripts. Blocked on B25 reaching
-`main` and `~/tools/harness` pulling it — until then real runs exercise B24.
-Status: IN_PROGRESS (8 of 9 tasks done; 5 of 7 acceptance criteria proven).
-Every follow-up is closed except the Cheap tier on real work, which task 7
-answers by measurement rather than argument.
+Milestone: B27 — The architecture is drawn, and what was built is drawn back (post-V1)
+Task: 6 — prove the three criteria the fixture could not reach. Implementation is
+complete and fixture-validated for the recording and comparison path; the
+architect's diagram, the end-to-end wiring through `implement`, and the reviewer
+grading `drift.md` are implemented but unexercised.
+Status: REVIEW (5 of 6 tasks done; 4 of 7 acceptance criteria proven).
 
-Open: B20 part 3 (recording tasks planned vs delegated) — superseded in practice.
-The M1 measurement below reads the delegation ratio straight from the transcript,
-which is stronger than a self-reported count.
+Also open, unchanged: B25 task 7 (re-measure a real milestone) still waits on a
+real OpenCode run against the merged plugin. `origin/main` is at `193dcd6` with
+B25 and B26 merged, but `~/tools/harness` — the clone the real runs load their
+agents and skills from — is still at `99f9044` and must be pulled before any run
+exercises them. B26's Cheap-share criterion waits on the same run.
 
 ## Milestones
 
-`12 / 12 V1 build milestones DONE` · `24 / 26 including post-V1 additions DONE`
+`12 / 12 V1 build milestones DONE` · `24 / 27 including post-V1 additions DONE`
 
 1. B1 — Plugin scaffold loads — DONE
 2. B2 — Harness state templates exist — DONE
@@ -47,6 +45,7 @@ which is stronger than a self-reported count.
 24. B24 — Three worker tiers, reviewer matched to the work (post-V1) — DONE
 25. B25 — The coordinating context is the cost (post-V1) — IN_PROGRESS
 26. B26 — Cheap by default (post-V1) — DRAFTED, unvalidated
+27. B27 — The architecture is drawn, and what was built is drawn back (post-V1) — REVIEW
 
 ## Reading this file
 
@@ -721,6 +720,178 @@ one.
   `sonnet` floor. That was always the design, but it has never been the common
   case; worth watching whether review quality holds when the work under review is
   mostly `haiku`.
+
+### Blockers
+
+None.
+
+## B27 — The architecture is drawn, and what was built is drawn back (post-V1)
+
+Status: REVIEW — implemented, fixture-validated on the recording and comparison
+path, three criteria still unexercised
+
+Specified in `docs/implementation-plan.md` §50. Requested by the human: draw the
+architecture when the system is designed, draw what each milestone actually
+built, and compare the two at the end to assess drift.
+
+### What existed already
+
+§36 (B13) gave the harness an agreed `architecture.md` with components `C1…Cn`,
+a `### Architecture` field per milestone, and a per-milestone drift check in the
+reviewer graded `IMPORTANT`. What did not exist: any diagram, any record of what
+a milestone actually built, and any point at which the whole built system is laid
+against the whole agreed one. A responsibility migrating one step per milestone
+trips no per-milestone check.
+
+### Tasks
+
+- [x] 1 — Specify as §50, marked post-V1
+- [x] 2 — `## Diagram` in `architecture-template.md` and the architect skill: a
+      Mermaid `flowchart` rendering `## Components` and `## Interfaces`, agreed
+      by the human with the rest. A rendering, not a new decision — so it cannot
+      disagree with the text, and if it does the document is inconsistent
+- [x] 3 — `agents/as-built.md`: a Cheap-pinned agent with RECORD and COMPOSE
+      modes, `Read/Grep/Glob/Bash/Write`, whose only write is one file under
+      `.harness/as-built/`. Records observations; issues no verdict
+- [x] 4 — Wire it: `implement/SKILL.md` (RECORD after each `DONE`, COMPOSE before
+      the final review, `drift.md` as a final-review input),
+      `milestones-template.md` (`### As-Built`, a path never a diagram),
+      `orchestrator.md` (context boundary forbidding reading the records),
+      `reviewer.md` (grading rule for `drift.md`), `runtime-contract.md` (tier row)
+- [x] 5 — `fixtures/10-as-built-drift` and run it — both commands PASS, one
+      defect found in B27's own contract. See Validation
+- [ ] 6 — Prove the architect writes a conforming `## Diagram`, that the
+      `implement` loop wires RECORD/COMPOSE end to end, and that the final
+      reviewer grades `drift.md` as specified
+
+### Design decisions
+
+- **The agent is `as-built`, not `architect`.** The human asked for "the
+  architect" and the architect *skill* keeps the design job — deciding and
+  agreeing the intended architecture. Recording what was built is a different
+  job with a different tier and a different safety argument, and B25 already
+  made exactly this call when it gave the verifier its own definition rather
+  than pointing the reviewer at a task. A skill and an agent sharing one name
+  and doing opposite things is the confusion that decision avoided.
+- **It records; it does not judge.** No verdict, no severity, no suggested
+  correction. This is what makes the Cheap pin defensible, on the same argument
+  §48 used for the verifier: an agent that concludes nothing cannot conclude
+  wrongly. The reviewer grades what it recorded.
+- **Its output never enters the orchestrator's context.** The agent writes the
+  file; the milestone record carries a path and a one-line result. §48 measured
+  52 of 58 orchestrator `Read`s going to subagent output files — a diagram is
+  the same mistake in a different shape, and it would be re-paid on every
+  following turn.
+- **The comparison unions the milestone records rather than re-deriving from the
+  finished tree.** Chosen by the human from the two options. It is free, and it
+  carries attribution — it says which milestone moved a boundary, not only that
+  one moved. The cost is that it inherits a milestone's error, which is why
+  COMPOSE reports disagreements between milestones instead of merging them.
+- **The comparison is a report, not a gate.** Undeclared divergence is
+  `IMPORTANT`, exactly as §36 already grades drift; a divergence reconciled to a
+  `D<n>` is not a finding. No completion criterion changed.
+
+### Cost
+
+One Cheap context per milestone plus one at the end. At the measured Cheap rate
+(~285k) a ten-milestone project adds roughly 3M tokens — about 1.3% of the 221.8M
+§48 measured for a single milestone of `openCodeOpenWeightHarness`. That figure
+holds only while the context boundary does: a diagram read into the orchestrator
+stops costing 285k once and starts costing its own size every turn.
+
+### Validation
+
+**`fixtures/10-as-built-drift` — both commands met `EXPECTED.md` on first run.**
+Run from a copy under `/tmp` with `EXPECTED.md` removed, against
+`--plugin-dir` this repository, at the agent's pinned Cheap tier.
+
+Setup: an agreed three-component architecture (C1 CLI, C2 NoteStore, C3
+Formatter) with a `## Diagram`; two `DONE` milestones; three divergences, of
+which one is declared as `D1` and two are not; **all five tests pass**, so the
+drift is behaviourally invisible. M2's work is left uncommitted, so `git diff`
+against its baseline is empty and only `git status --porcelain` carries it.
+
+| | A — RECORD M2 | B — COMPOSE |
+| --- | --- | --- |
+| Result | `RECORDED` | `COMPOSED` |
+| Change source | **`working tree`** — not `git diff` alone | n/a |
+| Provisional id | `NEW-search`, **not** `C4` | carried through |
+| Claim mismatches | **3** — C2 not in the diff, C3 absent, `NEW-search` unclaimed | n/a |
+| C3 (planned, never built) | n/a | **reconciled to `D1`**, not `UNDECLARED` |
+| `NEW-search` | n/a | **`UNDECLARED`**, attributed to M2 |
+| Between-milestone disagreements | n/a | `NONE` |
+| Verdict or severity anywhere | **none** | **none** |
+| Files written | only `.harness/as-built/M2.md` | only `.harness/as-built/drift.md` |
+| `architecture.md`, `milestones.md`, source | unmodified | unmodified |
+
+A cited its edges to line numbers (`note/search.py` line 4,
+`from note.store import storage_path`) and marked pre-existing components as
+context rather than claiming them. B sorted edges as well as components into the
+three lists — more than the contract asked for — and styled the unplanned
+component distinctly in the composed diagram.
+
+**The fixture found a defect in B27's own contract on its first run.** COMPOSE's
+return counted components and edges as one total (`Planned And Built: 3`) while
+the file it wrote separated them (2 components, 1 edge). Both are internally
+consistent, so neither is wrong — the return contract simply did not say which
+was meant. A single number cannot distinguish a component that vanished from a
+boundary that moved, which is most of what the comparison exists to tell apart.
+`agents/as-built.md` now requires the two counts separately and says why;
+`EXPECTED.md` records it.
+
+**Regression: `fixtures/03-drift-undeclared` — PASS, unchanged.** `agents/reviewer.md`
+§Architectural drift was edited, and `03` is its sharpest test. The run returned
+`IMPORTANT` (not `OPTIONAL`, not `BLOCKER`), verdict `CHANGES REQUIRED`, both
+acceptance criteria `PASS`, and named C1 bypassing `store.add`/`read_all` as
+**undeclared** drift, reasoning that undeclared deviation is the defect rather
+than deviation itself. It raised two further findings beyond the answer key (an
+untested "unreadable storage file" edge case at `IMPORTANT`, a missing
+`__init__.py` at `OPTIONAL`), which the fixture does not forbid.
+
+### Acceptance criteria
+
+- [ ] An agreed architecture carries a `## Diagram` whose nodes and edges match
+      its `## Components` and `## Interfaces`. Implementation present
+      (`architecture-template.md` §Diagram and its rules, `architect/SKILL.md`
+      Steps 1 and 4). **Unproven** — no fixture runs the architect skill
+- [x] Each `DONE` milestone produces `.harness/as-built/M<n>.md` from its own
+      diff, written by a Cheap-pinned context that is not the orchestrator's.
+      Evidence: fixture `10` command A, `model: haiku` in frontmatter
+- [ ] The milestone record references the as-built file by path and no
+      orchestrator turn reads its contents. Implementation present
+      (`milestones-template.md` §As-Built, `orchestrator.md` §Context boundaries,
+      `implement/SKILL.md` "Do not read the file"). **Unproven end to end** — the
+      fixture invokes the agent directly rather than through the loop
+- [x] `harness:as-built` reports a contradiction between what a milestone claimed
+      and what its diff contains, without issuing a verdict. Evidence: command A,
+      three claim mismatches, no verdict or severity in the return or the file
+- [x] Compose mode produces `drift.md` with the three lists, each entry
+      attributed to the milestone that introduced it and reconciled against
+      `## Deviations`. Evidence: command B — C3→`D1`, `NEW-search`→`UNDECLARED`
+      attributed to M2, edges sorted as well as components
+- [ ] The final reviewer raises undeclared divergence as `IMPORTANT` and raises
+      nothing for a recorded deviation. Implementation present (`reviewer.md`
+      §"In a final review, the comparison is already drawn"). **Unproven** — no
+      run has passed `drift.md` to a reviewer. `03`'s regression shows the
+      per-milestone path is intact, which is not the same claim
+- [x] A project with no `architecture.md` behaves exactly as before. Evidence:
+      `implement/SKILL.md` guards both invocations on the file existing, and
+      `orchestrator.md` records `N/A`; `03`'s unchanged result confirms the
+      reviewer path is untouched for projects that do have one
+
+### Follow-ups
+
+- **The subtlest divergence was drawn but not characterised.** `search.py`
+  re-implements `read_all()` by parsing the notes file itself, contradicting C2's
+  stated ownership ("No other component touches that file"). Both runs drew the
+  edge and cited it; neither said the ownership claim was contradicted. That is
+  arguably correct — characterising it is a judgement, and this agent does not
+  judge — but it means the reviewer must notice it from the edge alone. Worth
+  checking once criterion 6 is exercised.
+- **Task 6 needs a golden-path fixture with an architecture.** `05-golden-path`
+  has none, so no fixture currently runs `implement` end to end against a project
+  that would trigger RECORD and COMPOSE. That is the single run that would prove
+  three of the four outstanding criteria at once.
 
 ### Blockers
 

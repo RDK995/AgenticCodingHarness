@@ -2812,3 +2812,128 @@ exactly as §47 left them.
   exactly — three sections in a row have argued a cost improvement into existence
   and left the measured number unmoved. A run that routes 0 of N to Cheap again
   has not satisfied this section, whatever else it improves.
+
+# 50. Post-V1 Addition — The Architecture Is Drawn, and What Was Built Is Drawn Back
+
+## Problem
+
+§36 gave the harness an agreed architecture and a drift check, and both work:
+`architecture.md` names components `C1…Cn`, milestones reference the components
+they realise, and the reviewer raises `IMPORTANT` when a milestone's diff departs
+from the agreed design without a recorded deviation.
+
+Three things are still missing, and they are the same thing seen from three
+angles.
+
+**The agreed architecture is prose, so nobody can see its shape.** Components,
+boundaries and dependencies are stated in sentences spread over four sections. A
+reader has to reconstruct the graph in their head to answer "what talks to what",
+which is the question the document exists to answer.
+
+**Nothing records what a milestone actually built.** The reviewer judges drift
+and then discards its working — the finding survives, the picture does not. By
+the fifth milestone there is no accumulated account of the system as constructed,
+only a document describing the system as intended plus a list of deviations that
+were noticed at the time.
+
+**Drift is only ever checked one milestone at a time.** Each milestone's diff is
+compared to the agreed architecture in isolation. A responsibility that migrates
+one small step per milestone never trips a per-milestone check, and there is no
+point at which the whole built system is laid against the whole agreed one.
+
+## Change
+
+Draw the agreed architecture. Draw what each milestone actually built. Compare
+the accumulation to the original at the end.
+
+### The planned diagram
+
+`architecture.md` gains a `## Diagram` section: a Mermaid `flowchart` with one
+node per component and one edge per dependency, edge-labelled with what crosses
+that boundary.
+
+It is a **rendering of sections that already exist**, not a new decision — nodes
+come from `## Components`, edges from their `Depends on` lines, labels from
+`## Interfaces`. It therefore cannot disagree with the text; if it does, the
+document is internally inconsistent and that is itself the finding. The architect
+writes it in Step 5 and the human agrees it with the rest.
+
+### The as-built record
+
+A new agent, `harness:as-built`, runs **once per milestone, after it reaches
+`DONE`**, in its own context pinned to the Cheap tier. It reads the milestone's
+diff from its `### Baseline`, derives which components the changed files actually
+constitute, and writes `.harness/as-built/M<n>.md` — a Mermaid diagram of that
+milestone's contribution plus the observations behind it.
+
+Two properties are load-bearing.
+
+**It records; it does not judge.** It reports what the diff shows and where that
+contradicts what the milestone claimed, and stops there. No verdict, no severity,
+no correction. Judging stays with the reviewer, which is what makes a Cheap pin
+safe here for the same reason §48 argued it safe for the verifier: an agent that
+cannot conclude anything cannot conclude anything wrong.
+
+**Its output never enters the orchestrator's context.** The agent writes the file
+itself; the orchestrator records the path and a one-line result. §48 measured 52
+of 58 orchestrator `Read`s going to subagent output files, and a diagram is a
+large artifact to re-pay for on every subsequent turn. The milestone record
+carries a pointer, not a picture.
+
+### The comparison
+
+Before the final review, `harness:as-built` runs once more in **compose mode**:
+it unions every `.harness/as-built/M<n>.md` into the system as actually built and
+lays it against `## Diagram` and `## Components`, writing
+`.harness/as-built/drift.md` with three lists — *planned and built*, *built but
+not planned*, *planned but never built* — each entry reconciled against the
+`D<n>` entries in `## Deviations`.
+
+The union is used rather than a fresh derivation from the finished tree because
+it is free (the artifacts already exist) and because it carries attribution: it
+says not only that a boundary moved but which milestone moved it. The cost is
+that it inherits any error a milestone made — which is why the compose step
+reports disagreements between milestones rather than silently merging them.
+
+`drift.md` becomes an input to the final review. Undeclared divergence is an
+`IMPORTANT` finding, exactly as §36 already grades it; a divergence reconciled to
+a recorded deviation is not a finding at all. **The comparison is a report, not a
+new gate** — it gives the reviewer evidence it previously had to reconstruct, and
+changes no completion criterion.
+
+## What this costs
+
+One Cheap context per milestone, plus one at the end. Measured Cheap-tier cost is
+~285k tokens, so a ten-milestone project adds roughly 3M — about 1.3% of the
+221.8M §48 measured for a single milestone of `openCodeOpenWeightHarness`, and
+under 1% of a whole build. The constraint that keeps it there is the context
+boundary above: the moment a diagram is read into the orchestrator or the
+reviewer's planning context, it stops costing 285k once and starts costing its
+own size on every following turn.
+
+## Acceptance criteria
+
+- An agreed architecture carries a `## Diagram` whose nodes and edges match its
+  `## Components` and `## Interfaces` exactly.
+- Each `DONE` milestone produces `.harness/as-built/M<n>.md` from its own diff,
+  written by a Cheap-pinned context that is not the orchestrator's.
+- The milestone record references the as-built file by path; no orchestrator
+  turn reads its contents.
+- `harness:as-built` reports a contradiction between what a milestone claimed
+  under `### Architecture` and what its diff contains, without issuing a verdict.
+- Compose mode produces `drift.md` with the three lists, each entry attributed to
+  the milestone that introduced it and reconciled against `## Deviations`.
+- The final reviewer raises undeclared divergence as `IMPORTANT` and raises
+  nothing for divergence recorded as a deviation.
+- A project with no `architecture.md` behaves exactly as before — no as-built
+  agent runs, no files are created.
+
+## Never
+
+- Never let the as-built agent edit source, tests, or `architecture.md`. It reads
+  the repository and writes one file under `.harness/as-built/`.
+- Never let it echo a milestone's claims. Every component and edge it reports is
+  derived from files that exist in the diff, or it is not reported.
+- Never let a missing or unreadable as-built file block a milestone. The record
+  is evidence, not a gate; a failure to draw it is reported and the build
+  continues.

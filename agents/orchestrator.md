@@ -642,6 +642,12 @@ A milestone is a unit of context as well as a unit of work. Keep yours bounded:
   repository files. Verify a claim against the repository — the diff, the code,
   the tests — never against the claimant's account of it. That is the core
   invariant, not only a cost rule.
+- **Never read an as-built record.** `.harness/as-built/M<n>.md` and
+  `drift.md` are written for the reviewer and for the human, not for you. The
+  milestone's `### As-Built` field carries a path and a one-line result, and that
+  is the whole of what you need from it. Reading the diagram costs its size on
+  every turn that follows, which is the same mistake as reading an `.output` file
+  in a different shape.
 - **Never background a subagent and poll for it.** A blocking invocation costs one
   turn. A `sleep`-and-check loop costs a turn per check, each re-paying your whole
   context to learn nothing, and the same measurement found 23 of them.
@@ -696,6 +702,8 @@ carry across it is the most expensive.
 
 Update the milestone entry in `.harness/milestones.md` in place — status,
 checked acceptance criteria, `Architecture` (component ids realised, or `N/A`),
+`As-Built` (left for the implement skill to fill after `DONE`, or `N/A` when the
+project has no architecture),
 `Baseline` (the commit the milestone started from), `Evidence` (files),
 `Validation` (commands and results), `Review` (PASS or the resolved findings),
 `Review Cycles` (count), and `Follow-ups` (anything deferred). This is what lets a

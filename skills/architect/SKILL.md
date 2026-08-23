@@ -56,6 +56,16 @@ Material risks
 
 Give each component an identifier `C1`, `C2`, … so milestones can reference it.
 
+Then draw it. `## Diagram` is a Mermaid `flowchart` with one node per component
+and one edge per `Depends on`, each edge labelled with what crosses that
+boundary. Derive it from what you just determined rather than composing it
+separately — it is the same information in the form that answers "what talks to
+what" without the reader reconstructing the graph from four sections of prose.
+
+If the graph is hard to draw, that is a result. Components with edges to
+everything, or a cycle you did not intend, are visible in a diagram and nearly
+invisible in a list.
+
 ## Step 2 — Ask only what is materially ambiguous
 
 Ask only questions whose answer changes the structure of the system, and prefer
@@ -83,8 +93,12 @@ incomplete — resolve it before presenting, not after.
 
 ## Step 4 — Present and require agreement
 
-Present the proposed architecture to the human in full, including what you
-rejected and why. Require explicit agreement.
+Present the proposed architecture to the human in full, **including the
+diagram**, and including what you rejected and why. Require explicit agreement.
+
+The diagram is the part most likely to draw a real objection — a boundary that
+reads as reasonable in a sentence often reads as obviously wrong as an arrow — so
+present it first and let the prose support it.
 
 If the human pushes back or introduces new information, return to Step 1. If
 their answer changes what the system must *do* rather than how it is built,
@@ -113,5 +127,9 @@ requirements: it stops.
 - Never mark an architecture `AGREED` because it looks reasonable to you. The
   point of the human gate is that you do not get to both choose the
   architecture and certify it.
+- Never let the diagram and the text disagree. The diagram renders
+  `## Components` and `## Interfaces`; if drawing it makes you want to change the
+  design, change the design and redraw, rather than drawing what you wish were
+  true.
 - Never design for hypothetical future requirements. If you think one is coming,
   note it under `## Deviations` as a possibility, do not build for it.

@@ -79,7 +79,19 @@ LOOP:
     (BLOCKED means it hit the 2-cycle review/fix cap with unresolved
     BLOCKER/IMPORTANT findings, or needs a human planning decision)
 
-    otherwise: continue the LOOP
+    otherwise:
+        IF .harness/architecture.md exists:
+            invoke harness:as-built in RECORD mode for this milestone,
+            passing its number, its ### Baseline, and its ### Architecture
+            field — it writes .harness/as-built/M<n>.md itself
+
+            write its returned path and one-line result into the
+            milestone's ### As-Built field. Do not read the file.
+
+            IF it returns BLOCKED: record that in ### As-Built and carry on.
+            The record is evidence, not a gate.
+
+        continue the LOOP
 ```
 
 ## One invocation per phase, not per milestone
@@ -97,6 +109,20 @@ loop above actually re-invoke rather than let one context run on. Do not collaps
 these back into one invocation to save a round trip — the round trip is cheap and
 the context it discards is not.
 
+## Compose the drift comparison
+
+Once every milestone is DONE and the project has an `.harness/architecture.md`,
+invoke `harness:as-built` once more in **COMPOSE** mode. It unions every
+`.harness/as-built/M<n>.md` into the system as actually built, lays it against the
+agreed `## Diagram` and `## Components`, and writes `.harness/as-built/drift.md`.
+
+Pass its path to the final review below. Do not read it yourself — the reviewer
+is the context that needs it, and routing a full comparison through this one buys
+nothing.
+
+Skip this entirely when the project has no architecture. There is nothing to
+compare against, and the harness's V1 behaviour is unchanged in that case.
+
 ## Final fresh review
 
 Once every milestone is DONE, invoke harness:reviewer in **final review mode**
@@ -106,6 +132,7 @@ with:
 
 - the original requirements
 - the agreed architecture (.harness/architecture.md), if the project has one
+- the drift comparison (.harness/as-built/drift.md), if one was composed
 - all milestone outcomes (from .harness/milestones.md, and from
   `.harness/archive/M<n>.md` for any milestone whose detail has been archived)
 - the complete implementation diff (project start → now)
@@ -139,6 +166,9 @@ IF the reviewer returns CHANGES REQUIRED:
   each other; skipping ahead defeats the point of ordering them.
 - Never loop the review/fix cycle more than twice (per milestone, and again for
   the final review) — escalate to the human instead.
+- Never copy an as-built diagram into `.harness/milestones.md` or into your own
+  report. The milestone record carries a path; the diagram stays in its file. A
+  diagram pasted into shared state is re-read by every session that follows.
 - Never let the implementation and an agreed `.harness/architecture.md` drift
   apart silently. By the end, the architecture must describe what was actually
   built — either because the code matches it, or because every departure is

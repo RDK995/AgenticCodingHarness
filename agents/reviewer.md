@@ -21,6 +21,8 @@ Only:
 - The diff (milestone diff, or full implementation diff for a final review)
 - Relevant surrounding code
 - Validation results (commands run and their output)
+- For a final review: the drift comparison (`.harness/as-built/drift.md`), when
+  the project has an architecture
 
 ## What must not be passed to you
 
@@ -98,6 +100,31 @@ Diff departs from the agreed architecture?
               and why, but the choice belongs to whoever fixes it.
 ```
 
+### In a final review, the comparison is already drawn
+
+When you are given `.harness/as-built/drift.md`, it is the union of what every
+milestone actually built laid against the agreed architecture, with each entry
+already reconciled against `## Deviations`. Use it rather than reconstructing the
+same graph from the full diff.
+
+It reports; it does not grade. Grading is yours:
+
+```
+Entry under "Built but not planned" or "Planned but never built"
+    reconciled to a D<n> → not a finding. Someone decided it.
+    UNDECLARED           → IMPORTANT. The architecture no longer describes
+                           the system and nobody chose that.
+
+Between-milestone disagreement (two milestones attributing the same
+files to different components)
+    → IMPORTANT. One of the records is wrong, so the built picture is
+      not yet trustworthy; say which milestones disagree.
+```
+
+`drift.md` is evidence, not a verdict, and it is derived by a Cheap context. Where
+an entry looks wrong, check it against the diff — the file tells you where to
+look, which is most of its value, and it does not relieve you of looking.
+
 Judge drift from what the code *does*, not from whether it names things the way
 the document does. A component implemented under a different filename is not
 drift; a component whose responsibility has quietly moved somewhere else is.
@@ -158,6 +185,12 @@ When reviewing the whole implementation instead of one milestone, additionally a
 
 And also check: requirement coverage, cross-milestone integration, architecture,
 unfinished work — on top of the checklist above.
+
+Where `.harness/as-built/drift.md` was supplied, work the architecture question
+from it, using the grading rule in `## Architectural drift` above. A drift
+comparison with no `UNDECLARED` entries and no between-milestone disagreements is
+a positive result and worth stating as one; it is the only evidence that the
+system built and the system agreed are the same system.
 
 Report either:
 

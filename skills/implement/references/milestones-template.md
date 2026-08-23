@@ -13,6 +13,8 @@ Status: TODO
 
 ### Architecture
 
+### As-Built
+
 ### Acceptance Criteria
 - [ ]
 
@@ -108,6 +110,12 @@ carry every template heading — the remaining headings are in its archive file.
 - `### Follow-ups` records out-of-scope ideas surfaced while working the
   milestone. It is a record, not a task list — items there must not be
   implemented as part of this milestone.
+- `### As-Built` holds the path to this milestone's as-built record and the
+  one-line result the `as-built` agent returned (e.g.
+  `.harness/as-built/M2.md — RECORDED, 3 components, 1 claim mismatch`). It is
+  written once, after the milestone reaches `DONE`. **A path, never a diagram** —
+  the picture lives in the file, and copying it here would make every later
+  session pay to read it. Write `N/A` when the project has no `architecture.md`.
 - `### Architecture` lists the component ids from `.harness/architecture.md`
   that this milestone realises (e.g. `C1, C3`). Write `N/A` when the project has
   no `architecture.md` — the field is always present so there is only ever one

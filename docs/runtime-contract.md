@@ -19,7 +19,7 @@ The coupling is small enough to list in full:
 | Coupling | Where |
 | --- | --- |
 | Model pinning | `agents/worker.md` frontmatter — one line |
-| Tool restriction | `agents/worker.md`, `agents/reviewer.md`, `agents/verifier.md` frontmatter |
+| Tool restriction | `agents/worker.md`, `agents/reviewer.md`, `agents/verifier.md`, `agents/as-built.md` frontmatter |
 | Plugin packaging | `.claude-plugin/plugin.json`, the `agents/` + `skills/` layout |
 | Path resolution | `${CLAUDE_PLUGIN_ROOT}` in agent and skill bodies |
 | Invocation | `/harness:*` skills, `harness:*` subagent names |
@@ -108,6 +108,7 @@ difference is not about size of output.
 | `worker` | **Cheap / Mid / Top** | The tier is chosen per task by risk (§47), with `haiku` as the default and a named reason required to go above it (§49): `sonnet` when the task is not clearly specified, not bounded, not low risk or not easily verified; `opus` for architecture, security, cross-cutting or ambiguous work. Nothing it claims is trusted at any tier: a verifier re-runs the validation in a context that did not write the code, and a fresh reviewer checks the result. Failure degrades gracefully — the ladder assumes workers fail. |
 | `orchestrator` | **Highest** | Holds the routing decision, the escalation judgement, and the judgement of evidence. It delegates every task and implements none (§46), and since §48 it delegates the re-running of a task's validation too — what it retains is deciding whether the returned command, exit status and file list actually support the claim. Risky work is routed to a worker at this same tier rather than retained. |
 | `verifier` | **Cheap** | Re-runs one task's stated validation and reports the command, exit status, output and changed files. Deliberately not the gate, which is what makes a cheap tier safe here: its output is a command and an exit status rather than a judgement, and a tier-matched reviewer re-runs the validation independently before anything becomes `DONE` (§48). It cannot edit what it checks. |
+| `as-built` | **Cheap** | Draws what a milestone actually built and, at the end, lays the union against the agreed architecture (§50). Cheap for the same structural reason as the verifier: it issues no verdict, names no severity and suggests no correction, so there is no judgement for a weak tier to get wrong. Its only write is one file under `.harness/as-built/`; the reviewer grades what it recorded. |
 | `reviewer` | **Derived — never below the work** | The thing that verifies everything else. Nothing verifies it except a human. Its tier is not fixed: it runs at no less than the highest tier that produced the work under review (§47), with `sonnet` as the floor and the final holistic review at the top tier. A reviewer weaker than the work it judges emits a confident `PASS` and the gate opens on nothing. |
 | `roast-requirements`, `architect` | **High** | Their entire value is asking the question nobody had considered — the capability weaker models lack most. |
 
@@ -148,6 +149,7 @@ in the B16 section of `.harness-dev/progress.md`.
 | Which model runs the highest tier | `model:` in `agents/orchestrator.md` frontmatter | Verification, routing, and escalation judgement live here |
 | Which model runs the high tier | `model:` in `agents/reviewer.md` frontmatter | Lowering it further trades away the last check before the gate; re-run fixtures 01 and 03 |
 | Which model re-runs a task's validation | `model:` in `agents/verifier.md` frontmatter | Cheap on purpose — it is not the gate. Raising it buys little; the reviewer is the check that matters |
+| Which model draws the as-built record | `model:` in `agents/as-built.md` frontmatter | Cheap on purpose — it records rather than concludes. Raising it buys a prettier diagram, not a safer one |
 | Which model runs the skills | The session model | `roast-requirements` and `architect` are high tier and are not subagents |
 | Tool restrictions per role | `tools:` frontmatter | Loosening the reviewer's set removes a structural guarantee |
 

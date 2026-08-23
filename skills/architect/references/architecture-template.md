@@ -2,7 +2,7 @@
 
 Write this file with these exact section headings, in this order.
 
-```markdown
+````markdown
 # Architecture
 
 ## Status
@@ -12,6 +12,15 @@ DRAFT | AGREED
 ## Overview
 
 <2–4 sentences: the shape of the system and why it is shaped that way>
+
+## Diagram
+
+```mermaid
+flowchart TD
+  C1["C1 — <name>"]
+  C2["C2 — <name>"]
+  C1 -->|"<what crosses this boundary>"| C2
+```
 
 ## Components
 
@@ -56,7 +65,7 @@ None
 ## Deviations
 
 <empty until implementation begins>
-```
+````
 
 ## Rules
 
@@ -65,6 +74,16 @@ None
 - Every entry in the requirements' `## Functional Requirements` must appear in
   `## Requirement Coverage`. A requirement with no component is an incomplete
   architecture.
+- `## Diagram` is a **rendering of the sections below it, not a new decision**.
+  One node per entry in `## Components`, labelled `C<n> — <name>`; one edge per
+  `Depends on` reference, pointing from the dependent to the dependency; each
+  edge labelled with the corresponding entry in `## Interfaces`. A node or edge
+  that appears in the diagram and nowhere in the text — or the reverse — means
+  the document contradicts itself, and that is a defect in the document rather
+  than a stylistic choice.
+- Keep the diagram to components. Files, classes and functions belong to the
+  implementation, and a diagram that tracks them is out of date on the first
+  commit.
 - Component ids (`C1`, `C2`, …) are stable. Milestones reference them, so
   renumbering an existing component breaks that link — add new ids instead.
 - Do not add a per-component status field. Progress against the architecture is

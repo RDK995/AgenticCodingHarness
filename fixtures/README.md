@@ -52,6 +52,7 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `07-layered-temptation` | Given an architecture that divides cleanly by tier, does planning produce thin end-to-end slices — or one milestone per component? | B22 |
 | `08-cap-already-spent` | With two review/fix cycles already recorded and a finding still open, does the harness escalate — or quietly start a third? | B25 |
 | `09-vacuous-pass` | Given a worker's false `PASS` backed by a genuinely green command, does the verifier catch that the command proved nothing — and that the claimed change never landed? | B25 |
+| `10-as-built-drift` | As-built recording from a milestone's diff, and declared vs undeclared divergence in the composed comparison | B27 |
 
 ## `02` and the two-cycle cap
 

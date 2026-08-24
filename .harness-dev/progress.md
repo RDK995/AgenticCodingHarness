@@ -9,11 +9,83 @@ architect's diagram, the end-to-end wiring through `implement`, and the reviewer
 grading `drift.md` are implemented but unexercised.
 Status: REVIEW (5 of 6 tasks done; 4 of 7 acceptance criteria proven).
 
-Also open, unchanged: B25 task 7 (re-measure a real milestone) still waits on a
-real OpenCode run against the merged plugin. `origin/main` is at `193dcd6` with
+Also open: B25 task 7 (re-measure a real milestone) now has one — see the M5a
+measurement below — but the two changes it was meant to validate, the 90k ceiling
+and the `/clear` boundary, were both unexercised in that run, so the task stays
+open until a milestone runs with them in force. `origin/main` is at `193dcd6` with
 B25 and B26 merged, but `~/tools/harness` — the clone the real runs load their
 agents and skills from — is still at `99f9044` and must be pulled before any run
 exercises them. B26's Cheap-share criterion waits on the same run.
+
+## Out-of-milestone measurement — the M5a run on OpenCodeOpenWeightHarness (2026-08-24)
+
+Human-directed, outside B27. Recorded here because it is the first measurement of
+the M4b changes in a real run, and because it changes a shipped skill definition.
+
+**Where the measurement came from.** M5a on `OpenCodeOpenWeightHarness`,
+2026-08-24 07:10–12:27, read from the Claude Code transcripts across two sessions
+(`ba10e28c` implementation, `fc0b7de0` review): 22 contexts, 1,520 API calls, 75.2M
+cache-read, 469k output, ~$56.89 at list price. Opus was 73% of that on 20% of the
+calls. By role: orchestrator $26.96 (47%), the skill session itself $14.52 (26%),
+worker $8.01, reviewer $3.70, verifier $3.18, navigator and misc $0.51. The Haiku
+fan-out was 62% of all calls for 9% of the cost. The coordinating layer is still
+where the money is — B25's finding for the third time.
+
+**What the M4b changes bought.** Two of the five shipped in time to be exercised,
+and both worked:
+
+- *Packets by path* (change 3). 16 dispatches totalling 27,406 characters, 1,712
+  average. M4b's inline packets were 110,899 characters. The re-emissions are gone.
+- *Never-read-the-same-content-twice* (change 4). The largest worker (T6, 47 tool
+  calls) and the reviewer (64 tool calls) each show zero exact repeats.
+
+**What the changes did not cover.**
+
+1. *The mid-phase ceiling never fired.* The implementation-phase orchestrator ran
+   30k → 191k over 101 turns; 68 of those turns were above 90k and cost $16.93 of
+   its $19.82. This is not non-compliance: the ceiling landed in
+   `agents/orchestrator.md` at `1a06595`, committed 07:48, and this orchestrator
+   launched at 07:10. **It remains unexercised.** Replaying the same 101 turns
+   against a 90k cap with fresh continuations gives ~$4.98.
+2. *The `/clear` rule lost to a session that never ended.* M5a's implementation was
+   dispatched from `ba10e28c`, opened 2026-08-23 08:47 and already at 276k. All 49
+   of its turns ran above 90k, for $11.96. The review cycle immediately after ran
+   the same 49 turns from a fresh 34k session for $2.57 — 4.6x, for history
+   belonging to other milestones. The human did `/clear` at the review boundary and
+   not at the implementation one.
+
+Together these are ~$24 of the $56.89; without them the run is ~$33, a 43%
+reduction with no change to routing, decomposition or verification depth.
+
+**Change made.** `skills/implement/SKILL.md` — the Algorithm now opens with a
+context-provenance gate: if the session has already driven a milestone to DONE or
+carries unrelated work, it stops before reading requirements, architecture or
+milestones, rather than only instructing a `/clear` on the way out. The gate is
+provenance rather than a token threshold because a session cannot reliably observe
+its own size, and provenance is the condition that actually failed. The rationale
+section carries the M5a numbers.
+
+**Considered and not done.**
+
+- *A re-read rule in `agents/verifier.md`.* Worth doing — verifier T6 shows 20%
+  exact repeats, including four identical reads of one test file and three
+  identical `bun test` invocations — but the whole verifier tier is $3.18, so the
+  saving is well under a dollar. Left as a follow-up rather than bundled in with a
+  measurement write-up.
+- *Anything touching model routing.* Nothing in this run contradicts the M4b
+  decision to keep the orchestrator on Opus; the two costs found are both context
+  lifetime, not tier.
+
+**Validation: none run.** Same position as the M4b changes — this is a skill
+definition, and the repository's validation for it is a live harness run. The gate
+is unexercised, and so is the 90k ceiling it sits alongside. The next real
+milestone is the first opportunity to exercise both, and should be watched for the
+gate firing on a carried session and for `CONTINUE` actually being returned and
+handled.
+
+**Caveats on the numbers.** List price throughout; Sonnet 5's $10.02 would be
+~$6.70 at the introductory rate running to 2026-08-31. The ceiling counterfactual
+is a simulation over the real turn sequence, not a re-run.
 
 ## Out-of-milestone change — cost changes from the OpenCodeOpenWeightHarness M4b run (2026-08-23)
 

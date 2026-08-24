@@ -89,13 +89,18 @@ went wrong.
 Rules for archiving:
 
 - Never archive the active milestone, or any milestone that is `BLOCKED`.
-- Never archive the most recently `DONE` milestone. The milestone in progress
-  most likely builds on it, so its detail is the most likely to be needed. This
-  protection covers **exactly one** milestone.
-- That protection **never** extends to a milestone settled short of `DONE`.
-  Nothing builds on abandoned work, so its detail is the least likely to be
-  needed and the first that should go — regardless of how recently it was
-  closed out.
+- Never archive the **most recently settled** milestone. The milestone in
+  progress most likely builds on it, so its detail is the most likely to be
+  needed. This protection covers **exactly one** milestone.
+- Recency is measured over **settled** milestones, not `DONE` ones. A `DONE`
+  milestone that two later milestones have been settled since is no longer the
+  predecessor of anything, and holding it back only makes every session read it.
+  Measure by position in the run, not by whether the newer entries reached
+  `DONE`.
+- The protected milestone may itself be one settled short of `DONE`. Its detail
+  is unlikely to be *useful*, but it is still the most recent thing the current
+  work sits on top of, and protecting exactly one is simpler than reasoning about
+  which kind of settlement earns it.
 - Move content; never summarise or drop it. The evidence is the record of what
   was actually verified.
 - Archiving moves bytes, so verify it moved them: record `wc -l` of

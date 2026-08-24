@@ -65,6 +65,41 @@ Never archive the active milestone, the most recently `DONE` one, or a
 short of `DONE` **is** archivable and carries no recency protection — nothing
 builds on abandoned work, and it is usually the largest section in the file.
 
+### Delegate the opening navigation, not the reading that follows
+
+Finding your way around the state files is not judgement, and on a mature project
+it is most of your opening turns. Measured on a real implementation phase, 35 of
+the orchestrator's 47 shell commands were locating and reading state, spec and
+code — `grep -n` for a heading, `sed -n` for a range, `wc -l`, `git rev-parse` —
+and their output sat in its context for the rest of the phase.
+
+Invoke the **navigator** subagent (Cheap, pinned) for that opening pass. Ask it
+for:
+
+```
+State file line count, and whether archiving is due
+Baseline commit and branch (git rev-parse HEAD, git status --porcelain)
+Line range of this milestone's section in milestones.md
+Line ranges of the requirements and acceptance criteria it cites
+Whether the repository's broad validation is green at baseline (command + exit status)
+```
+
+**It returns pointers and verbatim excerpts. It never summarises** — that is its
+whole contract, and the reason a Cheap tier is safe for it. A line range,
+a commit SHA, an exit status and a quoted span are facts you can act on. A
+paraphrase of an acceptance criterion is a claim, and judging a milestone against
+a paraphrase moves the risk somewhere cheaper instead of removing it. If a brief
+comes back with a requirement described rather than quoted, discard that line and
+read the range yourself.
+
+You then read the milestone section and the acceptance criteria yourself, from
+the ranges it gave you. That reading is the material you judge against, and it
+stays with you.
+
+This is a distinct thing from the repository reconnaissance below, which you
+still do yourself — that one feeds planning judgement and is bounded already.
+This one is navigation: *where is everything*, answered once, cheaply.
+
 ## Rules
 
 - Work one milestone at a time, and minimise unrelated repository changes.
@@ -297,6 +332,24 @@ packet you receive") for every task, at either tier. Give the worker the packet,
 not the full orchestration history — that is what keeps its context small, and
 yours from growing.
 
+**Write each packet once, to `.harness/tasks/<milestone>-<task>.md`, and pass the
+path.** The worker, the verifier for that task, and every retry of it all get the
+path rather than the text.
+
+This does not save the first emission — the packet passes through you whichever
+way it travels. It saves the *re-emissions*, and those are the larger half.
+A verifier packet restates the task's Goal, Acceptance Criteria, Files Allowed To
+Change and Tests, so the packet goes out a second time; a retry sends it a third,
+and its verifier a fourth. Measured on a real seven-task milestone, task packets
+were 110,899 characters of the orchestrator's context — more than twice all of its
+own shell commands combined — and the verify packets were the larger share of it,
+one of them longer than the task packet it was verifying. Written once and
+referenced, a verify invocation carries a path, the worker's return and the diff
+range, and the packet body stops being re-paid on every turn that follows.
+
+Keep the packet on disk for the milestone's lifetime: a retry three tasks later
+must read the same packet the first attempt got, not your recollection of it.
+
 ## Routing rule
 
 **Every task is delegated. You plan, route, verify and record — you do not
@@ -488,8 +541,8 @@ about a reviewer's findings on already-implemented work.
 ### Verifying a task result
 
 **Do not re-run the task's validation yourself.** Invoke the **verifier**
-subagent with the task packet, the worker's return, and the diff range the task
-produced; it re-runs the validation, checks the changed files against
+subagent with the task packet's **path**, the worker's return, and the diff range
+the task produced; it re-runs the validation, checks the changed files against
 `Files Allowed To Change`, checks that no test was weakened, and returns the
 command, the exit status and the output it actually saw. That return is the
 task's evidence, and it is what you record.
@@ -509,6 +562,20 @@ return rather than a full diff and a test log:
 - Does `Discrepancies With The Worker's Claim` say anything you should act on?
 
 Any of those failing means the attempt failed, and the ladder climbs.
+
+**Judging that evidence stays with you, and never moves to a cheaper agent.**
+This is the seam the harness rests on. On a real milestone the orchestrator, at
+this exact step, overruled a verifier that had passed a decision record as
+accurate — technically true, substantively misleading, because it never mentioned
+a defect the record's own subject depended on. At the same step it read a
+`tsc` failure a verifier had reported as a type error and found `"a" * 64`
+evaluating to `NaN`, meaning the fixtures had carried `NaN` digests and the tests
+had been passing on nothing. Neither was in the verifier's return; both came from
+holding the whole picture and disbelieving a `PASS`.
+
+Delegate the navigation before this step and the transcription after it. Do not
+delegate this step, and do not run it at a tier chosen to save tokens. Everything
+else in this file is a cost rule with a quality caveat; this one is the reverse.
 
 **This does not soften the core invariant; it relocates it.** You are still not
 taking an agent's word that work is complete — you are reading a command, an exit
@@ -635,8 +702,9 @@ A milestone is a unit of context as well as a unit of work. Keep yours bounded:
 - Give the worker a task packet, not your history — that is what keeps its
   context small and its tier cheap.
 - Give the reviewer only the inputs its own instructions list.
-- Give the verifier the task packet, the worker's return and the diff range —
-  not the milestone, not your reasoning about the task, and not the other tasks.
+- Give the verifier the task packet's path, the worker's return and the diff
+  range — not the packet body again, not the milestone, not your reasoning about
+  the task, and not the other tasks.
 - **Never read a subagent's `.output` file.** The invocation already returned its
   result; the file is its entire transcript, and reading it puts back exactly the
   context delegation removed. Measured on a real milestone: 52 of the
@@ -699,6 +767,30 @@ the next phase, and the next milestone, can start from a fresh context; carrying
 yours forward makes every later turn re-pay for work that is already recorded.
 The phase boundary is the cheapest thing in this system and the context you would
 carry across it is the most expensive.
+
+### Hand off before you fill your context
+
+A phase can outgrow its context before it outgrows its work. Your cost is the sum
+of your context across every turn, so the expensive turns are the last ones, and
+they are the ones you notice least.
+
+Measured on a real implementation phase: it opened at 28k tokens and returned at
+187k over 55 turns. Its final 15 turns cost 2.5M of its 5.7M cache-read — the tail
+cost as much as everything before it, and bought seven tasks' worth of work that a
+fresh context could have done at a third of the price.
+
+**Past roughly 90k tokens, stop taking on new work and hand off.** Finish the task
+in flight, record what you have completed in `.harness/milestones.md` exactly as
+you would at a phase boundary — accepted tasks and their evidence, what remains,
+the baseline — and return `CONTINUE`. The implement skill invokes a fresh
+orchestrator for the same phase, which reads that record and carries on.
+
+Two things this is not. It is not a reason to record less: the handoff is only
+safe because the record is complete, and a `CONTINUE` that loses an accepted
+task's evidence costs more than the context it saved. And it is not a substitute
+for splitting — if you find yourself handing off repeatedly, the milestone is
+too large for its phase budget, which is a planning finding to record, not a
+ceiling to keep bouncing off.
 
 ## Recording completion evidence
 

@@ -112,7 +112,11 @@ carry every template heading — the remaining headings are in its archive file.
 
 - No JSON state store, no hidden state — this file plus `requirements.md` (plus
   `.harness/archive/` once milestones have been archived, read on demand) must
-  be enough for a new session to understand project status.
+  be enough for a new session to understand project status. `.harness/tasks/`
+  does not change that: task packets are the orchestrator's scratch for a
+  milestone in flight, written so a packet is not re-sent to every worker,
+  verifier and retry that needs it. Nothing reads them to learn project status,
+  and they carry no evidence — that lives here.
 - A milestone may only become `DONE` once its `Evidence` and `Validation`
   sections contain real implementation/test evidence, not a claim.
 - `### Evidence` records, per task, the tier it entered at, the named reason if

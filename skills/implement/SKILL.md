@@ -57,11 +57,18 @@ LOOP:
         Red→Green→Refactor, focused validation, evidence recording — see
         ${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md for what it does)
 
-        it returns the milestone at REVIEW, or SPLIT, or BLOCKED
+        it returns the milestone at REVIEW, or SPLIT, or CONTINUE, or BLOCKED
 
         IF SPLIT: continue the LOOP — it found the milestone oversized, split
         it in milestones.md, and implemented nothing. The loop now picks up
         the first part.
+
+        IF CONTINUE: the phase is unfinished and the orchestrator handed off
+        at its context ceiling, having recorded what it completed in
+        milestones.md. Invoke a FRESH harness:orchestrator for the SAME phase.
+        Cap this at 3 continuations per phase; past that, STOP and report to
+        the human that the milestone does not fit its phase budget and needs
+        splitting.
 
     WHILE its Status is REVIEW:
         invoke a FRESH harness:orchestrator for ONE review/fix cycle
@@ -91,7 +98,11 @@ LOOP:
             IF it returns BLOCKED: record that in ### As-Built and carry on.
             The record is evidence, not a gate.
 
-        continue the LOOP
+        the milestone is DONE — STOP HERE, in this invocation.
+        Report its outcome and tell the user to /clear and re-invoke this
+        skill for the next milestone. Do not continue the LOOP in this
+        context. The LOOP is re-entered from milestones.md on the next
+        invocation and picks up where this one stopped.
 ```
 
 ## One invocation per phase, not per milestone
@@ -108,6 +119,26 @@ new session to resume, so this costs nothing to maintain; it only requires that 
 loop above actually re-invoke rather than let one context run on. Do not collapse
 these back into one invocation to save a round trip — the round trip is cheap and
 the context it discards is not.
+
+## And one session per milestone, not per project
+
+The same argument applies one level up, to **your own** context. You are the
+session running this skill, and nothing about a finished milestone helps you
+run the next one — `milestones.md` already carries everything that does.
+
+Measured on a real run of two consecutive milestones in one session: the session
+grew from 33k to 171k tokens across 13 hours and 194 turns, and never compacted.
+By the time the second milestone started, this skill's own context was **161k
+tokens on average per turn** — for 24 turns that did nothing but dispatch phases
+and read their returns. A fresh session starts that same work at roughly 35k.
+The second milestone paid about three times what it needed to, for history
+belonging to the first.
+
+So the LOOP stops at each milestone boundary and hands back to the human. Tell
+them to `/clear` before re-invoking. This is not a limitation to work around by
+carrying on anyway: the milestone boundary is the cheapest context boundary in
+the system, and it is free precisely because the state file is already required
+to survive it.
 
 ## Compose the drift comparison
 

@@ -62,6 +62,7 @@ target project:
 .harness/architecture.md   (new projects only)
 .harness/milestones.md
 .harness/as-built/         (new projects only — one file per milestone, plus drift.md)
+.harness/tasks/            (task packets for a milestone in flight — scratch, not status)
 ```
 
 `requirements.md` is the agreed, implementation-ready requirements.
@@ -72,7 +73,10 @@ architecture is visible without a second status field to fall out of date.
 `as-built/` is the record of what each milestone actually constructed, drawn
 from its diff rather than from what it claimed, and the comparison composed from
 those records at the end. `milestones.md` tracks each milestone's status,
-acceptance criteria, evidence, validation results, and review outcome. See `examples/` for what each looks
+acceptance criteria, evidence, validation results, and review outcome.
+`tasks/` holds the task packets for the milestone being built, written once so a
+packet is not re-sent to every worker, verifier and retry that needs it; nothing
+reads them to learn project status. See `examples/` for what each looks
 like once filled in.
 
 ## Philosophy

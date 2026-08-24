@@ -15,6 +15,72 @@ B25 and B26 merged, but `~/tools/harness` — the clone the real runs load their
 agents and skills from — is still at `99f9044` and must be pulled before any run
 exercises them. B26's Cheap-share criterion waits on the same run.
 
+## Out-of-milestone change — cost changes from the OpenCodeOpenWeightHarness M4b run (2026-08-23)
+
+Human-directed, outside B27. Recorded here because it changes shipped agent and
+skill definitions, not because it belongs to a milestone.
+
+**Where the measurement came from.** M4b on `OpenCodeOpenWeightHarness`, read from
+the Claude Code transcripts: 29 contexts, 980 API calls, 42.2M cache-read, 571k
+output, ~$24.6 at list price. Opus was 73% of that on 17% of the calls — the
+phase/fix coordinators alone were 62%. The Haiku fan-out (22 agents, 732 calls,
+22.3M read) came to $4.66, so the delegation is working and the coordinating layer
+is where the money is. That is B25's finding again, one level up.
+
+**Changes made.**
+
+1. `skills/implement/SKILL.md` — the LOOP now stops at each milestone boundary
+   and tells the human to `/clear`, instead of running milestone after milestone
+   in one session. Measured cause: the run put M4a and M4b in one 13-hour session
+   that grew 33k → 171k and never compacted; M4b's 24 dispatch turns each carried
+   161k of context, roughly three times a fresh session's.
+2. `agents/orchestrator.md` — a mid-phase context ceiling at ~90k with a new
+   `CONTINUE` return, handled in the skill's LOOP and capped at 3 continuations.
+   Measured cause: the implementation phase ran 28k → 187k over 55 turns, and its
+   last 15 turns cost 2.5M of its 5.7M cache-read.
+3. `agents/orchestrator.md`, `agents/worker.md`, `agents/verifier.md` — task
+   packets are written once to `.harness/tasks/<milestone>-<task>.md` and passed
+   by path to the worker, the verifier and every retry. Measured cause: packets
+   were 110,899 characters of the coordinator's context, more than twice all its
+   shell commands, and the *verify* packets were the larger share because they
+   restate the packet. Writing to a file does not save the first emission — only
+   the re-emissions, which are the larger half.
+4. `agents/worker.md` — an explicit never-read-the-same-content-twice rule.
+   Measured cause: one correction task read a 10.5k-char test file whole, then
+   re-read three overlapping ranges of it, two byte-identical.
+5. `agents/navigator.md` (new, Cheap, pinned `haiku`) — takes the orchestrator's
+   opening navigation pass. Measured cause: 35 of the coordinator's 47 shell
+   commands were locating and reading state, and their output stayed in context
+   for the rest of the phase. Its contract forbids summarising: it returns
+   pointers and verbatim excerpts only, because a brief that paraphrases an
+   acceptance criterion moves risk to a cheap tier invisibly rather than removing
+   it. Documented in `docs/runtime-contract.md`'s tier table.
+
+**Considered and rejected.**
+
+- *Run the implementation-phase coordinator on Sonnet* (the largest single saving,
+  ~18% of the milestone). Rejected on evidence from the same run: at the
+  accept/reject step the coordinator overruled a verifier that had passed a
+  decision record as accurate, and separately read a `tsc` failure and found
+  `"a" * 64` evaluating to `NaN` — the fixtures had carried `NaN` digests and the
+  tests had been passing on nothing. Neither was in a verifier return. The
+  orchestrator's judging of evidence is now marked in `orchestrator.md` as the one
+  thing that never moves to a cheaper agent.
+- *Delegate evidence recording to a Cheap agent* (the back bookend to change 5).
+  Drafted, then reverted: it runs at the end of a phase, so no later turns re-pay
+  for it and the saving is near zero, while it would put `milestones.md` writes in
+  a cheap context. Worst ratio of the set.
+
+**Validation: none run.** These are agent and skill definitions; the repository's
+validation is the behavioural fixtures, and each is a live harness run against real
+models. Nothing here is mechanically checkable. What was checked is internal
+consistency: `CONTINUE` is produced and handled on both sides, every packet-by-path
+reference was updated together, `navigator` is defined and documented, and the
+reverted draft left nothing orphaned. **The changes are unexercised.** Fixture `05`
+(golden path) is the one that would exercise 1–4 end to end; `navigator` has no
+fixture coverage and needs one that plants a paraphrase in a brief and checks the
+orchestrator reads the range itself.
+
 ## Milestones
 
 `12 / 12 V1 build milestones DONE` · `24 / 27 including post-V1 additions DONE`

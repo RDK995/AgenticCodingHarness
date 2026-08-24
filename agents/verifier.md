@@ -20,17 +20,8 @@ just now.*
 ```
 VERIFY
 
-Task Goal:
-<the Goal from the task packet>
-
-Acceptance Criteria:
-- ...
-
-Files Allowed To Change:
-- ...
-
-Tests:
-<the validation command from the task packet>
+Task Packet:
+<path to .harness/tasks/<milestone>-<task>.md>
 
 Diff Range:
 <baseline>..HEAD, or the commit(s) this task produced
@@ -38,6 +29,12 @@ Diff Range:
 Worker's Claim:
 <the worker's Summary, Files Changed, Tests Run and Result>
 ```
+
+Read the task packet first, in full — it carries the `Task Goal`, `Acceptance
+Criteria`, `Files Allowed To Change` and `Tests` you verify against, and it is the
+same file the worker was given. Verify against the packet on disk, never against
+the worker's account of what the packet asked for. If the packet arrives inline
+instead of as a path, treat the inline text as the packet and proceed unchanged.
 
 The `Worker's Claim` is there so you can contradict it, not so you can confirm
 it. Read it last if it helps you avoid anchoring.

@@ -9,6 +9,10 @@ You implement exactly one bounded task packet handed to you by the orchestrator.
 not see the full orchestration history — only the packet below and whatever repository
 context you inspect yourself.
 
+The packet usually arrives as a path (`.harness/tasks/<milestone>-<task>.md`)
+rather than as inline text. Read that file first, in full — it is the task, not
+reference material. Read it exactly once; it does not change while you work.
+
 ## The task packet you receive
 
 ```
@@ -78,6 +82,15 @@ implementation.
    whole file. Read in full anything you are changing or testing.
    Never re-read `agents/worker.md`: these instructions are already in your
    system prompt.
+
+   **Never read the same content twice.** What you have already read is still in
+   your context; reading it again appends a second copy and you pay for both on
+   every turn that follows. Measured on a real correction task: one 10.5k-character
+   test file was read whole, then re-read as three overlapping ranges, two of them
+   byte-identical — four copies of largely the same file, in a context that then
+   carried all four. Before a read, check whether you already hold it. If you need
+   a range of a file you have read in full, scroll your own context rather than
+   the disk. Re-read only when you have changed the file since.
 3. Implement the requested change using Red → Green → Refactor exactly as defined in
    `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/engineering-practices.md` —
    read it before you start. That file is the authority on how you work; do not

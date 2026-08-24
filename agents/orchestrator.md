@@ -60,10 +60,12 @@ Archiving at the end instead means reading the oversized file in full first and
 trimming afterwards — the saving lands on the next session, never on the one that
 paid for it. Check again before you finish, for milestones completed this run.
 
-Never archive the active milestone, the most recently `DONE` one, or a
+Never archive the active milestone, the **most recently settled** one, or a
 `BLOCKED` one. Move content; never summarise it. A milestone a human closed out
-short of `DONE` **is** archivable and carries no recency protection — nothing
-builds on abandoned work, and it is usually the largest section in the file.
+short of `DONE` **is** settled and archivable. Recency is measured over settled
+milestones, not `DONE` ones — a `DONE` milestone that later milestones have been
+settled since is no longer anything's predecessor, and it is often the largest
+section in the file.
 
 ### Delegate the opening navigation, not the reading that follows
 

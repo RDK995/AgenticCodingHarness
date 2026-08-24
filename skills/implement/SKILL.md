@@ -16,6 +16,16 @@ using the `harness:orchestrator` subagent to run each phase and the
 ## Algorithm
 
 ```
+Check what is already in your own context, before reading anything.
+
+IF this session has already driven a milestone to DONE, or carries
+substantial work unrelated to the milestone about to run:
+    STOP — tell the human to /clear and re-invoke this skill.
+    Do not read requirements, architecture or milestones first:
+    those reads, and every dispatch after them, are exactly what
+    a carried context makes you pay twice for. See "And one
+    session per milestone" below.
+
 Read .harness/requirements.md
 
 IF missing:
@@ -139,6 +149,20 @@ them to `/clear` before re-invoking. This is not a limitation to work around by
 carrying on anyway: the milestone boundary is the cheapest context boundary in
 the system, and it is free precisely because the state file is already required
 to survive it.
+
+**And it is checked on the way in, not only on the way out.** Stated only as an
+exit instruction, this rule lost to a session that simply never ended. Measured on
+the M5a run: the implementation phase was dispatched from a session opened 22 hours
+earlier and already carrying 276k tokens, and its 49 turns cost $11.96. The review
+cycle that followed it did the same 49 turns from a fresh session at 34k and cost
+$2.57 — identical work, 4.6 times the price, all of it for history belonging to
+other milestones. The Algorithm therefore opens by checking its own context and
+refusing to start, because the human who has to act on the instruction is not the
+one who reads it.
+
+The check is provenance, not a token count: a session cannot reliably measure its
+own size, but it can see whether it has already done a milestone's work. That is
+the condition that actually failed, so that is the condition to test.
 
 ## Compose the drift comparison
 

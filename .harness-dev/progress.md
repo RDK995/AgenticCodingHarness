@@ -87,6 +87,41 @@ handled.
 ~$6.70 at the introductory rate running to 2026-08-31. The ceiling counterfactual
 is a simulation over the real turn sequence, not a re-run.
 
+## Out-of-milestone change — a scoping skill, `scope-mvp` (2026-08-24)
+
+Human-directed, outside B27. Recorded here because it adds a shipped skill, not
+because it belongs to a milestone.
+
+**What was missing.** The harness takes an agreed scope and builds all of it.
+§44 orders milestones by integration risk, so technical trouble surfaces early,
+but nothing reduces *scope* in response to uncertainty, and a human who trims
+`requirements.md` by hand to get a prototype out loses the full scope from the
+repository.
+
+**What was added.**
+
+- `skills/scope-mvp/SKILL.md` and `references/mvp-template.md`. The skill names
+  the riskiest assumption, carves the agreed scope to the smallest system that
+  would prove or disprove it, and writes the MVP to the canonical
+  `.harness/requirements.md` and `.harness/architecture.md`, the full documents
+  moving unedited to `.harness/full/`, plus `.harness/mvp.md` for the carve
+  record and the ordered expansion path.
+- `docs/implementation-plan.md` §51, README workflow and state sections, the tier
+  table in `docs/runtime-contract.md`, and the plugin description.
+
+**The design decision worth keeping.** The MVP occupies the canonical paths
+rather than sitting beside them, so `implement`, the orchestrator, the reviewer
+and `as-built` are unchanged and implement an MVP without knowing it is one. A
+scope the harness has to be taught to recognise is a scope it can also fail to
+apply.
+
+**Validation: none run.** Same position as the M4b and M5a changes — this is a
+skill definition, and the repository's validation for it is a live harness run.
+No fixture covers scoping, and none was added: the acceptance criteria in §51 are
+structural (every requirement appears exactly once across in/deferred, both
+`## Proof` lines present, `.harness/full/` byte-identical) and are checkable on a
+real carve. The first project carved with it is the first evidence.
+
 ## Out-of-milestone change — cost changes from the OpenCodeOpenWeightHarness M4b run (2026-08-23)
 
 Human-directed, outside B27. Recorded here because it changes shipped agent and

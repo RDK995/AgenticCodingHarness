@@ -2937,3 +2937,121 @@ own size on every following turn.
 - Never let a missing or unreadable as-built file block a milestone. The record
   is evidence, not a gate; a failure to draw it is reported and the build
   continues.
+
+# 51. Post-V1 Addition — Prove the Concept Before Building the Scope
+
+## Problem
+
+The harness takes an agreed scope and builds all of it. `roast-requirements`
+resolves ambiguity, `architect` decides structure, and `implement` drives every
+requirement to `DONE` through reviewed milestones. Nowhere in that path is there
+a place to ask whether the project should be built at this size at all.
+
+That is fine when the scope is known to be right. It is expensive when it is not,
+and the cases where it is not are the ones worth naming:
+
+- the approach might not work, and the way to find out is to build a thin version
+  of it;
+- users might not want it, and no amount of requirements roasting settles that;
+- the integration or the performance envelope is unknown until something real
+  runs against it.
+
+§44 already orders milestones by integration risk, so the harness discovers
+technical trouble earlier than a layer-by-layer plan would. It does not reduce
+*scope* in response to uncertainty — every requirement in `requirements.md` is
+built, in a good order. Uncertainty is a reason to build less, not only to
+reorder.
+
+There is also no route back. A human who trims `requirements.md` by hand to get a
+prototype out loses the full scope, or keeps it in their head; either way the
+question "what did we defer, and is it still safe to defer it" has no answer in
+the repository.
+
+## Change
+
+A new skill, `harness:scope-mvp`, run after `roast-requirements` (and `architect`
+where there is one) and before `implement`.
+
+It names the project's riskiest assumption, carves the agreed scope down to the
+smallest system that would prove or disprove it, and writes three files:
+
+- `.harness/requirements.md` — the MVP scope, in the existing requirements
+  template, every deferred reference named under `## Non-Goals`;
+- `.harness/architecture.md` — the MVP architecture, in the existing architecture
+  template, component ids unchanged from the full design;
+- `.harness/mvp.md` — the carve record: the assumption, the result that would
+  falsify it, the in/deferred tables, per-component treatment
+  (`IN | STUBBED | DEFERRED`), the structural commitments held at full-scope
+  fidelity, and the ordered expansion path `E1…En`.
+
+The full documents move unedited to `.harness/full/`.
+
+**Nothing downstream changes.** `implement`, the orchestrator, the reviewer and
+`as-built` read the same two paths they always read, and implement an MVP without
+knowing it is one. That is the whole reason the MVP occupies the canonical paths
+rather than sitting beside them as a fourth document: a scope the harness has to
+be taught to recognise is a scope it can also fail to apply.
+
+Three properties are load-bearing.
+
+**The assumption comes first, so scope is derived rather than negotiated.** In
+scope means the proof needs it. Without a stated assumption, "MVP" degenerates
+into "the parts we felt like building", which is how a prototype ends up proving
+whatever it happened to contain.
+
+**The falsifier is written before the build.** An MVP with no result that would
+count against it always succeeds, and the expansion is then committed to on no
+evidence. The template requires both lines of `## Proof`.
+
+**Scope shrinks; engineering does not.** Tests, correctness of in-scope
+behaviour, and the evidence trail are explicitly excluded from what may be cut.
+The completion gate would refuse the milestone anyway, and a proof nobody can
+trust is not a proof.
+
+## Two failure modes the carve creates
+
+**Dissolved boundaries.** The shortest path to a running slice is to inline what
+the architecture separates. That produces a working proof of a system nobody can
+expand, and it is `fixtures/03-drift-undeclared` exactly. The skill states the
+rule where the cutting happens: a component may be stubbed or deferred, but a
+boundary that survives is crossed rather than dissolved.
+
+**Structurally unrepresentative proofs.** Some decisions are cheap before a
+proven system rests on them and very expensive after — identity and ownership
+keys, synchronous versus queued, where the trust boundary sits, the unit of
+concurrency. These are taken at full-scope fidelity even where the MVP would not
+notice, and recorded. This does not contradict the architect's rule against
+designing for hypothetical requirements: it constrains the shape of what is being
+built now, and authorises no code for what is not.
+
+## Scope
+
+A new `skills/scope-mvp/` (skill plus one template), README, the tier table in
+`docs/runtime-contract.md`, and the plugin description. No change to any agent,
+to `implement`, to the requirements or architecture templates, or to any fixture.
+
+## Acceptance criteria
+
+- The skill refuses to start on unresolved requirements, a `DRAFT` architecture,
+  or a project with any milestone past `TODO`.
+- It refuses to carve when no plausibly-false assumption can be named, and
+  recommends implementing the full scope instead.
+- Every full-scope functional requirement appears exactly once across
+  `## In Scope` and `## Deferred`; every component appears in `## Components`
+  under its original id.
+- Every deferred entry names an increment, and every increment names at least one
+  deferred entry.
+- `## Proof` carries both a proving and a falsifying result.
+- The full documents are present and byte-identical under `.harness/full/` after
+  the carve.
+- `implement` runs against the carved scope with no change to its own definition.
+
+## Never
+
+- Never write code or scaffolding from the skill. A scope decision is not an
+  implementation.
+- Never mark the carve `AGREED` without explicit human agreement — the agent does
+  not both choose what to leave out of the product and certify the choice.
+- Never edit the full documents in place; they move once and are read thereafter.
+- Never defer tests, in-scope correctness, or evidence to make the MVP smaller.
+- Never build for a deferred increment.

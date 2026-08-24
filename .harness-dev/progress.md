@@ -93,34 +93,45 @@ Human-directed, outside B27. Recorded here because it adds a shipped skill, not
 because it belongs to a milestone.
 
 **What was missing.** The harness takes an agreed scope and builds all of it.
-§44 orders milestones by integration risk, so technical trouble surfaces early,
-but nothing reduces *scope* in response to uncertainty, and a human who trims
-`requirements.md` by hand to get a prototype out loses the full scope from the
-repository.
+§44 orders milestones by integration risk, but ordering is not scoping: nothing
+reaches a user until every requirement is built, even where a small part of the
+scope would carry a real user end to end much sooner. A human who trims
+`requirements.md` by hand to get a first version out then loses the full scope
+from the repository.
 
 **What was added.**
 
-- `skills/scope-mvp/SKILL.md` and `references/mvp-template.md`. The skill names
-  the riskiest assumption, carves the agreed scope to the smallest system that
-  would prove or disprove it, and writes the MVP to the canonical
-  `.harness/requirements.md` and `.harness/architecture.md`, the full documents
-  moving unedited to `.harness/full/`, plus `.harness/mvp.md` for the carve
-  record and the ordered expansion path.
+- `skills/scope-mvp/SKILL.md` and `references/mvp-template.md`. The skill carves
+  the agreed scope to the smallest implementation that carries one real user from
+  the entry point to a result they wanted, asks the human what the documents
+  cannot answer, and writes the MVP to the canonical `.harness/requirements.md`
+  and `.harness/architecture.md`, the full documents moving unedited to
+  `.harness/full/`, plus `.harness/mvp.md` for the carve record, the manual steps,
+  and the ordered expansion path.
 - `docs/implementation-plan.md` §51, README workflow and state sections, the tier
   table in `docs/runtime-contract.md`, and the plugin description.
 
-**The design decision worth keeping.** The MVP occupies the canonical paths
-rather than sitting beside them, so `implement`, the orchestrator, the reviewer
-and `as-built` are unchanged and implement an MVP without knowing it is one. A
-scope the harness has to be taught to recognise is a scope it can also fail to
-apply.
+**Two design decisions worth keeping.**
+
+1. *The MVP occupies the canonical paths* rather than sitting beside them, so
+   `implement`, the orchestrator, the reviewer and `as-built` are unchanged and
+   implement an MVP without knowing it is one. A scope the harness has to be
+   taught to recognise is a scope it can also fail to apply.
+2. *End-to-end value is the criterion, not risk.* An earlier draft of this skill
+   scoped the MVP around the project's riskiest assumption, which produces a spike
+   — something that answers a question but that nobody would use. The human
+   corrected it: smallest is the constraint applied to a path that reaches a real
+   result, not a third goal that can override it. `## Value` therefore carries
+   both `Delivered when` and `Not delivered if`, so "the tests pass" and "the
+   outcome is delivered" stay distinct claims.
 
 **Validation: none run.** Same position as the M4b and M5a changes — this is a
 skill definition, and the repository's validation for it is a live harness run.
 No fixture covers scoping, and none was added: the acceptance criteria in §51 are
-structural (every requirement appears exactly once across in/deferred, both
-`## Proof` lines present, `.harness/full/` byte-identical) and are checkable on a
-real carve. The first project carved with it is the first evidence.
+structural (one user and one outcome, every requirement appearing exactly once
+across in/deferred, every manual step naming its automating increment,
+`.harness/full/` byte-identical) and are checkable on a real carve. The first
+project carved with it is the first evidence.
 
 ## Out-of-milestone change — cost changes from the OpenCodeOpenWeightHarness M4b run (2026-08-23)
 

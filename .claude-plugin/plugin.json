@@ -1,5 +1,5 @@
 {
   "name": "harness",
-  "description": "Turns rough software requirements into reviewed, tested implementation through a controlled agentic workflow: roast requirements, agree an architecture for new projects, optionally carve an MVP that proves the riskiest assumption, plan milestones, implement with Red-Green-Refactor, and require fresh-context review before completion.",
+  "description": "Turns rough software requirements into reviewed, tested implementation through a controlled agentic workflow: roast requirements, agree an architecture for new projects, optionally carve an MVP that delivers end-to-end value on its own, plan milestones, implement with Red-Green-Refactor, and require fresh-context review before completion.",
   "version": "0.1.0"
 }

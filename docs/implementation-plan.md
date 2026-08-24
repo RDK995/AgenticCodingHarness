@@ -2938,51 +2938,45 @@ own size on every following turn.
   is evidence, not a gate; a failure to draw it is reported and the build
   continues.
 
-# 51. Post-V1 Addition — Prove the Concept Before Building the Scope
+# 51. Post-V1 Addition — Ship the Smallest Thing Worth Using
 
 ## Problem
 
 The harness takes an agreed scope and builds all of it. `roast-requirements`
 resolves ambiguity, `architect` decides structure, and `implement` drives every
 requirement to `DONE` through reviewed milestones. Nowhere in that path is there
-a place to ask whether the project should be built at this size at all.
-
-That is fine when the scope is known to be right. It is expensive when it is not,
-and the cases where it is not are the ones worth naming:
-
-- the approach might not work, and the way to find out is to build a thin version
-  of it;
-- users might not want it, and no amount of requirements roasting settles that;
-- the integration or the performance envelope is unknown until something real
-  runs against it.
+a place to ask what the *first* useful version is.
 
 §44 already orders milestones by integration risk, so the harness discovers
-technical trouble earlier than a layer-by-layer plan would. It does not reduce
-*scope* in response to uncertainty — every requirement in `requirements.md` is
-built, in a good order. Uncertainty is a reason to build less, not only to
-reorder.
+technical trouble earlier than a layer-by-layer plan would. Ordering is not
+scoping: every requirement in `requirements.md` still gets built, and nothing
+reaches a user until they all have. On most projects a small part of the scope
+carries a real user end to end, and it is worth having long before the rest is
+finished.
 
 There is also no route back. A human who trims `requirements.md` by hand to get a
-prototype out loses the full scope, or keeps it in their head; either way the
-question "what did we defer, and is it still safe to defer it" has no answer in
-the repository.
+first version out loses the full scope, or keeps it in their head; either way the
+question "what did we defer, and when does it come back" has no answer in the
+repository.
 
 ## Change
 
 A new skill, `harness:scope-mvp`, run after `roast-requirements` (and `architect`
 where there is one) and before `implement`.
 
-It names the project's riskiest assumption, carves the agreed scope down to the
-smallest system that would prove or disprove it, and writes three files:
+It carves the agreed scope down to **the smallest implementation that carries one
+real user from the system's entry point to a result they actually wanted**, asks
+the human whatever the documents cannot answer, and writes three files:
 
 - `.harness/requirements.md` — the MVP scope, in the existing requirements
   template, every deferred reference named under `## Non-Goals`;
 - `.harness/architecture.md` — the MVP architecture, in the existing architecture
   template, component ids unchanged from the full design;
-- `.harness/mvp.md` — the carve record: the assumption, the result that would
-  falsify it, the in/deferred tables, per-component treatment
-  (`IN | STUBBED | DEFERRED`), the structural commitments held at full-scope
-  fidelity, and the ordered expansion path `E1…En`.
+- `.harness/mvp.md` — the carve record: the outcome and who gets it, what counts
+  as delivered and what does not, the in/deferred tables, any manual steps and
+  what automates them, per-component treatment (`IN | STUBBED | DEFERRED`), the
+  structural commitments held at full-scope fidelity, and the ordered expansion
+  path `E1…En`.
 
 The full documents move unedited to `.harness/full/`.
 
@@ -2992,37 +2986,63 @@ knowing it is one. That is the whole reason the MVP occupies the canonical paths
 rather than sitting beside them as a fourth document: a scope the harness has to
 be taught to recognise is a scope it can also fail to apply.
 
-Three properties are load-bearing.
+Four properties are load-bearing.
 
-**The assumption comes first, so scope is derived rather than negotiated.** In
-scope means the proof needs it. Without a stated assumption, "MVP" degenerates
-into "the parts we felt like building", which is how a prototype ends up proving
-whatever it happened to contain.
+**End to end and valuable are both required; smallest is the constraint on
+them.** The path runs through the real entry point to a real result, and someone
+would use that result if nothing more were ever built. Cutting until the path no
+longer reaches a result produces something smaller than an MVP and less useful
+than either half — and moves the discovery that it is unusable to after it is
+built.
 
-**The falsifier is written before the build.** An MVP with no result that would
-count against it always succeeds, and the expansion is then committed to on no
-evidence. The template requires both lines of `## Proof`.
+**One user, one outcome.** Where the full scope serves several, exactly one is
+the MVP. Serving all of them thinly is how a first version ends up neither small
+nor usable, and choosing is the work the skill exists to do.
 
-**Scope shrinks; engineering does not.** Tests, correctness of in-scope
-behaviour, and the evidence trail are explicitly excluded from what may be cut.
-The completion gate would refuse the milestone anyway, and a proof nobody can
-trust is not a proof.
+**The skill asks.** Which user comes first, whether it goes to real users or the
+team, whether real data is required, where a manual step is acceptable, how much
+breadth makes the outcome real — these move requirements between in and deferred
+and are not derivable from the documents. Answers are recorded under
+`## Decisions` so they are asked once. Anything that changes what the system must
+ultimately *do* goes back to `roast-requirements` rather than being absorbed here.
+
+**Scope shrinks; engineering does not.** Tests, correctness of what is in scope,
+and the evidence trail are explicitly excluded from what may be cut. The
+completion gate would refuse the milestone anyway, and shipping something nobody
+can trust to a real user is worse than shipping later.
+
+## Manual steps are scope, not gaps
+
+The smallest useful version often has a person doing something the full system
+automates. That is legitimate and it is recorded: `## Manual Steps` names the
+step, who performs it, and the increment that automates it. Written down it is a
+decision; unwritten it is a hole that surfaces the first time someone uses the
+system.
 
 ## Two failure modes the carve creates
 
 **Dissolved boundaries.** The shortest path to a running slice is to inline what
-the architecture separates. That produces a working proof of a system nobody can
-expand, and it is `fixtures/03-drift-undeclared` exactly. The skill states the
-rule where the cutting happens: a component may be stubbed or deferred, but a
-boundary that survives is crossed rather than dissolved.
+the architecture separates. That produces something that works and cannot be
+grown, and it is `fixtures/03-drift-undeclared` exactly. The skill states the rule
+where the cutting happens: a component may be stubbed or deferred, but a boundary
+that survives is crossed rather than dissolved.
 
-**Structurally unrepresentative proofs.** Some decisions are cheap before a
-proven system rests on them and very expensive after — identity and ownership
+**A first version that cannot be grown.** Some decisions are cheap before real
+users and real data rest on them and very expensive after — identity and ownership
 keys, synchronous versus queued, where the trust boundary sits, the unit of
 concurrency. These are taken at full-scope fidelity even where the MVP would not
 notice, and recorded. This does not contradict the architect's rule against
 designing for hypothetical requirements: it constrains the shape of what is being
 built now, and authorises no code for what is not.
+
+## Expansion is informed by use, not by the plan
+
+The expansion order is written before anyone has the system. When an increment is
+promoted, what the first users actually needed takes precedence over what the
+order predicted, and the reordering is recorded with its reason — that reason is
+what building the small version first bought. `.harness/as-built/drift.md`, where
+the project has one, is the evidence for whether the MVP built the boundaries the
+expansion assumes it can build on.
 
 ## Scope
 
@@ -3034,14 +3054,20 @@ to `implement`, to the requirements or architecture templates, or to any fixture
 
 - The skill refuses to start on unresolved requirements, a `DRAFT` architecture,
   or a project with any milestone past `TODO`.
-- It refuses to carve when no plausibly-false assumption can be named, and
-  recommends implementing the full scope instead.
+- It refuses to carve when the full scope is already minimal, or when nothing
+  short of the whole scope is releasable, naming the reason.
+- `## Outcome` names one user and one complete outcome through a real entry point,
+  and what it replaces.
+- Questions asked are limited to ones that move a requirement between in scope and
+  deferred; their answers are recorded under `## Decisions`.
 - Every full-scope functional requirement appears exactly once across
   `## In Scope` and `## Deferred`; every component appears in `## Components`
   under its original id.
-- Every deferred entry names an increment, and every increment names at least one
-  deferred entry.
-- `## Proof` carries both a proving and a falsifying result.
+- Every deferred entry names an increment, every increment names at least one
+  deferred entry, and every manual step names the increment that automates it.
+- `## Value` carries both a `Delivered when` and a `Not delivered if` line, and at
+  least one acceptance criterion walks the whole path through the real entry
+  point.
 - The full documents are present and byte-identical under `.harness/full/` after
   the carve.
 - `implement` runs against the carved scope with no change to its own definition.
@@ -3051,7 +3077,9 @@ to `implement`, to the requirements or architecture templates, or to any fixture
 - Never write code or scaffolding from the skill. A scope decision is not an
   implementation.
 - Never mark the carve `AGREED` without explicit human agreement — the agent does
-  not both choose what to leave out of the product and certify the choice.
+  not both choose what the product ships without and certify the choice.
+- Never cut the path short of the result to make the MVP smaller.
 - Never edit the full documents in place; they move once and are read thereafter.
 - Never defer tests, in-scope correctness, or evidence to make the MVP smaller.
+- Never leave a manual step unrecorded.
 - Never build for a deferred increment.

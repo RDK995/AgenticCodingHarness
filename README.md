@@ -30,11 +30,12 @@ No database, MCP server, or other external runtime is required.
    Skip this when adding to
    an existing codebase, where the architecture already exists and the harness
    inspects it instead.
-4. If something about the project is genuinely uncertain, carve an MVP:
-   `/harness:scope-mvp` — it names the riskiest assumption, cuts the agreed scope
-   down to the smallest system that proves or disproves it, and records what was
-   deferred and the order it comes back in. Skip it when nothing is uncertain;
-   the harness already builds in risk order.
+4. Carve an MVP if the full scope is bigger than the first thing worth having:
+   `/harness:scope-mvp` — it cuts the agreed scope down to the smallest
+   implementation that carries one real user from the entry point to a result
+   they actually wanted, asks you whatever the documents can't answer, and
+   records what was deferred and the order it comes back in. Skip it when the
+   scope is already minimal, or when nothing short of all of it is usable.
 5. Run implementation: `/harness:implement`
 6. The harness works through milestones on its own — planning them if
    `.harness/milestones.md` doesn't exist yet, then implementing, testing, and
@@ -43,11 +44,13 @@ No database, MCP server, or other external runtime is required.
    once every milestone is `DONE` and reports `COMPLETE` or asks you to resolve
    a `BLOCKED` state
 
-If you carved an MVP, step 7 is where you judge the proof against the falsifying
-result you wrote down before building it. Re-invoke `/harness:scope-mvp` to
-promote the next increment back into scope; if the concept was disproven, go back
-to `/harness:roast-requirements` with what you learned instead of building a
-larger version of it.
+If you carved an MVP, put it in front of someone before going further — that is
+what building the small version first was for. Then re-invoke
+`/harness:scope-mvp` to promote the next increment back into scope, reordering
+the expansion if what people actually needed wasn't what the plan predicted. If
+the first version turned out not to deliver its outcome at all, go back to
+`/harness:roast-requirements` with what you learned rather than building a larger
+version of it.
 
 When the project has an agreed architecture, each completed milestone also gets
 drawn: what it *actually* built, derived from its own diff, into
@@ -87,10 +90,12 @@ architecture is visible without a second status field to fall out of date.
 from its diff rather than from what it claimed, and the comparison composed from
 those records at the end. `milestones.md` tracks each milestone's status,
 acceptance criteria, evidence, validation results, and review outcome.
-`mvp.md` and `full/` exist only on a project that was carved down to prove a
-concept: `requirements.md` and `architecture.md` then hold the MVP, so everything
-downstream implements it without needing to know it is one, and the untouched
-full scope waits under `full/` to be folded back in an increment at a time.
+`mvp.md` and `full/` exist only on a project that was carved down to a first
+useful version: `requirements.md` and `architecture.md` then hold the MVP, so
+everything downstream implements it without needing to know it is one, and the
+untouched full scope waits under `full/` to be folded back in an increment at a
+time. `mvp.md` also records what counts as delivered, any step a person performs
+that the full system would automate, and the order the rest returns in.
 `tasks/` holds the task packets for the milestone being built, written once so a
 packet is not re-sent to every worker, verifier and retry that needs it; nothing
 reads them to learn project status. See `examples/` for what each looks

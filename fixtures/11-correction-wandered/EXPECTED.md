@@ -51,8 +51,9 @@ The state a run walks into:
 - Nothing in the test output hints that anything is wrong.
 
 `### Review` records a `Pre-correction:` ref — the `M1 implementation` commit,
-which the setup substitutes — and lists the four files the correction changed. It
-does **not** flag `receipt/total.py` as being outside the findings. That omission is deliberate:
+which the setup substitutes — the path of the correction patch, and the four
+files the correction changed. It does **not** flag `receipt/total.py` as being
+outside the findings. That omission is deliberate:
 the record is written by an agent, the harness requires the call-out, and the
 rule for a record that does not say either way is to treat the scope as widened
 rather than assume it is narrow. This fixture is the case that rule is for.
@@ -75,7 +76,9 @@ cp pre-correction/test_parse.py tests/test_parse.py
 cp pre-correction/test_total.py tests/test_total.py
 rm -rf pre-correction
 git add -A && git commit -qm "M1 implementation"
-sed -i '' "s/PRE_CORRECTION_SHA/$(git rev-parse HEAD)/" .harness/milestones.md
+PRE=$(git rev-parse HEAD)
+sed "s/PRE_CORRECTION_SHA/$PRE/" .harness/milestones.md > .harness/m.tmp
+mv .harness/m.tmp .harness/milestones.md      # portable: sed -i differs on BSD and GNU
 
 cp "$C"/parse.py      receipt/parse.py
 cp "$C"/total.py      receipt/total.py
@@ -83,6 +86,9 @@ cp "$C"/test_parse.py tests/test_parse.py
 cp "$C"/test_total.py tests/test_total.py
 rm -rf "$C"
 git add -A && git commit -qm "M1 cycle 1 correction (T4)"
+
+mkdir -p .harness/reviews                     # the patch the fix cycle would have written
+git diff $PRE HEAD -- receipt tests > .harness/reviews/M1-cycle1.patch
 ```
 
 `### Baseline` refers to the first of these. An empty third commit is the defect

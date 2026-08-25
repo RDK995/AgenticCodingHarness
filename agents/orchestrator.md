@@ -678,16 +678,43 @@ you route, validate and record. Findings are **routed like any other task** — 
 correction is delegated by tier exactly as the routing rule requires, and nothing
 about a review finding makes it yours to implement.
 
-**Record a pre-correction ref, before you route anything.** `git stash create`
-writes the working tree to a commit object and prints its SHA without touching
-the tree, the index or the stash list; on an already-clean tree it prints nothing
-and `git rev-parse HEAD` is the ref. Record it under `### Review` as
-`Pre-correction: <sha>`. This is what makes the next review's scope real — a list
-of filenames is not a diff, and since the harness does not commit after every
-task, `git diff <baseline> -- <those files>` returns the milestone's original
-implementation of them alongside the correction. The object is unreachable from
-any branch, so record the ref in the same turn you create it and do not rely on
-it surviving a `git gc --prune=now`.
+**Snapshot the tree before you route anything, and again once the corrections
+are validated.** The next review is scoped to what the corrections changed, and
+that has to be a real diff: a list of filenames is not one, and since the harness
+does not commit after every task, `git diff <baseline> -- <those files>` returns
+the milestone's original implementation of them alongside the correction.
+
+Take each snapshot with a throwaway index. It captures **tracked and untracked
+work alike**, honours `.gitignore`, and leaves the real index, the worktree and
+the stash untouched:
+
+```
+IDX=$(mktemp -u)
+GIT_INDEX_FILE=$IDX git add -A
+TREE=$(GIT_INDEX_FILE=$IDX git write-tree)
+rm -f "$IDX"
+git commit-tree "$TREE" -p HEAD -m snapshot     # prints the SHA
+```
+
+**Do not use `git stash create` here.** It snapshots tracked work only, so a
+milestone that added a file without committing it — which this workflow
+explicitly permits — loses that file and every correction to it. There is no
+`-u` to reach for: `git stash create` takes `[<message>]` and nothing else, so
+`-u` is silently swallowed as the message and the command *appears* to work.
+
+Write the correction diff between the two snapshots, and record both:
+
+```
+git diff <pre> <post> > .harness/reviews/<milestone>-cycle<n>.patch
+```
+
+`Pre-correction: <sha>` and the patch's path go under `### Review`. The patch is
+what the next review is given; the ref is what makes it auditable. **Diff the two
+snapshots against each other, never a snapshot against the worktree** — an
+untracked file exists in the snapshot but not in git's view of the worktree, so a
+snapshot-to-worktree diff reports it as *deleted*, which is worse than missing it.
+Both snapshot objects are unreachable from any branch, so write the patch in the
+same cycle you take them and do not rely on them surviving a `git gc --prune=now`.
 
 **Record the correction diff.** Under `### Review`, list the files the correction
 tasks actually changed, for the cycle you just ran. The next review is scoped to

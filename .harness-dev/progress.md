@@ -271,6 +271,64 @@ final review has never run on any project, so its correction path is now
 *specified* rather than *tested*. That is the same gap the final review itself
 carries, one level down.
 
+**Two more, from automated review of the follow-up PR. Both valid; the first was
+understated.**
+
+1. *`git stash create` cannot snapshot untracked work, and the failure is silent
+   in two ways.* Verified directly: `git stash create` takes `[<message>]` and
+   nothing else, so a `-u` added to "fix" it is swallowed **as the message** and
+   the command appears to work — two parents, no untracked capture. And the
+   consequence is worse than an omission: even given a snapshot that does contain
+   the file, `git diff <snapshot> -- <untracked path>` reports it **deleted**,
+   because git's worktree side does not see untracked paths. A scoped review
+   would have been handed an actively wrong diff, not merely a short one. This
+   matters precisely because the harness permits a milestone to add a file and
+   never commit it.
+
+   Replaced with a throwaway-index snapshot taken **twice** — before routing and
+   after validating — with the correction diff written between the two:
+
+   ```
+   IDX=$(mktemp -u); GIT_INDEX_FILE=$IDX git add -A
+   TREE=$(GIT_INDEX_FILE=$IDX git write-tree); rm -f "$IDX"
+   git commit-tree "$TREE" -p HEAD -m snapshot
+   ```
+
+   Verified to capture tracked and untracked alike, to catch files the correction
+   itself creates, to honour `.gitignore`, and to leave index, worktree and stash
+   untouched. Snapshot-to-snapshot is load-bearing: snapshot-to-worktree
+   reintroduces the deletion artefact. The fix cycle now writes
+   `.harness/reviews/<milestone>-cycle<n>.patch`, and **the patch** — not a ref,
+   not a file list — is what the next review is scoped to, which also keeps the
+   plumbing out of the reviewer's prompt.
+
+2. *`sed -i ''` is BSD-only.* On GNU sed the empty suffix is parsed as the script
+   and the `s///` as a filename, so both fixture setups would have exited 2 before
+   substituting, leaving the literal placeholder committed and the scoped `git
+   diff` reference invalid. Both now use `sed ... > tmp && mv`, checked under GNU
+   semantics.
+
+**`11`'s re-run proved the first fix on live work, by accident.** Its cycle-2
+correction created two test files, `tests/test_main.py` and `tests/test_report.py`,
+and left them **untracked** — `??` in `git status`, absent from `git ls-files`.
+The patch the fix cycle wrote contains both:
+
+```
++++ b/receipt/report.py
++++ b/tests/test_main.py
++++ b/tests/test_report.py
+```
+
+Under `git stash create` the next review would have been scoped to
+`receipt/report.py` alone and never seen the two tests the correction added. The
+defect was not hypothetical, and the fixture reproduced it on the first run after
+the fix.
+
+Both fixtures pass on this mechanism. `12` records *"Scoped to the correction
+patch `.harness/reviews/M1-cycle1.patch`, per the second-review rule: the reading
+narrowed to the correction, the grading did not."* `11` widens as before, and its
+fix cycle produced its own `Pre-correction` ref and `M1-cycle2.patch`.
+
 **Considered and not done.**
 
 - *Dropping cycle 2 when cycle 1 found no BLOCKER.* This was the initial proposal

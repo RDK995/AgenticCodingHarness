@@ -195,17 +195,23 @@ reviewer re-runs the milestone's validation and its entry point, which it must d
 anyway rather than credit the record. Re-reading a milestone diff that cycle 1
 already read is what costs, and that is what stops.
 
-Pass the reviewer the **pre-correction ref** the fix cycle recorded under
-`### Review`, together with the files it changed. Its correction diff is
-`git diff <pre-correction ref> -- <files>`.
+Pass the reviewer the **correction patch** the fix cycle wrote —
+`.harness/reviews/<milestone>-cycle<n>.patch`, recorded under `### Review`
+alongside the files it changed. That patch is the scope.
 
-**A list of filenames is not a diff.** The harness does not commit after every
-task, so a milestone's implementation and its corrections routinely sit in the
-working tree together — `git diff <Baseline> -- <files>` then returns those
-files' original implementation *as well as* the correction, which is the whole
-milestone read under a narrower name. The ref is what makes the scope real. If
-`### Review` records no pre-correction ref, there is no correction diff to scope
-to: review the whole milestone and record that the ref was missing.
+**A list of filenames is not a diff, and neither is a ref on its own.** The
+harness does not commit after every task, so a milestone's implementation and its
+corrections sit in the working tree together — `git diff <Baseline> -- <files>`
+returns those files' original implementation *as well as* the correction, which
+is the whole milestone read under a narrower name. Worse, a milestone may add a
+file and never commit it, and an untracked file is invisible to any diff taken
+against the worktree. The fix cycle therefore snapshots the tree before and after
+its corrections and writes the diff between the two snapshots; see "Snapshot the
+tree" in `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md` for why it is done that
+way rather than with `git stash create`.
+
+If `### Review` records no patch, there is no correction diff to scope to:
+review the whole milestone and record that the patch was missing.
 
 **Widen back to the whole milestone if the corrections changed a file no cycle-1
 finding named.** The scope rests entirely on "nothing else changed", and a

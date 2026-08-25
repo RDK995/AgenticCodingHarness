@@ -163,50 +163,67 @@ path means set `BLOCKED`, write the Human Escalation Contract from what
 moved from `--agent harness:orchestrator` to `/harness:implement` with the change
 recorded in its `EXPECTED.md`; its expectation is unchanged.
 
-**`fixtures/11` was run, and it passed.** 2026-08-25, against this working tree.
-The discriminating behaviour held exactly: cycle 2 widened, and said why —
-*"widened, because cycle 1's correction changed `receipt/total.py` and
-`tests/test_total.py`, which no cycle-1 finding named"* — re-ran
-`python3 -m receipt` itself rather than crediting the stale transcript in
-`### Validation`, graded AC3 **FAIL**, and raised a `BLOCKER` naming
-`receipt/report.py` and tying it to the correction's change of representation
-rather than blaming the correction. The suite was 4/4 green throughout.
+**Both fixtures were run, on 2026-08-25, against this working tree. Both pass,
+and between them they found three defects — all three in these changes, none in
+the harness they were testing.**
 
-The subagent trace confirms the structural changes, and is the only place they
-are visible:
+`11` — the discriminating behaviour held exactly. Cycle 2 widened, and said why:
+*"widened to the whole milestone, because cycle 1's correction changed
+`receipt/total.py` and `tests/test_total.py`, which no cycle-1 finding named"*.
+It re-ran `python3 -m receipt` itself rather than crediting the stale transcript
+in `### Validation`, graded AC3 **FAIL**, and raised a `BLOCKER` naming
+`receipt/report.py` — tying it to the correction's change of representation
+rather than blaming the correction. The suite was 4/4 green throughout. The
+re-run then showed the *other* half of the rule in the same milestone: the third
+review was **scoped**, not widened, "because every file [it touched] was named by
+a finding".
+
+`12` — the negative held too, and it is the only isolated test of change 1:
 
 ```
-harness:reviewer     | M1 cycle-2 review     (widened, CHANGES REQUIRED)
-harness:orchestrator | M1 fix cycle 2        (the only one, and only to route)
-harness:worker       | M1-T5 correction task
-harness:verifier     | Verify M1-T5
-harness:reviewer     | M1 cycle-3 review     (PASS — no orchestrator after it)
+harness:reviewer | M1 cycle-2 scoped review      ← and nothing else. No
+                                                   orchestrator was invoked at
+                                                   all on the passing path.
 ```
 
-One `.harness/reviews/M1-cycle2.md` was written, for the cycle that had findings;
-the passing review wrote none. The milestone reached `DONE` after the BLOCKER was
-found, fixed and independently re-reviewed, which is the loop working rather than
-the fixture failing.
+No `.harness/reviews/` file was written; the review recorded that it stayed
+scoped and why; and it raised nothing at any severity against correct code. It
+also verified the cycle-1 fix falsifiably rather than by reading it — running the
+named cases against both the pre-fix and post-fix commits, and confirming the two
+added tests fail against the pre-fix implementation.
 
-**Two defects it found, both mine.** The run reported the second itself.
+**The three defects, all in this change set.**
 
-1. *The fixture's own expectations were wrong.* `EXPECTED.md` asserted `Status`
-   is not `DONE`, written as if the run stops at the cycle-2 verdict. It does
-   not, and should not. Corrected to assert what the fixture is actually for: a
-   cycle-2 `FAIL` on AC3 with fresh evidence. Its setup was also rebuilt — the
-   third commit was `--allow-empty`, so there was no correction diff for a scoped
-   review to be scoped to. `pre-correction/` now holds the files as cycle 1
-   reviewed them and the setup swaps them through two real commits.
-2. *Passing reviews were incrementing the cycle counter.* `Review Cycles` reached
-   `3` on a milestone corrected twice, and the guard "STOP if the fix cycle
-   returns REVIEW with Review Cycles already at 2" then fires on the normal path,
-   contradicting the top-of-loop cap check and making the cap unreachable. Fixed:
-   a cycle is a review **whose findings were routed and fixed**; a passing review
-   ends the loop and does not increment. The guard now trips above 2. Recorded in
-   `milestones-template.md` so the counter's meaning is stated where the field is
-   defined.
+1. *The cap check had moved in front of itself.* Found while writing the
+   fixtures, before any run: putting reviewer invocation in the skill put it
+   ahead of the cap the orchestrator checked, so a third reviewer would have been
+   invoked before anything counted. Fixed by checking the cap in the skill and
+   giving the orchestrator an explicit escalate mode.
+2. *Passing reviews were incrementing the cycle counter.* Found by `11`'s first
+   run, which reported it itself: `Review Cycles` reached `3` on a milestone
+   corrected twice, and the guard "STOP if the fix cycle returns REVIEW with
+   Review Cycles already at 2" then fires on the normal path, contradicting the
+   top-of-loop cap check and making the cap unreachable. Fixed — a cycle is a
+   review **whose findings were routed and fixed**; a passing review ends the loop
+   and does not increment. `11`'s re-run confirms it: `Review Cycles: 2`, with the
+   file noting *"(Not incremented by the passing review.)"*.
+3. *`DONE` was being recorded with every acceptance criterion still unchecked.*
+   Found by `12`. Moving the completion gate from the orchestrator to the skill
+   carried the *checking* across but not the instruction to **check them off** —
+   the orchestrator's wording was "verify it yourself against the reviewer's
+   per-criterion evidence table before checking it off", and only the first half
+   survived the move. `11` happened to tick them and `12` did not, which is what
+   an under-specified instruction looks like. The skill's PASS path now ticks each
+   box against the reviewer's row and nothing else. `12` was re-run after the fix
+   and records `Status: DONE`, `Review Cycles: 1`, all three criteria `[x]`, no
+   `.harness/reviews/` file, and one subagent — the scoped reviewer.
 
-`fixtures/12` has not been run.
+`11`'s own `EXPECTED.md` was wrong too, and was corrected rather than the harness:
+it asserted `Status` is not `DONE`, written as if the run stops at the cycle-2
+verdict. It does not and should not — the loop routes the finding, fixes it, and
+re-reviews, and a `DONE` reached that way is correct. Its setup was also rebuilt;
+the third commit was `--allow-empty`, so there was no correction diff for a scoped
+review to be scoped to.
 
 **Considered and not done.**
 
@@ -231,10 +248,11 @@ reviewer-invocation instruction removed from `agents/orchestrator.md` reappears 
 `skills/implement/SKILL.md`; the tier-derivation table survived the move
 unchanged; `.harness/reviews/` is created, written and read by exactly one path
 each; and `docs/runtime-contract.md`'s primitive 1 and substitution table follow
-the moved responsibility. `fixtures/11` **was** run against a live model and
-passed; see above. `fixtures/12` has not been, so the scoped-and-stays-scoped
-half of change 2 and the no-coordinator-on-PASS claim rest on `11`'s subagent
-trace rather than on a fixture written to isolate them.
+the moved responsibility. `fixtures/11` and `fixtures/12` **were** run
+against a live model and both passed; see above. Each was re-run after the defect it
+found was fixed, and passed on the re-run. That is the validation these changes
+have: two fixtures, four live runs, every mechanical expectation met on the
+last run of each.
 
 ## Out-of-milestone measurement — the M5a run on OpenCodeOpenWeightHarness (2026-08-24)
 

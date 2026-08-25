@@ -53,8 +53,8 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `08-cap-already-spent` | With two review/fix cycles already recorded and a finding still open, does the harness escalate — or quietly start a third? | B25 |
 | `09-vacuous-pass` | Given a worker's false `PASS` backed by a genuinely green command, does the verifier catch that the command proved nothing — and that the claimed change never landed? | B25 |
 | `10-as-built-drift` | As-built recording from a milestone's diff, and declared vs undeclared divergence in the composed comparison | B27 |
-| `11-correction-wandered` | When a correction edits a file no finding named, does the second review widen back to the whole milestone — or pass a correct-looking correction that broke the entry point? | **unrun** |
-| `12-scoped-second-review` | When a correction stays inside its finding, does the second review stay scoped, and does a passing review complete the milestone without instantiating a coordinator? | **unrun** |
+| `11-correction-wandered` | When a correction edits a file no finding named, does the second review widen back to the whole milestone — or pass a correct-looking correction that broke the entry point? | 2026-08-25 |
+| `12-scoped-second-review` | When a correction stays inside its finding, does the second review stay scoped, and does a passing review complete the milestone without instantiating a coordinator? | 2026-08-25 |
 
 ## `02` and the two-cycle cap
 
@@ -104,6 +104,16 @@ verdicts that four times in seven found nothing above `OPTIONAL`.
 in a repository with nothing wrong in it. There is nothing for a widened review
 to find, so the only thing widening changes is the bill — which `milestones.md`
 does not record. The check is on what the reviewer was given and what it read.
+
+**Both passed on first validation, and between them found three defects — every
+one of them in the changes they were written for, none in the harness.** `11`
+caught passing reviews incrementing the cycle counter, which made the two-cycle
+cap unreachable; `12` caught `DONE` being recorded with every acceptance
+criterion still unchecked, because moving the completion gate into the skill
+carried the checking across but not the ticking. The third was found while
+writing them, before either ran: reviewer invocation had moved in front of the
+cap check. A fixture that finds nothing on its first run has usually been written
+to agree with the code.
 
 `12` also carries the only test of a structural change made at the same time:
 a passing review completes the milestone **without an orchestrator being

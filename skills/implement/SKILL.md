@@ -103,11 +103,17 @@ LOOP:
             IF either check fails: treat the verdict as CHANGES REQUIRED —
             a PASS that does not cover every criterion is the failure this
             gate exists for, not a formality
-            otherwise: record the verdict and the review tier under
-            ### Review and set Status: DONE. Do NOT increment
-            ### Review Cycles — a review that passes is the verdict that
-            ends the loop, not a cycle. Only a review whose findings were
-            routed and fixed counts, which is what makes the cap countable.
+            otherwise:
+              - check every acceptance criterion off as [x], against the
+                reviewer's per-criterion row and nothing else. A milestone
+                that is DONE with criteria still unchecked contradicts its
+                own record, and the boxes are what a human reads first.
+              - record the verdict and the review tier under ### Review
+              - set Status: DONE
+            Do NOT increment ### Review Cycles — a review that passes is
+            the verdict that ends the loop, not a cycle. Only a review
+            whose findings were routed and fixed counts, which is what
+            makes the cap countable.
             Do NOT invoke the orchestrator. There is nothing to route, and
             instantiating a coordinator to find that out was six no-op
             invocations and $165 on the one project this was measured on.

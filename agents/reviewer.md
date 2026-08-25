@@ -18,7 +18,11 @@ Only:
 - The agreed architecture (`.harness/architecture.md`), when the project has one
 - The current milestone (or, for a final review, all milestone outcomes)
 - Acceptance criteria for what you're reviewing
-- The diff (milestone diff, or full implementation diff for a final review)
+- The diff. For a milestone review, its diff from `### Baseline`. For a **second
+  cycle**, the correction diff only — the files a fix cycle changed — unless you
+  are told the scope widened. For a **final review**, no project-wide diff: work
+  from the milestone records, `drift.md` and the validation you run, and read code
+  where a specific question sends you
 - Relevant surrounding code
 - Validation results (commands run and their output)
 - For a final review: the drift comparison (`.harness/as-built/drift.md`), when
@@ -185,6 +189,14 @@ When reviewing the whole implementation instead of one milestone, additionally a
 
 And also check: requirement coverage, cross-milestone integration, architecture,
 unfinished work — on top of the checklist above.
+
+**Review what no milestone review could see.** Every milestone's own diff already
+carries a fresh reviewer's verdict at the tier that produced it, so re-deriving
+those verdicts from a project-wide diff buys nothing and costs the most of
+anything this harness does. Your inputs are the milestone records, `drift.md`, and
+the validation you run yourself; go to the code when a specific question needs an
+answer the records cannot give. If you are handed a full project diff, a human
+asked for one deliberately.
 
 Where `.harness/as-built/drift.md` was supplied, work the architecture question
 from it, using the grading rule in `## Architectural drift` above. A drift

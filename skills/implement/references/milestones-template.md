@@ -118,10 +118,10 @@ carry every template heading — the remaining headings are in its archive file.
 - No JSON state store, no hidden state — this file plus `requirements.md` (plus
   `.harness/archive/` once milestones have been archived, read on demand) must
   be enough for a new session to understand project status. `.harness/tasks/`
-  does not change that: task packets are the orchestrator's scratch for a
-  milestone in flight, written so a packet is not re-sent to every worker,
-  verifier and retry that needs it. Nothing reads them to learn project status,
-  and they carry no evidence — that lives here.
+  and `.harness/reviews/` do not change that: task packets and review reports are
+  scratch for a milestone in flight, written so neither is re-sent to every
+  worker, verifier, retry or fix cycle that needs it. Nothing reads them to learn
+  project status, and they carry no evidence — that lives here.
 - A milestone may only become `DONE` once its `Evidence` and `Validation`
   sections contain real implementation/test evidence, not a claim.
 - `### Evidence` records, per task, the tier it entered at, the named reason if
@@ -135,8 +135,15 @@ carry every template heading — the remaining headings are in its archive file.
   baseline cannot be reviewed. The harness does not commit after every task, so
   the milestone's work may be uncommitted or untracked: whoever records evidence
   says whether it is in `git diff <baseline>` or in `git status --porcelain`.
+- `### Review` records each cycle's verdict, the tier it ran at, and — for a
+  cycle that routed corrections — **the files those corrections changed**, calling
+  out any file no finding named. The next review is scoped to that list, so a
+  missing or approximate one silently widens or narrows what gets re-reviewed.
 - `### Review Cycles` counts completed review/fix cycles for that milestone and
-  is used to enforce the two-cycle cap. It is the only record of the count that
+  is used to enforce the two-cycle cap. A cycle is a review **whose findings were
+  routed and fixed**. A review that passes ends the loop and is not a cycle, so it
+  does not increment this — a milestone corrected twice and then passed records
+  `2`, not `3`. Counting passing reviews makes the cap unreachable. It is the only record of the count that
   survives between invocations, since each phase runs in its own context.
 - `### Follow-ups` records out-of-scope ideas surfaced while working the
   milestone. It is a record, not a task list — items there must not be

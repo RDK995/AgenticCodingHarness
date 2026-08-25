@@ -53,6 +53,8 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `08-cap-already-spent` | With two review/fix cycles already recorded and a finding still open, does the harness escalate — or quietly start a third? | B25 |
 | `09-vacuous-pass` | Given a worker's false `PASS` backed by a genuinely green command, does the verifier catch that the command proved nothing — and that the claimed change never landed? | B25 |
 | `10-as-built-drift` | As-built recording from a milestone's diff, and declared vs undeclared divergence in the composed comparison | B27 |
+| `11-correction-wandered` | When a correction edits a file no finding named, does the second review widen back to the whole milestone — or pass a correct-looking correction that broke the entry point? | 2026-08-25 |
+| `12-scoped-second-review` | When a correction stays inside its finding, does the second review stay scoped, and does a passing review complete the milestone without instantiating a coordinator? | 2026-08-25 |
 
 ## `02` and the two-cycle cap
 
@@ -86,6 +88,38 @@ for the human. `02` and `06` are the positive tests of that rule: `02` proved
 two calls; `06` ran an exhaustive search over prime pairs. A run that escalated on
 "this looks impossible" without that work would now be wrong, and these two are
 where that shows up.
+
+## `11` and `12`, and why neither runs alone
+
+They are a pair in the way `03` and `04` are a pair, and for a sharper reason:
+each one, run by itself, rewards the behaviour the other exists to prevent.
+
+`11` seeds a correction that edited a file outside its finding, and a run that
+reviews only the correction diff passes a milestone whose entry point prints
+`$1999.00`. Run `11` alone and the lesson is *always widen* — which is what the
+harness did before the 2026-08-25 measurement, at $14-55 per second cycle for
+verdicts that four times in seven found nothing above `OPTIONAL`.
+
+`12` seeds the same shape of correction confined to the files its finding named,
+in a repository with nothing wrong in it. There is nothing for a widened review
+to find, so the only thing widening changes is the bill — which `milestones.md`
+does not record. The check is on what the reviewer was given and what it read.
+
+**Both passed on first validation, and between them found three defects — every
+one of them in the changes they were written for, none in the harness.** `11`
+caught passing reviews incrementing the cycle counter, which made the two-cycle
+cap unreachable; `12` caught `DONE` being recorded with every acceptance
+criterion still unchecked, because moving the completion gate into the skill
+carried the checking across but not the ticking. The third was found while
+writing them, before either ran: reviewer invocation had moved in front of the
+cap check. A fixture that finds nothing on its first run has usually been written
+to agree with the code.
+
+`12` also carries the only test of a structural change made at the same time:
+a passing review completes the milestone **without an orchestrator being
+invoked**. That is checkable from the session's subagents and from nothing else.
+Coordinating review cost $494 against the reviewer's own $410 on the project
+measured, six cycles of it spent discovering there was nothing to route.
 
 ## Reading the results
 

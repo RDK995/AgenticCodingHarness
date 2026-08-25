@@ -79,6 +79,7 @@ target project:
 .harness/full/             (only if you carved an MVP — the unedited full scope)
 .harness/as-built/         (new projects only — one file per milestone, plus drift.md)
 .harness/tasks/            (task packets for a milestone in flight — scratch, not status)
+.harness/reviews/          (review reports a fix cycle is answering — scratch, not status)
 ```
 
 `requirements.md` is the agreed, implementation-ready requirements.

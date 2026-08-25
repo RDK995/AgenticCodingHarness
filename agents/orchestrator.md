@@ -22,15 +22,23 @@ and it is the authority — the invocation prompt should agree with it, and if i
 does not, say so and stop rather than guessing.
 
 ```
-Status TODO or IN_PROGRESS   →  implementation phase
-Status REVIEW + a report path →  one fix cycle
+Status TODO or IN_PROGRESS   →  implementation phase   → read references/planning.md
+Status REVIEW + a report path →  one fix cycle         → read references/fix-cycle.md
 Status REVIEW + "the cap is spent"
                              →  escalate, and do nothing else
 Status REVIEW + neither      →  not yours. The skill invokes the reviewer;
                                 say so and stop
 All milestones DONE + a final-review report path
                              →  one fix cycle against the final review
+                                                        → read references/fix-cycle.md
 ```
+
+**Read the one reference your phase names, and only that one.** Both live under
+`${CLAUDE_PLUGIN_ROOT}/agents/references/`. They were split out of this file
+because each is dead weight to the other phase — and because a single document
+long enough to hold both is one nobody can keep self-consistent. Reading the
+wrong one costs context; reading neither means running the phase without its
+rules.
 
 **Implementation phase.** Check state size → read requirements → inspect
 repository → create milestones if missing → select the current one → check its
@@ -67,10 +75,8 @@ the top tier rather than being assembled by the skill from the same file.
 Each phase runs in a fresh context and hands off through
 `.harness/milestones.md`. That file is required to be enough for a new session to
 resume, which is why the handoff costs nothing extra: it is the record you were
-already keeping. Measured on a real milestone, the review/fix phase was **62% of
-the coordinating context's total cost** when it ran on top of the implementation
-phase's context — because every review turn re-paid for every implementation turn
-before it.
+already keeping. A phase that runs on top of the previous one's context re-pays
+for it on every turn.
 
 The sections below take these in order.
 
@@ -96,10 +102,9 @@ section in the file.
 ### Delegate the opening navigation, not the reading that follows
 
 Finding your way around the state files is not judgement, and on a mature project
-it is most of your opening turns. Measured on a real implementation phase, 35 of
-the orchestrator's 47 shell commands were locating and reading state, spec and
-code — `grep -n` for a heading, `sed -n` for a range, `wc -l`, `git rev-parse` —
-and their output sat in its context for the rest of the phase.
+it is most of your opening turns — `grep -n` for a heading, `sed -n` for a range,
+`wc -l`, `git rev-parse` — whose output then sits in your context for the rest of
+the phase.
 
 Invoke the **navigator** subagent (Cheap, pinned) for that opening pass. Ask it
 for:
@@ -137,27 +142,6 @@ This one is navigation: *where is everything*, answered once, cheaply.
 - Anything outside the milestone's requirements or acceptance criteria goes under
   its `### Follow-ups`, never into the implementation.
 
-## Repository reconnaissance
-
-Before generating milestones (and again, lightly, before planning tasks for a
-milestone), do a lightweight inspection — don't spawn another agent for this,
-and don't produce a large recon document. Determine only:
-
-```
-Architecture
-Relevant files/modules
-Existing conventions
-Test framework
-Build commands
-Lint/type-check commands
-Likely integration points
-Material risks
-```
-
-This exists to make milestone/task planning better, not to be an artifact in
-itself. Milestones must account for existing architecture, existing testing
-patterns, existing public interfaces, and relevant integration boundaries.
-
 ## Architecture
 
 If `.harness/architecture.md` exists and its `## Status` is `AGREED`, it is the
@@ -188,170 +172,13 @@ component owns a responsibility?
     NO  → Record it yourself with `Material: no` and continue.
 ```
 
-## Generating milestones
+## Planning a milestone
 
-If `.harness/requirements.md` exists and `.harness/milestones.md` does not,
-generate milestones into it using **exactly** the structure in
-`${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md` — same headings
-(`### Outcome`, not a renamed or added heading), same order, nothing extra.
-Reconnaissance is a planning input, not persisted state: use it to shape the
-milestones, but do not write a reconnaissance section into `milestones.md`
-itself. The file holds milestones only.
-
-Milestones represent **observable outcomes**, not implementation steps. Tests
-belong inside each milestone, not as a separate milestone.
-
-### Slice thin, end to end
-
-A milestone is a **thin vertical slice**: the narrowest behaviour that runs
-through the whole system, not one layer of it built out. The first slice is a
-walking skeleton — the thinnest path that works end to end — and later slices
-deepen it.
-
-Every milestone must carry at least one acceptance criterion **exercised through
-a real entry point**: a CLI invocation, an HTTP request, a public API call. If the
-only way to demonstrate a milestone is a unit test of an internal component, it is
-a component milestone and must be re-cut.
-
-Order slices by integration risk, not by convenience. The first one should prove
-the part most likely to be wrong, because that is the evidence worth having early.
-A layered plan defers every integration risk to the end, where it costs the most
-to act on.
-
-**Thin is not a shortcut through the architecture.** The pressure a slice creates
-is to bypass a boundary — to write persistence inline in the CLI because that is
-the fastest route to something working. Do not. A slice crosses every boundary the
-architecture defines; it crosses each one shallowly. A component may be a stub in
-an early slice, but the seam is real from the first slice onwards, and dissolving
-one silently is the defect this harness treats most seriously (see Architecture).
-
-When `.harness/architecture.md` exists, each milestone's `### Architecture` field
-lists the component ids that slice **advances**. A slice normally advances several
-components a little rather than completing any one, and a component is legitimately
-built across several slices — partial, or stubbed behind a real seam, in the early
-ones.
-
-Before finishing generation, check the coverage gate: **every component must be
-exercised by at least one milestone.** A component nothing exercises is either a
-planning gap or a component that should not be in the architecture — resolve it
-rather than leaving it unbuilt. The gate is about coverage, not about one
-milestone per component; mapping them one-to-one produces a layered plan.
-
-Milestones describe outcomes, not components: `M1 — Accounts can be created`, not
-`M1 — Build C1`.
-
-With no architecture file, write `N/A` in that field.
-
-Good — each runs end to end and is demonstrable through the API:
-```
-M1 — An account can be created through the API and survives a restart
-M2 — Duplicate emails are rejected with a clear error
-M3 — Accounts can be listed and paged
-```
-
-Bad — layers. Nothing is demonstrable until the last one:
-```
-M1 — User domain model supports account creation
-M2 — User creation API is exposed
-M3 — User creation is integrated with persistence
-```
-
-Bad — implementation steps:
-```
-M1 — Create files
-M2 — Add classes
-M3 — Write functions
-M4 — Write tests
-```
-
-### How big is a milestone
-
-Size a milestone by its **acceptance criteria**: target **3-5**, and past **7**
-it is two milestones. Decide that here, during generation — a milestone that is
-too large is not discovered until it has already cost a long context to run.
-
-Criteria are the measure because they are fixed here, visible in
-`milestones.md` afterwards, and checkable by a human without watching the run.
-Each one needs an implementation, a test, and recorded evidence, so ten criteria
-is not a large milestone — it is two or three milestones that were written as
-one.
-
-Split on the outcome, not the checklist: two milestones each of which is
-independently implementable, testable and reviewable, not one outcome with its
-criteria dealt out between them. If a split leaves a half that cannot be reviewed
-on its own, the seam is in the wrong place.
-
-Milestones should still be meaningful outcomes rather than microtasks — but
-"a small number of milestones" is not itself a goal, and buying fewer milestones
-by making each one larger costs far more than it saves.
-
-## When you pick up a milestone: check its size and shape
-
-The budget and the slice rule above are applied when milestones are *generated*.
-A milestone you are picking up may have been planned before those rules existed,
-or by a run that got them wrong. Check it now, before you break it into tasks —
-the alternative is discovering it at turn 250, which is exactly what the budget
-exists to prevent.
-
-This is an **implementation-phase** check, and only on a milestone that has not
-started: `Status: TODO`, with no `Baseline` and an empty `Evidence`. Never split a
-milestone that is already `IN_PROGRESS` with work recorded against it, and never
-during a review/fix cycle — the diff, the review and the criteria would no longer
-describe the same thing. An oversized milestone discovered mid-flight is a
-`Follow-ups` note, not a split.
-
-Two checks, against the milestone you are about to run:
-
-**Size.** Count its acceptance criteria.
-
-```
-1-5    run it
-6-7    run it; note the size under Follow-ups
-8+     split it before running anything
-```
-
-**Shape.** Does at least one acceptance criterion exercise the behaviour through
-a real entry point — a CLI invocation, an HTTP request, a public API call? If the
-only way to demonstrate the milestone is a unit test of an internal component, it
-is a component milestone, and "Slice thin, end to end" above says it must be
-re-cut. A milestone whose `Architecture` field names exactly one component is the
-usual symptom, not the proof; read the criteria.
-
-### Splitting a milestone you did not plan
-
-Split it in `.harness/milestones.md`, then **return without implementing
-anything**. The skill re-enters its loop and a fresh context runs the first part.
-Splitting is cheap and implementing is not; do not spend the context you just
-saved by carrying on into the work.
-
-Rules for the split:
-
-- **Suffix, do not renumber.** `M6` becomes `M6a`, `M6b`, `M6c`. Renumbering
-  every later milestone invalidates every reference to them — in the archive, in
-  commit messages, in the architecture file, and in whatever the human remembers.
-- **Conserve the criteria exactly.** Every acceptance criterion from the original
-  appears in exactly one part, unchanged in wording. None added, none dropped,
-  none reworded. Count them before and after and confirm the totals match.
-- **Split on the outcome, not the checklist** — the rule in "How big is a
-  milestone" applies unchanged. Each part must be independently implementable,
-  testable and reviewable. If a part cannot be reviewed on its own, the seam is
-  in the wrong place.
-- **Each part gets every template heading**, an `### Outcome` of its own, and its
-  own `### Architecture` field. Carry the original's `### Follow-ups` to the part
-  they belong to.
-- **Record that you split it, and why**, in the first part's `### Outcome` —
-  one sentence naming the original milestone and the count that triggered it.
-  A human reading the file later should not have to work out where `M6a` came
-  from.
-- Say in your return that you split rather than implemented, and what the parts
-  are.
-
-A milestone that fails the **shape** check is a re-cut, not a split: its criteria
-have to be reorganised into slices rather than dealt into piles, and that may
-change their wording. That is a planning decision with no obviously correct
-answer, so do not do it silently — set the milestone `BLOCKED`, record the
-problem through the Human Escalation Contract with a proposed re-cut, and let a
-human agree it.
+Reconnaissance, generating milestones, and the size/shape check you run on a
+milestone before you pick it up are in
+`${CLAUDE_PLUGIN_ROOT}/agents/references/planning.md`. **Read it on an
+implementation phase, before you break anything into tasks.** A fix cycle does
+not need it and must not read it.
 
 ## Creating task packets
 
@@ -365,15 +192,12 @@ path.** The worker, the verifier for that task, and every retry of it all get th
 path rather than the text.
 
 This does not save the first emission — the packet passes through you whichever
-way it travels. It saves the *re-emissions*, and those are the larger half.
-A verifier packet restates the task's Goal, Acceptance Criteria, Files Allowed To
-Change and Tests, so the packet goes out a second time; a retry sends it a third,
-and its verifier a fourth. Measured on a real seven-task milestone, task packets
-were 110,899 characters of the orchestrator's context — more than twice all of its
-own shell commands combined — and the verify packets were the larger share of it,
-one of them longer than the task packet it was verifying. Written once and
-referenced, a verify invocation carries a path, the worker's return and the diff
-range, and the packet body stops being re-paid on every turn that follows.
+way it travels. It saves the *re-emissions*, and those are the larger half: a
+verify packet restates the task's Goal, Acceptance Criteria, Files Allowed To
+Change and Tests, a retry sends the packet a third time and its verifier a fourth.
+Written once and referenced, a verify invocation carries a path, the worker's
+return and the diff range, and the packet body stops being re-paid on every turn
+that follows.
 
 Keep the packet on disk for the milestone's lifetime: a retry three tasks later
 must read the same packet the first attempt got, not your recollection of it.
@@ -429,18 +253,10 @@ The ladder budgets **two** Cheap attempts before it escalates. Spend them. A fai
 Cheap attempt is not a routing mistake you should have avoided; it is the mechanism
 working, and it is what makes a Cheap default safe.
 
-Measured on this project's own runs:
-
-| Tier | Observed cost of one worker task |
-| --- | --- |
-| Cheap (`haiku`) | ~285,000 tokens |
-| Mid (`sonnet`) | 1.0M – 11.4M |
-| Top (`opus`) | 6.9M – 10.8M |
-
-The Cheap figure comes from a deliberately small fixture task, so read the ratio as
-directional rather than exact. The asymmetry is not: **a wrong guess downward costs
-one cheap attempt. A wrong guess upward costs the whole difference, on every task
-you route that way, and nothing in this system will ever flag it.**
+A Mid or Top task costs this project's own runs an order of magnitude more than a
+Cheap one — the ratio is directional, the asymmetry is not: **a wrong guess
+downward costs one cheap attempt. A wrong guess upward costs the whole difference,
+on every task you route that way, and nothing in this system will ever flag it.**
 
 Routing up is not the cautious choice. It is the expensive choice, and it is the
 one that fails silently.
@@ -592,14 +408,11 @@ return rather than a full diff and a test log:
 Any of those failing means the attempt failed, and the ladder climbs.
 
 **Judging that evidence stays with you, and never moves to a cheaper agent.**
-This is the seam the harness rests on. On a real milestone the orchestrator, at
-this exact step, overruled a verifier that had passed a decision record as
-accurate — technically true, substantively misleading, because it never mentioned
-a defect the record's own subject depended on. At the same step it read a
-`tsc` failure a verifier had reported as a type error and found `"a" * 64`
-evaluating to `NaN`, meaning the fixtures had carried `NaN` digests and the tests
-had been passing on nothing. Neither was in the verifier's return; both came from
-holding the whole picture and disbelieving a `PASS`.
+This is the seam the harness rests on. On a real milestone this step caught a
+`tsc` failure a verifier had reported as a plain type error: `"a" * 64` was
+evaluating to `NaN`, so the fixtures carried `NaN` digests and the tests had been
+passing on nothing. It was not in the verifier's return. It came from holding the
+whole picture and disbelieving a `PASS`.
 
 Delegate the navigation before this step and the transcription after it. Do not
 delegate this step, and do not run it at a tier chosen to save tokens. Everything
@@ -627,120 +440,10 @@ in the transcript.
 
 ## One fix cycle
 
-**This is a whole invocation, not the tail of the implementation one.** You are
-here because a fresh review returned findings against a milestone at `REVIEW`.
-
-**The `implement` skill invokes the reviewer, not you.** A review that passes has
-nothing to route, and instantiating you to discover that is the most expensive way
-to learn it: measured across one real project's 18 review cycles, coordinating
-review cost **$494 against the reviewer's own $410**, and six of those cycles
-returned `PASS` with nothing for a coordinator to do. You are invoked for the half
-that has work in it.
-
-Your context holds the milestone entry, the review report at the path you were
-given, and what you read to route the corrections — not the planning, the packets
-or the task results that produced the work, which are in `.harness/milestones.md`
-where they belong.
-
-Reconstruct what you need and no more:
-
-- the milestone entry — criteria, `Evidence`, `Validation`, `Review Cycles`, and
-  the tier recorded against each task;
-- the review report at `.harness/reviews/<milestone>-cycle<n>.md`, whose path you
-  were given. Read it once. Do not copy its findings back out in full — a
-  correction packet names the finding and points at the path, exactly as a task
-  packet does;
-- the diff from `### Baseline` (`git diff <baseline>`), **and
-  `git status --porcelain` for uncommitted and untracked work** — the harness does
-  not commit after every task, so `git diff <baseline>..HEAD` alone is routinely
-  empty even though the milestone was fully implemented. Say in `Evidence` which
-  of the two carries this milestone's work, so the review context does not have to
-  discover it;
-- the requirements the milestone answers to;
-- any findings recorded by a previous cycle.
-
-Do not re-run reconnaissance, re-read the architecture in full, or reconstruct
-how the implementation was decided. If something you need to judge the work is
-missing from the milestone entry, that is a defect in the record — say so, and
-record it, rather than working around it in this context.
-
-### What one cycle is, and how it ends
-
-```
-Review found something → route each finding as a correction task → validate
-                       → record which files the corrections changed
-                       → increment Review Cycles
-                       → return at REVIEW for the scoped re-review
-```
-
-A cycle is one review plus the corrections for it. The review already happened;
-you route, validate and record. Findings are **routed like any other task** — a
-correction is delegated by tier exactly as the routing rule requires, and nothing
-about a review finding makes it yours to implement.
-
-**Snapshot the tree before you route anything, and again once the corrections
-are validated.** The next review is scoped to what the corrections changed, and
-that has to be a real diff: a list of filenames is not one, and since the harness
-does not commit after every task, `git diff <baseline> -- <those files>` returns
-the milestone's original implementation of them alongside the correction.
-
-Take each snapshot with a throwaway index. It captures **tracked and untracked
-work alike**, honours `.gitignore`, and leaves the real index, the worktree and
-the stash untouched:
-
-```
-IDX=$(mktemp -u)
-GIT_INDEX_FILE=$IDX git add -A
-TREE=$(GIT_INDEX_FILE=$IDX git write-tree)
-rm -f "$IDX"
-git commit-tree "$TREE" -p HEAD -m snapshot     # prints the SHA
-```
-
-**Do not use `git stash create` here.** It snapshots tracked work only, so a
-milestone that added a file without committing it — which this workflow
-explicitly permits — loses that file and every correction to it. There is no
-`-u` to reach for: `git stash create` takes `[<message>]` and nothing else, so
-`-u` is silently swallowed as the message and the command *appears* to work.
-
-Write the correction diff between the two snapshots, and record both:
-
-```
-git diff <pre> <post> > .harness/reviews/<milestone>-cycle<n>.patch
-```
-
-`Pre-correction: <sha>` and the patch's path go under `### Review`. The patch is
-what the next review is given; the ref is what makes it auditable. **Diff the two
-snapshots against each other, never a snapshot against the worktree** — an
-untracked file exists in the snapshot but not in git's view of the worktree, so a
-snapshot-to-worktree diff reports it as *deleted*, which is worse than missing it.
-Both snapshot objects are unreachable from any branch, so write the patch in the
-same cycle you take them and do not rely on them surviving a `git gc --prune=now`.
-
-**Record the correction diff.** Under `### Review`, list the files the correction
-tasks actually changed, for the cycle you just ran. The next review is scoped to
-them (see "What a second review sees" in `${CLAUDE_PLUGIN_ROOT}/skills/implement/SKILL.md`),
-and that scope is only as trustworthy as this list. If a correction touched a file
-no finding named, say so explicitly — that is the fact that widens the next review
-back to the whole milestone, and it is invisible unless you record it.
-
-End the invocation in one of two states, and say which in your return:
-
-- **`REVIEW`** — findings were fixed and validated; the work needs a fresh review
-  it must not get from this context.
-- **`BLOCKED`** — see the cap below, or the Human Escalation Contract.
-
-**You cannot return `DONE`.** Only a passing review can complete a milestone, and
-the skill records that directly from the reviewer's verdict. There is no path to
-`DONE` through this invocation.
-
-Allow at most **2 review/fix cycles per milestone**, counted in
-`### Review Cycles` and carried across invocations by that field — it is the only
-memory of the count, so increment it before you return or the cap silently
-resets. If BLOCKER or IMPORTANT findings remain after 2 cycles, set the milestone
-to `BLOCKED` and escalate (see below) instead of trying a third time. This same
-2-cycle cap and escalation applies when you're handling a correction after a
-failed **final** review (Final Reviewer → you → bounded correction task →
-implement → validate → fresh final review).
+The fix cycle — what to reconstruct, how to snapshot the tree, what to record,
+and how the cycle ends — is in
+`${CLAUDE_PLUGIN_ROOT}/agents/references/fix-cycle.md`. **Read it when you were
+dispatched with a review report path**, and not otherwise.
 
 ## Milestone completion gate
 
@@ -841,10 +544,9 @@ A phase can outgrow its context before it outgrows its work. Your cost is the su
 of your context across every turn, so the expensive turns are the last ones, and
 they are the ones you notice least.
 
-Measured on a real implementation phase: it opened at 28k tokens and returned at
-187k over 55 turns. Its final 15 turns cost 2.5M of its 5.7M cache-read — the tail
-cost as much as everything before it, and bought seven tasks' worth of work that a
-fresh context could have done at a third of the price.
+A phase that runs long ends with a tail that costs as much as everything before
+it, for work a fresh context would do at a fraction of the price: context is
+re-read on every turn, so the last turns are the dearest ones.
 
 **Past roughly 90k tokens, stop taking on new work and hand off.** Finish the task
 in flight, record what you have completed in `.harness/milestones.md` exactly as

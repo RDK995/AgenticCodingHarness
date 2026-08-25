@@ -207,8 +207,8 @@ is the whole milestone read under a narrower name. Worse, a milestone may add a
 file and never commit it, and an untracked file is invisible to any diff taken
 against the worktree. The fix cycle therefore snapshots the tree before and after
 its corrections and writes the diff between the two snapshots; see "Snapshot the
-tree" in `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md` for why it is done that
-way rather than with `git stash create`.
+tree" in `${CLAUDE_PLUGIN_ROOT}/agents/references/fix-cycle.md` for why it is done
+that way rather than with `git stash create`.
 
 If `### Review` records no patch, there is no correction diff to scope to:
 review the whole milestone and record that the patch was missing.

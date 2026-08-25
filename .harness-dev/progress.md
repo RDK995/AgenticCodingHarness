@@ -17,6 +17,78 @@ B25 and B26 merged, but `~/tools/harness` — the clone the real runs load their
 agents and skills from — is still at `99f9044` and must be pulled before any run
 exercises them. B26's Cheap-share criterion waits on the same run.
 
+## Out-of-milestone change — splitting the orchestrator by phase (2026-08-25)
+
+Human-directed, outside B27, and prompted by a fair question: the orchestrator
+had grown to 912 lines and that felt like too much context. It was, but not for
+the reason it looked like.
+
+**What it cost, measured.** `agents/orchestrator.md` was 46.9k chars ≈ **11.7k
+tokens**, loaded whole on every phase. On a real fix cycle its first turn was
+27,286 tokens, so **43% of its opening context was its own definition** before it
+read anything, and across 47 turns its definition was 551k tokens — 10.8% of that
+invocation's $7.64. Against B25's finding that the orchestrator is 87% growth and
+13% fixed, that puts prompt size at roughly 5% of project cost.
+
+**What is actually phase-specific.** An early estimate of 46% was wrong — it
+counted the routing rule, task packets and the implementation loop as
+implementation-only, when a fix cycle routes corrections through all three. The
+real split: **18% implementation-only, 13% fix-only, 69% shared.**
+
+**Change made.** Two reference files under `agents/references/`, read on dispatch
+and named in the dispatch table:
+
+- `planning.md` — reconnaissance, generating milestones, the size/shape check and
+  splitting. Read on an implementation phase only; the generation half fires once
+  per project.
+- `fix-cycle.md` — the fix cycle, the snapshot mechanics, what to record.
+
+Plus a pass removing measurement prose from the core — the 62%-of-cost line, the
+35-of-47-shell-commands count, the 110,899-character packet figure, the tier cost
+table, the 28k→187k tail. Each kept its rule and dropped its arithmetic. The
+evidence lives here, where it can be argued with.
+
+| | before | after |
+| --- | --- | --- |
+| core, always loaded | 912L / ~11.7k tok | **614L / ~8.0k tok** (−31%) |
+| implementation phase | 11.7k | 10.3k (−12%) |
+| fix cycle | 11.7k | 9.6k (−18%) |
+
+**Measured on the same fixture, before and after, and the cost result is a wash:**
+
+```
+before   orchestrator first turn 27,286   46 turns  2,103,759 read   $7.64
+after    orchestrator first turn 22,769   47 turns  2,048,691 read   $7.79
+```
+
+Opening context is genuinely **17% smaller** and total traffic 2.6% lower, but
+cost moved +2% — inside single-run variance. That is exactly what the structure
+predicted: shrinking a prompt that is 13% of an invocation by 31% touches ~4% of
+its cost, which noise swamps. **Peak context rose slightly** (61,989 → 64,090),
+because a reference read is still a read: the split saves only on the half a
+phase does *not* load.
+
+**So this is not a cost change, and should not be recorded as one.** What it buys
+is real but different:
+
+- **Consistency.** Five defects were found in the review-layer work above, and
+  three were contradictions *between sections* of a document too long to hold in
+  one view — the completion gate against the scoped review, the cap check against
+  the reviewer invocation that moved in front of it, the final-review dispatch the
+  new table removed. Two survived two live fixture runs and were caught only by
+  automated review. A 614-line core is the lever on that; the token count was
+  never the problem.
+- **Phase budget.** The 90k mid-phase ceiling exists to force `CONTINUE` handoffs.
+  Opening at 22.8k instead of 27.3k leaves ~5% more of the budget for work.
+
+**Validation.** Both fixtures rebuilt and re-run on the split. `11` widens for the
+stated reason, catches the `BLOCKER`, ends `DONE` at `Review Cycles: 2` with three
+criteria ticked and its own `M1-cycle2.patch` written. `12` scopes to the cycle-1
+patch, one reviewer, no orchestrator, `Review Cycles: 1`. No cross-reference was
+left dangling: the skill's pointer to "Snapshot the tree" now names
+`references/fix-cycle.md`, and `docs/runtime-contract.md` records
+`agents/references/` in the packaging row.
+
 ## Out-of-milestone measurement — what the review layer costs and catches (2026-08-25)
 
 Human-directed, outside B27. Recorded here because it changes four shipped

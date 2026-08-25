@@ -20,7 +20,7 @@ The coupling is small enough to list in full:
 | --- | --- |
 | Model pinning | `agents/worker.md` frontmatter — one line |
 | Tool restriction | `agents/worker.md`, `agents/reviewer.md`, `agents/verifier.md`, `agents/as-built.md` frontmatter |
-| Plugin packaging | `.claude-plugin/plugin.json`, the `agents/` + `skills/` layout |
+| Plugin packaging | `.claude-plugin/plugin.json`, the `agents/` + `agents/references/` + `skills/` layout |
 | Path resolution | `${CLAUDE_PLUGIN_ROOT}` in agent and skill bodies |
 | Invocation | `/harness:*` skills, `harness:*` subagent names |
 

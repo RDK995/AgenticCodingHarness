@@ -5,8 +5,8 @@ description: Primary workflow entry point — reads agreed requirements, plans m
 
 Drive `.harness/requirements.md` to a fully implemented, reviewed, evidence-backed
 result — one milestone at a time, and one phase of a milestone per invocation —
-using the `harness:orchestrator` subagent to run each phase and the
-`harness:reviewer` subagent for the final holistic review.
+using the `harness:orchestrator` subagent to run each implementation and fix
+phase, and invoking the `harness:reviewer` subagent yourself for every review.
 
 > Work not required to satisfy the current requirements or acceptance criteria
 > must not be implemented unless necessary for correctness. If you notice
@@ -81,16 +81,49 @@ LOOP:
         splitting.
 
     WHILE its Status is REVIEW:
-        invoke a FRESH harness:orchestrator for ONE review/fix cycle
-        (fresh reviewer at the derived tier, findings routed as correction
-        tasks, validation, Review Cycles incremented)
+        IF ### Review Cycles is already 2 and a BLOCKER or IMPORTANT
+        finding recorded there is still open:
+            the cap is spent. Do NOT invoke a reviewer — a third review is
+            the thing the cap forbids, and it is checked here because here
+            is where reviews are invoked.
+            invoke harness:orchestrator to ESCALATE, saying the cap is
+            spent and passing no report path. It sets BLOCKED and writes
+            the escalation contract, and routes nothing.
+            STOP — report the escalation contract to the human.
 
-        it returns the milestone at DONE, REVIEW, or BLOCKED
+        invoke a FRESH harness:reviewer at the tier derived below, scoped
+        per "What a second review sees" — you invoke it, not the
+        orchestrator
 
-        IF it returns REVIEW without Review Cycles having increased,
-        or with Review Cycles already at 2:
-            STOP — the cap is not being honoured and the loop would not
-            terminate. Report it to the human as a harness defect.
+        IF it returns PASS:
+            apply the completion gate yourself — it is mechanical:
+              - every acceptance criterion in the milestone entry has a row
+                in the reviewer's per-criterion table, and every row is PASS
+              - no BLOCKER or IMPORTANT finding remains
+            IF either check fails: treat the verdict as CHANGES REQUIRED —
+            a PASS that does not cover every criterion is the failure this
+            gate exists for, not a formality
+            otherwise: record the verdict and the review tier under
+            ### Review and set Status: DONE. Do NOT increment
+            ### Review Cycles — a review that passes is the verdict that
+            ends the loop, not a cycle. Only a review whose findings were
+            routed and fixed counts, which is what makes the cap countable.
+            Do NOT invoke the orchestrator. There is nothing to route, and
+            instantiating a coordinator to find that out was six no-op
+            invocations and $165 on the one project this was measured on.
+
+        IF it returns CHANGES REQUIRED:
+            write its report verbatim to .harness/reviews/M<n>-cycle<c>.md
+            invoke a FRESH harness:orchestrator for ONE fix cycle, passing
+            the PATH and not the report body (findings re-emitted into a
+            prompt are the same defect task packets had before M4b)
+
+            it returns the milestone at REVIEW or BLOCKED — never DONE
+
+            IF it returns REVIEW without Review Cycles having increased,
+            or with Review Cycles above 2:
+                STOP — the cap is not being honoured and the loop would not
+                terminate. Report it to the human as a harness defect.
 
     IF BLOCKED: STOP — report the escalation contract to the human
     (BLOCKED means it hit the 2-cycle review/fix cap with unresolved
@@ -114,6 +147,55 @@ LOOP:
         context. The LOOP is re-entered from milestones.md on the next
         invocation and picks up where this one stopped.
 ```
+
+## Invoking the reviewer
+
+Every review is invoked from here, with a fresh context, and given only the inputs
+`${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md` asks for — requirements, the milestone
+and its acceptance criteria, the diff, relevant surrounding code, validation
+results. Never implementation discussion, rationale, or any orchestrator's
+justification.
+
+**At no less than the highest tier that produced the work.** Read the tier
+recorded against each task in the milestone entry, take the highest, and override
+the reviewer's model to it:
+
+```
+highest tier used      reviewer runs at
+Cheap  (haiku)    →    sonnet   (the reviewer's pinned floor)
+Mid    (sonnet)   →    sonnet
+Top    (opus)     →    opus
+```
+
+Never override the reviewer *downwards*: `sonnet` is the floor even for a
+milestone that was entirely Cheap-tier work. A reviewer weaker than the work it
+judges is the worst failure available to this system — it does not fail loudly, it
+emits a confident, well-formatted per-criterion `PASS`, and the completion gate
+then opens on nothing. Record the tier in `### Review` beside the verdict, so the
+pairing is auditable rather than assumed.
+
+## What a second review sees
+
+A cycle-1 review reads the whole milestone. **A cycle-2 review reads the
+correction diff**, plus the acceptance criteria those corrections touch. Nothing
+else changed since cycle 1 graded it, and re-reading it costs cycle-1 money for a
+verdict cycle 1 already gave.
+
+Pass the reviewer the files the fix cycle recorded under `### Review` as its
+correction diff, and say which criteria they bear on.
+
+**Widen back to the whole milestone if the corrections changed a file no cycle-1
+finding named.** The scope rests entirely on "nothing else changed", and a
+correction that wandered outside its findings falsifies that. The fix cycle is
+required to record such a file explicitly; if `### Review` does not say either way,
+treat it as widened rather than assuming.
+
+Do not skip the second review because cycle 1 found nothing serious. Corrections
+carry their own defects: on the one project this has been measured, a review scoped
+to a single correction cost **$1.98** and found a `BLOCKER` — a guard test that
+asserted nothing — where full-scope cycle-2 reviews cost $14-55 each and four of
+seven found nothing above `OPTIONAL`. Scope is what makes the second review worth
+running; skipping it is not.
 
 ## One invocation per phase, not per milestone
 
@@ -190,9 +272,27 @@ with:
 - the drift comparison (.harness/as-built/drift.md), if one was composed
 - all milestone outcomes (from .harness/milestones.md, and from
   `.harness/archive/M<n>.md` for any milestone whose detail has been archived)
-- the complete implementation diff (project start → now)
 - final validation output (the broadest appropriate validation command for
-  this repository)
+  this repository), which it re-runs itself rather than crediting
+
+**It is scoped to what no milestone review could see** — requirement coverage
+across milestones, integration between them, and architectural drift — because
+every milestone's own diff has already been reviewed at the tier that produced it,
+and most of them twice. Its reading is bounded accordingly: the milestone records,
+`drift.md`, the validation it runs, and whatever code a specific question sends it
+to. **Do not hand it the complete project diff.** A whole-project diff at the top
+tier is the largest single invocation this harness can make, and it re-reads work
+that already carries a fresh reviewer's verdict.
+
+Hand it the full diff only when a human asks for it — a release gate, a handover,
+an audit. That is a deliberate, priced decision rather than the default.
+
+> **This review has never run.** Across seven milestones of the one real project
+> the harness has been measured on, no project has yet reached all-DONE, so the
+> final review has no evidence behind it at all — neither for its cost nor for
+> what it catches. The scope above is what the rest of the evidence supports, not
+> a measured result. The first project that reaches this point should record what
+> it cost and what it found.
 
 ```
 IF the reviewer returns PASS:

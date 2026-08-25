@@ -17,6 +17,225 @@ B25 and B26 merged, but `~/tools/harness` — the clone the real runs load their
 agents and skills from — is still at `99f9044` and must be pulled before any run
 exercises them. B26's Cheap-share criterion waits on the same run.
 
+## Out-of-milestone measurement — what the review layer costs and catches (2026-08-25)
+
+Human-directed, outside B27. Recorded here because it changes four shipped
+definitions and because it is the first measurement of the *review* layer rather
+than the coordinating one.
+
+**Where the measurement came from.** The whole of `OpenCodeOpenWeightHarness` —
+7 milestones, 18 review cycles, 7 sessions and 276 subagent contexts — read from
+the Claude Code transcripts under
+`~/.claude/projects/-Users-ryankenny-Projects-OpenCodeOpenWeightHarness/`, costed
+per model tier at list price, and cross-read against every `### Review` section in
+that project's `.harness/archive/M*.md`. Cycle attribution comes from subagent
+descriptions, so the cycle-1/cycle-2 split of the *reviewer's* own cost is
+approximate — 10 of 18 reviewer invocations carry no cycle number. The layer
+totals and the per-milestone findings are exact.
+
+### What review costs
+
+| Layer | n | Turns | Cost | Share |
+| --- | --- | --- | --- | --- |
+| orchestrator — implementation phases | 18 | 2,394 | $1,100 | 31.7% |
+| orchestrator — review/fix cycles | 18 | 1,485 | **$494** | **14.2%** |
+| reviewer subagent | 18 | 1,667 | **$410** | **11.8%** |
+| worker (of which ~$204 was correction tasks) | 120 | 10,902 | $908 | 26.1% |
+| verifier | 92 | 7,191 | $70 | 2.0% |
+| navigator | 5 | 315 | $2 | 0.1% |
+| **project total** | | | **$3,474** | |
+
+**Review is 26% of the project, ~32% with the fix work it generates.** The line
+that decided the changes below: **coordinating review ($494) costs more than
+reviewing ($410)**, because every cycle instantiates a fresh orchestrator to route
+findings — including the six cycles that returned `PASS` with nothing to route.
+
+### What review catches
+
+~9 `BLOCKER` and ~26 `IMPORTANT` findings across 18 reviews, about $32 each. The
+question is whether anything cheaper would have caught them, and on the sample
+it would not:
+
+- **M4a** — the reviewer drove a real agent through the real sandbox and found
+  that an agent which changed nothing, added one file containing `os._exit(0)`,
+  and *narrated* a fix was graded `PASS` on 12 of 16 fixtures. `gate:evals`
+  reported PASS on a corpus defeated 16/16.
+- **M3** — 1 `BLOCKER` and 4 `IMPORTANT`, every one of the form *documents more
+  than it enforces*: a vacuity guard that did not exist while the gate printed
+  11/11 proven; a gate claiming to read the kernel's socket table that read what
+  unprivileged `lsof` reports, blind to 3 of 6 listeners. That phrase recurs
+  through the project — the findings label themselves the sixth and seventh
+  instance.
+- **M5b** — tool-name mis-attribution resolving to a *wrong* name rather than
+  throwing, active during the AC10 evidence run.
+- **M4b** — a guard test that asserted nothing.
+
+One class, and it is the class the harness exists for: **green tests, genuinely
+satisfied acceptance criteria, and a mechanism that does not do what it says.**
+The verifier structurally cannot catch it — it re-runs the stated validation,
+which passes. The tests cannot — they are the thing being defeated. This is the
+`fixtures/03` scenario occurring repeatedly in the field.
+
+### Where it is not earning
+
+**Cycle 2.** Seven second cycles, $265:
+
+| Milestone | Cycle 2 outcome |
+| --- | --- |
+| M2 | `PASS` — 0 BLOCKER, 0 IMPORTANT, 9 OPTIONAL |
+| M4c-i | `PASS` — 0 BLOCKER, 0 IMPORTANT, 3 OPTIONAL |
+| M4a | 1 BLOCKER, 3 IMPORTANT — real (the `os._exit` exploit) |
+| M1 | 2 new IMPORTANT — real |
+| M4b | CHANGES REQUIRED at the cap → escalation → resolved by human direction |
+| M5b | 1 IMPORTANT, 6 OPTIONAL at the cap → BLOCKED → discharged by a human scope ruling |
+
+Two of seven paid. Two returned clean at full price. Two produced findings a human
+had to *rule on* rather than fix, surfaced at the cap, which is the most expensive
+place to surface a scope dispute. Note also which milestones cycle 2 paid on: M4a
+carried 12 acceptance criteria, and under the 3-5 budget that milestone would not
+exist in that form.
+
+Against that, the sharpest number in the set: **"Fresh review of M4b correction" —
+51 turns, $1.98 — found a real `BLOCKER`.** A review scoped to the correction diff
+cost a tenth of a full cycle 2 ($14-55 each) and out-yielded most of them.
+
+**The final holistic review has never run.** Not once, across 7 milestones. The
+project has never reached all-DONE, so `implement`'s final review — specified at
+the top tier over the entire project diff — has no evidence behind it at all.
+
+### Changes made
+
+1. `skills/implement/SKILL.md`, `agents/orchestrator.md` — **the skill invokes the
+   reviewer, not the orchestrator.** On `PASS` the skill applies the completion
+   gate itself and sets `DONE`; the orchestrator is invoked only when there are
+   findings to route, and can no longer return `DONE`. The gate is mechanical —
+   count the reviewer's per-criterion rows against the milestone's criteria,
+   confirm no BLOCKER or IMPORTANT remains — so no verification depth is given up;
+   what goes away is six no-op coordinator instantiations. Reviewer tier
+   derivation moved to the skill with it, and `docs/runtime-contract.md`'s
+   substitution table now points there.
+2. `skills/implement/SKILL.md`, `agents/reviewer.md`, `agents/orchestrator.md` —
+   **a second review is scoped to the correction diff**, plus the criteria those
+   corrections touch, and widens back to the whole milestone if a correction
+   changed a file no cycle-1 finding named. The fix cycle is now required to
+   record the correction's changed files under `### Review`, and to call out any
+   file outside the findings — that record is what the scope rests on.
+3. `skills/implement/SKILL.md`, `agents/reviewer.md` — **the final review no
+   longer reads the whole project diff.** It is scoped to what no milestone review
+   could see: requirement coverage across milestones, integration between them,
+   and drift from `drift.md`, with the validation it re-runs itself. Every
+   milestone diff already carries a fresh reviewer's verdict at the tier that
+   produced it. The full-diff form is retained as a deliberate human request — a
+   release gate, a handover, an audit — and the section states outright that this
+   review has never been exercised.
+4. `skills/implement/references/milestones-template.md`, `README.md` — new
+   `.harness/reviews/` scratch directory. A `CHANGES REQUIRED` report is written
+   there once and passed to the fix cycle by **path**, not re-emitted into a
+   prompt. Same defect and same fix as task packets before M4b; findings reports
+   are the larger documents.
+
+5. `fixtures/11-correction-wandered`, `fixtures/12-scoped-second-review` — a
+   paired fixture for changes 1 and 2, built on a four-file `receipt` project.
+   In `11` the cycle-1 correction is correct, fixes its finding, leaves the suite
+   green — and edits `receipt/total.py`, which no finding named, changing amounts
+   from dollars to cents while `receipt/report.py` still formats them with
+   `"$%.2f"`. `python3 -m receipt receipt.txt` prints `$1999.00 … TOTAL $2506.00`
+   against a criterion naming `$19.99 … TOTAL $25.06`, and `### Validation` holds
+   a *correct* CLI transcript from before the correction, so a review that credits
+   the record misses it. In `12` the correction stays inside its finding and the
+   repository is genuinely correct: the second review must stay scoped, and the
+   `PASS` must complete the milestone with **no orchestrator invoked** — the only
+   test of change 1 that exists. Neither runs alone: `11` by itself rewards
+   widening every time, which is the behaviour the measurement priced.
+   Both were checked to behave as their `EXPECTED.md` states — `11` is 4 tests
+   green with a broken entry point, `12` is 6 tests green with a correct one.
+
+**A defect in change 1, found by writing the fixtures.** Moving reviewer
+invocation to the skill moved it *in front of* the two-cycle cap, which the
+orchestrator checked. The skill would have invoked a third reviewer before
+anything checked the count — silently restoring the unbounded loop the cap
+exists to prevent, and breaking `fixtures/08` in the process. Fixed by checking
+the cap in the skill, before any reviewer is invoked, and giving the orchestrator
+an explicit **escalate** mode: `Status: REVIEW` with the cap spent and no report
+path means set `BLOCKED`, write the Human Escalation Contract from what
+`milestones.md` records, route nothing. Escalation stays at the top tier because
+"what should a human decide" is judgement, not assembly. `fixtures/08`'s command
+moved from `--agent harness:orchestrator` to `/harness:implement` with the change
+recorded in its `EXPECTED.md`; its expectation is unchanged.
+
+**`fixtures/11` was run, and it passed.** 2026-08-25, against this working tree.
+The discriminating behaviour held exactly: cycle 2 widened, and said why —
+*"widened, because cycle 1's correction changed `receipt/total.py` and
+`tests/test_total.py`, which no cycle-1 finding named"* — re-ran
+`python3 -m receipt` itself rather than crediting the stale transcript in
+`### Validation`, graded AC3 **FAIL**, and raised a `BLOCKER` naming
+`receipt/report.py` and tying it to the correction's change of representation
+rather than blaming the correction. The suite was 4/4 green throughout.
+
+The subagent trace confirms the structural changes, and is the only place they
+are visible:
+
+```
+harness:reviewer     | M1 cycle-2 review     (widened, CHANGES REQUIRED)
+harness:orchestrator | M1 fix cycle 2        (the only one, and only to route)
+harness:worker       | M1-T5 correction task
+harness:verifier     | Verify M1-T5
+harness:reviewer     | M1 cycle-3 review     (PASS — no orchestrator after it)
+```
+
+One `.harness/reviews/M1-cycle2.md` was written, for the cycle that had findings;
+the passing review wrote none. The milestone reached `DONE` after the BLOCKER was
+found, fixed and independently re-reviewed, which is the loop working rather than
+the fixture failing.
+
+**Two defects it found, both mine.** The run reported the second itself.
+
+1. *The fixture's own expectations were wrong.* `EXPECTED.md` asserted `Status`
+   is not `DONE`, written as if the run stops at the cycle-2 verdict. It does
+   not, and should not. Corrected to assert what the fixture is actually for: a
+   cycle-2 `FAIL` on AC3 with fresh evidence. Its setup was also rebuilt — the
+   third commit was `--allow-empty`, so there was no correction diff for a scoped
+   review to be scoped to. `pre-correction/` now holds the files as cycle 1
+   reviewed them and the setup swaps them through two real commits.
+2. *Passing reviews were incrementing the cycle counter.* `Review Cycles` reached
+   `3` on a milestone corrected twice, and the guard "STOP if the fix cycle
+   returns REVIEW with Review Cycles already at 2" then fires on the normal path,
+   contradicting the top-of-loop cap check and making the cap unreachable. Fixed:
+   a cycle is a review **whose findings were routed and fixed**; a passing review
+   ends the loop and does not increment. The guard now trips above 2. Recorded in
+   `milestones-template.md` so the counter's meaning is stated where the field is
+   defined.
+
+`fixtures/12` has not been run.
+
+**Considered and not done.**
+
+- *Dropping cycle 2 when cycle 1 found no BLOCKER.* This was the initial proposal
+  and the evidence does not support it. M2 and M4c-i suggest it, but the M4b
+  post-cap review found a real BLOCKER **in a correction** — corrections carry
+  their own defects, and a milestone whose corrections are never reviewed has an
+  unreviewed diff in it. Scoping cycle 2 gets most of the saving without that
+  hole, so the rule became "always run it, scoped" rather than "run it sometimes".
+- *Lowering the reviewer tier.* Nothing here argues for it. M5a — a
+  properly-sized slice reviewed at `sonnet` — passed in one cycle for $3.70, but
+  that is a milestone-size result, not a tier result, and every finding quoted
+  above came from an `opus` review of work that ran at `opus`.
+- *Touching the verifier.* $70 across 92 invocations, 2% of the project. There is
+  nothing to save there.
+
+**Validation: none run.** Same position as the M4b and M5a changes — these are
+agent and skill definitions, and the repository's validation for them is a live
+harness run. What was checked is internal consistency: the orchestrator can no
+longer return `DONE` and the skill is the only thing that sets it; every
+reviewer-invocation instruction removed from `agents/orchestrator.md` reappears in
+`skills/implement/SKILL.md`; the tier-derivation table survived the move
+unchanged; `.harness/reviews/` is created, written and read by exactly one path
+each; and `docs/runtime-contract.md`'s primitive 1 and substitution table follow
+the moved responsibility. `fixtures/11` **was** run against a live model and
+passed; see above. `fixtures/12` has not been, so the scoped-and-stays-scoped
+half of change 2 and the no-coordinator-on-PASS claim rest on `11`'s subagent
+trace rather than on a fixture written to isolate them.
+
 ## Out-of-milestone measurement — the M5a run on OpenCodeOpenWeightHarness (2026-08-24)
 
 Human-directed, outside B27. Recorded here because it is the first measurement of

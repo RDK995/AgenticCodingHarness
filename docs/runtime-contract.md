@@ -30,8 +30,8 @@ A runtime can host the harness if it provides these five things.
 
 **1. Fresh-context subagent invocation.** Start an agent from a given system
 prompt plus a text packet, with no memory of the caller's context. Used for
-orchestrator → worker, orchestrator → reviewer, and implement → orchestrator per
-milestone.
+orchestrator → worker, implement → reviewer, and implement → orchestrator per
+phase.
 
 **2. Per-role tool restriction.** The reviewer declares no `Write` or `Edit`, so
 fixing what it is judging is not a step it can take without deliberately reaching
@@ -146,7 +146,7 @@ in the B16 section of `.harness-dev/progress.md`.
 | --- | --- | --- |
 | Which model runs the cheap tier | `model:` in `agents/worker.md` frontmatter | See the warning below |
 | Which models the worker's three tiers use | The tier table in `agents/orchestrator.md` §Routing rule | Per-invocation overrides, not extra agent definitions |
-| Which tier reviews which work | `agents/orchestrator.md` §One review/fix cycle | Derived from the work; never override the reviewer downwards |
+| Which tier reviews which work | `skills/implement/SKILL.md` §Invoking the reviewer | Derived from the work; never override the reviewer downwards |
 | Which model runs the highest tier | `model:` in `agents/orchestrator.md` frontmatter | Verification, routing, and escalation judgement live here |
 | Which model runs the high tier | `model:` in `agents/reviewer.md` frontmatter | Lowering it further trades away the last check before the gate; re-run fixtures 01 and 03 |
 | Which model re-runs a task's validation | `model:` in `agents/verifier.md` frontmatter | Cheap on purpose — it is not the gate. Raising it buys little; the reviewer is the check that matters |

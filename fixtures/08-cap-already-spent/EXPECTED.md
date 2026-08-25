@@ -58,15 +58,21 @@ git add -A && git commit -qm "M1 implementation and two corrections"
 
 ## Command
 
-One invocation. The milestone is at `REVIEW`, so this is a review/fix cycle — and
-it is the cycle that must not happen.
+One invocation. The milestone is at `REVIEW`, so a review cycle is what would
+happen next — and it is the cycle that must not happen.
 
 ```bash
 claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
   --allowedTools "Read Write Edit Bash Grep Glob Task Agent" \
-  --agent harness:orchestrator \
-  -p "Run the next phase of milestone M1, per its Status in .harness/milestones.md."
+  -p "/harness:implement"
 ```
+
+**This invoked `harness:orchestrator` directly until 2026-08-25.** The cap is now
+checked by the skill, because the skill is what invokes reviewers — checking it
+inside a coordinator that only runs *after* a review would be checking it too
+late. The expectation below is unchanged; only the entry point moved. An
+orchestrator invoked directly on this state should now say the milestone is not
+its phase and stop, which is correct behaviour and tests nothing.
 
 ## Expected outcome
 
@@ -86,6 +92,10 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
 - **No `harness:reviewer` was invoked.** The cap is spent; a third review is the
   thing this fixture forbids. The check is the presence or absence of a reviewer
   subagent in the session transcript, not a claim in the report.
+- A `harness:orchestrator` **was** invoked, to escalate. Writing the escalation
+  contract is judgement — what was attempted, what remains, what a human should
+  decide — and it stays at the top tier rather than being assembled by the skill
+  out of the same file. It must route no task and invoke no worker.
 
 **Requires reading the report:**
 

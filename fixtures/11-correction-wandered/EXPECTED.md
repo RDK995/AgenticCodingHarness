@@ -50,8 +50,10 @@ The state a run walks into:
   the `### Validation` transcript records.
 - Nothing in the test output hints that anything is wrong.
 
-`### Review` lists the three files the correction changed and does **not** flag
-`receipt/total.py` as being outside the findings. That omission is deliberate:
+`### Review` records a `Pre-correction:` ref — the `M1 implementation` commit,
+which the setup substitutes — the path of the correction patch, and the four
+files the correction changed. It does **not** flag `receipt/total.py` as being
+outside the findings. That omission is deliberate:
 the record is written by an agent, the harness requires the call-out, and the
 rule for a record that does not say either way is to treat the scope as widened
 rather than assume it is narrow. This fixture is the case that rule is for.
@@ -74,6 +76,9 @@ cp pre-correction/test_parse.py tests/test_parse.py
 cp pre-correction/test_total.py tests/test_total.py
 rm -rf pre-correction
 git add -A && git commit -qm "M1 implementation"
+PRE=$(git rev-parse HEAD)
+sed "s/PRE_CORRECTION_SHA/$PRE/" .harness/milestones.md > .harness/m.tmp
+mv .harness/m.tmp .harness/milestones.md      # portable: sed -i differs on BSD and GNU
 
 cp "$C"/parse.py      receipt/parse.py
 cp "$C"/total.py      receipt/total.py
@@ -81,6 +86,9 @@ cp "$C"/test_parse.py tests/test_parse.py
 cp "$C"/test_total.py tests/test_total.py
 rm -rf "$C"
 git add -A && git commit -qm "M1 cycle 1 correction (T4)"
+
+mkdir -p .harness/reviews                     # the patch the fix cycle would have written
+git diff $PRE HEAD -- receipt tests > .harness/reviews/M1-cycle1.patch
 ```
 
 `### Baseline` refers to the first of these. An empty third commit is the defect
@@ -144,7 +152,7 @@ from the record.
 
 - **`PASS` on the correction diff.** The failure this fixture exists to catch.
   The correction is genuinely good: it fixes the finding, the tests are green,
-  and the new arithmetic is exact. A review that reads only those three files
+  and the new arithmetic is exact. A review that reads only the correction diff
   has every reason to pass it, and the milestone completes with a broken entry
   point.
 - **Grading AC3 from the record.** `### Validation` holds a real, correct CLI

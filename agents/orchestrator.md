@@ -28,6 +28,8 @@ Status REVIEW + "the cap is spent"
                              →  escalate, and do nothing else
 Status REVIEW + neither      →  not yours. The skill invokes the reviewer;
                                 say so and stop
+All milestones DONE + a final-review report path
+                             →  one fix cycle against the final review
 ```
 
 **Implementation phase.** Check state size → read requirements → inspect
@@ -42,6 +44,16 @@ that is not already carrying the whole implementation.
 given, and the diff from its `Baseline` → route each finding as a correction task
 → validate → record the cycle and the files the corrections changed → return at
 `REVIEW`. One cycle per invocation, and you never return `DONE`.
+
+**Final-review fix cycle.** Every milestone is `DONE` and the final review
+returned findings, so there is no milestone at `REVIEW` and none should be
+reopened. Route the findings from the report at the path you were given exactly
+as you would a milestone's, and record what you did under a `## Final Review`
+heading at the end of `.harness/milestones.md`, creating it if it is not there:
+the findings resolved, the pre-correction ref, the files the corrections changed,
+and a cycle count. That count carries the same 2-cycle cap, and it is separate
+from any milestone's `### Review Cycles`. Return when the corrections are
+validated; the skill invokes the fresh final review that judges them.
 
 **Escalation.** The skill checks the review/fix cap before it invokes a reviewer,
 so a milestone arrives here with the cap spent and findings still open. Read the
@@ -665,6 +677,44 @@ A cycle is one review plus the corrections for it. The review already happened;
 you route, validate and record. Findings are **routed like any other task** — a
 correction is delegated by tier exactly as the routing rule requires, and nothing
 about a review finding makes it yours to implement.
+
+**Snapshot the tree before you route anything, and again once the corrections
+are validated.** The next review is scoped to what the corrections changed, and
+that has to be a real diff: a list of filenames is not one, and since the harness
+does not commit after every task, `git diff <baseline> -- <those files>` returns
+the milestone's original implementation of them alongside the correction.
+
+Take each snapshot with a throwaway index. It captures **tracked and untracked
+work alike**, honours `.gitignore`, and leaves the real index, the worktree and
+the stash untouched:
+
+```
+IDX=$(mktemp -u)
+GIT_INDEX_FILE=$IDX git add -A
+TREE=$(GIT_INDEX_FILE=$IDX git write-tree)
+rm -f "$IDX"
+git commit-tree "$TREE" -p HEAD -m snapshot     # prints the SHA
+```
+
+**Do not use `git stash create` here.** It snapshots tracked work only, so a
+milestone that added a file without committing it — which this workflow
+explicitly permits — loses that file and every correction to it. There is no
+`-u` to reach for: `git stash create` takes `[<message>]` and nothing else, so
+`-u` is silently swallowed as the message and the command *appears* to work.
+
+Write the correction diff between the two snapshots, and record both:
+
+```
+git diff <pre> <post> > .harness/reviews/<milestone>-cycle<n>.patch
+```
+
+`Pre-correction: <sha>` and the patch's path go under `### Review`. The patch is
+what the next review is given; the ref is what makes it auditable. **Diff the two
+snapshots against each other, never a snapshot against the worktree** — an
+untracked file exists in the snapshot but not in git's view of the worktree, so a
+snapshot-to-worktree diff reports it as *deleted*, which is worse than missing it.
+Both snapshot objects are unreachable from any branch, so write the patch in the
+same cycle you take them and do not rely on them surviving a `git gc --prune=now`.
 
 **Record the correction diff.** Under `### Review`, list the files the correction
 tasks actually changed, for the cycle you just ran. The next review is scoped to

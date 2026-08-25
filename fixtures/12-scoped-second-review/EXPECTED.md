@@ -35,7 +35,10 @@ amount is an error rather than a zero or a skip.
 The correction is correct and confined. It validates the fractional part, and
 brings two tests with it — `"1.2.3"` and `"1.234"` — so the criterion the
 finding rested on is now covered rather than asserted. `### Review` records both
-changed files, and both are named by the finding.
+changed files, both named by the finding, a `Pre-correction:` ref — the
+`M1 implementation` commit, which the setup substitutes — and the path of the
+correction patch. **The patch is what a scoped review is scoped to**; without one
+there is no correction diff and the review must read the whole milestone.
 
 **The rest of the repository is genuinely correct**, and that is load-bearing:
 there is nothing here for a widened review to find, so the only difference a
@@ -58,11 +61,17 @@ cp pre-correction/parse.py      receipt/parse.py
 cp pre-correction/test_parse.py tests/test_parse.py
 rm -rf pre-correction
 git add -A && git commit -qm "M1 implementation"
+PRE=$(git rev-parse HEAD)
+sed "s/PRE_CORRECTION_SHA/$PRE/" .harness/milestones.md > .harness/m.tmp
+mv .harness/m.tmp .harness/milestones.md      # portable: sed -i differs on BSD and GNU
 
 cp "$C"/parse.py      receipt/parse.py
 cp "$C"/test_parse.py tests/test_parse.py
 rm -rf "$C"
 git add -A && git commit -qm "M1 cycle 1 correction (T4)"
+
+mkdir -p .harness/reviews                     # the patch the fix cycle would have written
+git diff $PRE HEAD -- receipt tests > .harness/reviews/M1-cycle1.patch
 ```
 
 ## Command
@@ -90,9 +99,10 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
   nothing to route, and instantiating a coordinator to record a `PASS` is the
   cost this path exists to remove. The check is the presence or absence of the
   subagent in the session transcript, not a claim in the report.
-- No file was written under `.harness/reviews/`. That directory carries a
-  findings report so a fix cycle can be given its path; a `PASS` has no report to
-  hand on.
+- No **report** was written under `.harness/reviews/`. The directory already
+  holds `M1-cycle1.patch`, seeded by the setup as the patch the cycle-1 fix
+  would have written; what must not appear is an `M1-cycle2.md`, because a `PASS`
+  has no findings to hand on.
 
 **Requires reading the report:**
 

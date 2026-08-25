@@ -136,15 +136,25 @@ carry every template heading — the remaining headings are in its archive file.
   the milestone's work may be uncommitted or untracked: whoever records evidence
   says whether it is in `git diff <baseline>` or in `git status --porcelain`.
 - `### Review` records each cycle's verdict, the tier it ran at, and — for a
-  cycle that routed corrections — **the files those corrections changed**, calling
-  out any file no finding named. The next review is scoped to that list, so a
-  missing or approximate one silently widens or narrows what gets re-reviewed.
+  cycle that routed corrections — the path of the **correction patch** it wrote
+  under `.harness/reviews/`, a `Pre-correction: <sha>` ref, and **the files those
+  corrections changed**, calling out any file no finding named. The patch is the
+  next review's scope. Filenames alone are not a diff: the harness does not commit
+  after every task, so those files hold the milestone's original implementation
+  too, and a file the milestone added but never committed is invisible to any
+  diff taken against the worktree. A missing patch means the next review has
+  nothing to scope to and reads the whole milestone.
 - `### Review Cycles` counts completed review/fix cycles for that milestone and
   is used to enforce the two-cycle cap. A cycle is a review **whose findings were
   routed and fixed**. A review that passes ends the loop and is not a cycle, so it
   does not increment this — a milestone corrected twice and then passed records
   `2`, not `3`. Counting passing reviews makes the cap unreachable. It is the only record of the count that
   survives between invocations, since each phase runs in its own context.
+- `## Final Review`, at the end of the file, exists only once every milestone is
+  `DONE` and the final review returned findings. It holds that loop's cycle count
+  and, per cycle, the findings resolved, the correction patch, the pre-correction
+  ref and the files changed — the same fields a milestone's `### Review` holds, for a loop that
+  belongs to no milestone. Its 2-cycle cap is counted there and nowhere else.
 - `### Follow-ups` records out-of-scope ideas surfaced while working the
   milestone. It is a record, not a task list — items there must not be
   implemented as part of this milestone.

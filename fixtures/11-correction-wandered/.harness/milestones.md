@@ -79,6 +79,9 @@ and that rounding a float sum is not exactness.
 Correction task T4 was routed and returned; the verifier re-ran the suite and
 confirmed it green.
 
+Pre-correction: PRE_CORRECTION_SHA
+Correction patch: `.harness/reviews/M1-cycle1.patch`
+
 Files the correction changed: `receipt/parse.py`, `tests/test_parse.py`,
 `receipt/total.py`, `tests/test_total.py`.
 

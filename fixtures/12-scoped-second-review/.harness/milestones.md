@@ -78,6 +78,8 @@ which cannot be parsed is an error, not a zero and not a skip, and
 Correction task T4 was routed and returned; the verifier re-ran the suite and
 confirmed it green.
 
+Pre-correction: PRE_CORRECTION_SHA
+
 Files the correction changed: `receipt/parse.py`, `tests/test_parse.py` — both
 named by the finding above, none outside it.
 

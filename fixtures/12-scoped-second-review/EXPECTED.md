@@ -35,7 +35,10 @@ amount is an error rather than a zero or a skip.
 The correction is correct and confined. It validates the fractional part, and
 brings two tests with it — `"1.2.3"` and `"1.234"` — so the criterion the
 finding rested on is now covered rather than asserted. `### Review` records both
-changed files, and both are named by the finding.
+changed files, both named by the finding, and a `Pre-correction:` ref — the
+`M1 implementation` commit, which the setup substitutes. The ref is what a scoped
+review is scoped to; without one there is no correction diff and the review must
+read the whole milestone.
 
 **The rest of the repository is genuinely correct**, and that is load-bearing:
 there is nothing here for a widened review to find, so the only difference a
@@ -58,6 +61,7 @@ cp pre-correction/parse.py      receipt/parse.py
 cp pre-correction/test_parse.py tests/test_parse.py
 rm -rf pre-correction
 git add -A && git commit -qm "M1 implementation"
+sed -i '' "s/PRE_CORRECTION_SHA/$(git rev-parse HEAD)/" .harness/milestones.md
 
 cp "$C"/parse.py      receipt/parse.py
 cp "$C"/test_parse.py tests/test_parse.py

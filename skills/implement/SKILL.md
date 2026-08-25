@@ -183,12 +183,29 @@ pairing is auditable rather than assumed.
 ## What a second review sees
 
 A cycle-1 review reads the whole milestone. **A cycle-2 review reads the
-correction diff**, plus the acceptance criteria those corrections touch. Nothing
-else changed since cycle 1 graded it, and re-reading it costs cycle-1 money for a
-verdict cycle 1 already gave.
+correction diff — and grades every acceptance criterion, exactly as cycle 1 did.**
+What narrows is the reading, not the grading.
 
-Pass the reviewer the files the fix cycle recorded under `### Review` as its
-correction diff, and say which criteria they bear on.
+That distinction is the whole rule, and getting it wrong deadlocks the loop. The
+completion gate above requires a per-criterion row for **every** criterion in the
+milestone, so a review that returns rows only for the criteria a correction
+touched fails the gate with no finding for a fix cycle to route — burning a cycle
+of the cap on a milestone that was correct. Re-grading costs almost nothing: the
+reviewer re-runs the milestone's validation and its entry point, which it must do
+anyway rather than credit the record. Re-reading a milestone diff that cycle 1
+already read is what costs, and that is what stops.
+
+Pass the reviewer the **pre-correction ref** the fix cycle recorded under
+`### Review`, together with the files it changed. Its correction diff is
+`git diff <pre-correction ref> -- <files>`.
+
+**A list of filenames is not a diff.** The harness does not commit after every
+task, so a milestone's implementation and its corrections routinely sit in the
+working tree together — `git diff <Baseline> -- <files>` then returns those
+files' original implementation *as well as* the correction, which is the whole
+milestone read under a narrower name. The ref is what makes the scope real. If
+`### Review` records no pre-correction ref, there is no correction diff to scope
+to: review the whole milestone and record that the ref was missing.
 
 **Widen back to the whole milestone if the corrections changed a file no cycle-1
 finding named.** The scope rests entirely on "nothing else changed", and a
@@ -305,9 +322,12 @@ IF the reviewer returns PASS:
     tell the user implementation is COMPLETE
 
 IF the reviewer returns CHANGES REQUIRED:
-    invoke harness:orchestrator with the reviewer's findings to create a bounded
-    correction task, implement it, and validate it, then request another fresh
-    final review
+    write its report verbatim to .harness/reviews/final-cycle<n>.md
+    invoke harness:orchestrator for a FINAL-REVIEW fix cycle, passing that PATH
+    and saying every milestone is DONE — it routes the findings as bounded
+    correction tasks, validates them, and records them under ## Final Review in
+    milestones.md
+    then request another fresh final review
 
     cap this at 2 cycles total, same as the per-milestone review/fix loop
 

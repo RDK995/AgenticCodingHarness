@@ -50,8 +50,9 @@ The state a run walks into:
   the `### Validation` transcript records.
 - Nothing in the test output hints that anything is wrong.
 
-`### Review` lists the three files the correction changed and does **not** flag
-`receipt/total.py` as being outside the findings. That omission is deliberate:
+`### Review` records a `Pre-correction:` ref — the `M1 implementation` commit,
+which the setup substitutes — and lists the four files the correction changed. It
+does **not** flag `receipt/total.py` as being outside the findings. That omission is deliberate:
 the record is written by an agent, the harness requires the call-out, and the
 rule for a record that does not say either way is to treat the scope as widened
 rather than assume it is narrow. This fixture is the case that rule is for.
@@ -74,6 +75,7 @@ cp pre-correction/test_parse.py tests/test_parse.py
 cp pre-correction/test_total.py tests/test_total.py
 rm -rf pre-correction
 git add -A && git commit -qm "M1 implementation"
+sed -i '' "s/PRE_CORRECTION_SHA/$(git rev-parse HEAD)/" .harness/milestones.md
 
 cp "$C"/parse.py      receipt/parse.py
 cp "$C"/total.py      receipt/total.py
@@ -144,7 +146,7 @@ from the record.
 
 - **`PASS` on the correction diff.** The failure this fixture exists to catch.
   The correction is genuinely good: it fixes the finding, the tests are green,
-  and the new arithmetic is exact. A review that reads only those three files
+  and the new arithmetic is exact. A review that reads only the correction diff
   has every reason to pass it, and the milestone completes with a broken entry
   point.
 - **Grading AC3 from the record.** `### Validation` holds a real, correct CLI

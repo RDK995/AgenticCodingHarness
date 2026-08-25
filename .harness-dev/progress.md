@@ -225,6 +225,52 @@ re-reviews, and a `DONE` reached that way is correct. Its setup was also rebuilt
 the third commit was `--allow-empty`, so there was no correction diff for a scoped
 review to be scoped to.
 
+**Three further defects, from automated review of the PR.** All three were real
+and all three are fixed; the first two would have shown up on the first real
+milestone that used them, and the fixtures could not have caught either.
+
+1. *A scoped review deadlocked against its own completion gate.* "What a second
+   review sees" gave the reviewer "the acceptance criteria those corrections
+   touch", while the gate requires a per-criterion row for **every** criterion.
+   A correctly scoped review of a one-criterion correction would therefore fail
+   the gate with no finding for a fix cycle to route — burning a cycle of the cap
+   on a correct milestone. Both live runs had resolved it by grading everything
+   anyway, which is exactly how an ambiguous instruction hides. Fixed by saying
+   what was always meant: **the reading narrows, the grading does not.**
+   Re-grading is nearly free — the reviewer re-runs validation and the entry
+   point regardless; re-reading a milestone diff cycle 1 already read is what
+   costs.
+2. *A list of filenames is not a diff.* The scope was "the files the fix cycle
+   recorded", but the harness does not commit after every task, so a milestone's
+   implementation and its corrections routinely sit in the working tree together
+   — `git diff <baseline> -- <those files>` returns the original implementation
+   of them alongside the correction, which is the whole milestone under a
+   narrower name. The fixtures hid this because their setup uses three commits.
+   Fixed: the fix cycle records `Pre-correction: <sha>` before routing anything,
+   via `git stash create`, which snapshots the working tree without touching it;
+   the scope is `git diff <sha> -- <files>`. A missing ref means there is no
+   correction diff and the review reads the whole milestone.
+3. *Final-review corrections had no dispatch path.* The skill still invoked the
+   orchestrator with the final reviewer's findings, but every milestone is `DONE`
+   by then and the new dispatch table only accepts a fix for a milestone at
+   `REVIEW` with a report path — so that invocation matched no phase and would
+   have stopped. Fixed with an explicit final-review fix mode: the skill writes
+   the report to `.harness/reviews/final-cycle<n>.md`, and the orchestrator
+   records the loop under a `## Final Review` heading in `milestones.md` with its
+   own 2-cycle count, separate from any milestone's.
+
+Both fixtures were re-run after the amendments and both still pass. `12` states
+the fix in one line — *"Scoped to the correction diff (`git diff 779c184 --
+receipt/parse.py tests/test_parse.py`), since the correction changed no file
+outside the cycle-1 finding. All three criteria were re-graded, not just the
+corrected one."* `11` still widens, still catches the `BLOCKER`, still ends at
+`Review Cycles: 2` with three criteria ticked.
+
+**Defect 3 is unexercised.** No fixture reaches all-milestones-`DONE`, and the
+final review has never run on any project, so its correction path is now
+*specified* rather than *tested*. That is the same gap the final review itself
+carries, one level down.
+
 **Considered and not done.**
 
 - *Dropping cycle 2 when cycle 1 found no BLOCKER.* This was the initial proposal

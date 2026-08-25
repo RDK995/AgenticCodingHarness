@@ -28,6 +28,8 @@ Status REVIEW + "the cap is spent"
                              →  escalate, and do nothing else
 Status REVIEW + neither      →  not yours. The skill invokes the reviewer;
                                 say so and stop
+All milestones DONE + a final-review report path
+                             →  one fix cycle against the final review
 ```
 
 **Implementation phase.** Check state size → read requirements → inspect
@@ -42,6 +44,16 @@ that is not already carrying the whole implementation.
 given, and the diff from its `Baseline` → route each finding as a correction task
 → validate → record the cycle and the files the corrections changed → return at
 `REVIEW`. One cycle per invocation, and you never return `DONE`.
+
+**Final-review fix cycle.** Every milestone is `DONE` and the final review
+returned findings, so there is no milestone at `REVIEW` and none should be
+reopened. Route the findings from the report at the path you were given exactly
+as you would a milestone's, and record what you did under a `## Final Review`
+heading at the end of `.harness/milestones.md`, creating it if it is not there:
+the findings resolved, the pre-correction ref, the files the corrections changed,
+and a cycle count. That count carries the same 2-cycle cap, and it is separate
+from any milestone's `### Review Cycles`. Return when the corrections are
+validated; the skill invokes the fresh final review that judges them.
 
 **Escalation.** The skill checks the review/fix cap before it invokes a reviewer,
 so a milestone arrives here with the cap spent and findings still open. Read the
@@ -665,6 +677,17 @@ A cycle is one review plus the corrections for it. The review already happened;
 you route, validate and record. Findings are **routed like any other task** — a
 correction is delegated by tier exactly as the routing rule requires, and nothing
 about a review finding makes it yours to implement.
+
+**Record a pre-correction ref, before you route anything.** `git stash create`
+writes the working tree to a commit object and prints its SHA without touching
+the tree, the index or the stash list; on an already-clean tree it prints nothing
+and `git rev-parse HEAD` is the ref. Record it under `### Review` as
+`Pre-correction: <sha>`. This is what makes the next review's scope real — a list
+of filenames is not a diff, and since the harness does not commit after every
+task, `git diff <baseline> -- <those files>` returns the milestone's original
+implementation of them alongside the correction. The object is unreachable from
+any branch, so record the ref in the same turn you create it and do not rely on
+it surviving a `git gc --prune=now`.
 
 **Record the correction diff.** Under `### Review`, list the files the correction
 tasks actually changed, for the cycle you just ran. The next review is scoped to

@@ -17,11 +17,17 @@ evidence.
 ## Which invocation this is
 
 You are invoked for **one phase of one milestone**, not for a milestone end to
-end. The milestone's `Status` in `.harness/milestones.md` tells you which phase,
-and it is the authority — the invocation prompt should agree with it, and if it
-does not, say so and stop rather than guessing.
+end — except on the first invocation of a project, when there are no milestones
+yet and creating them is the whole job. Once the file exists, the milestone's
+`Status` in `.harness/milestones.md` tells you which phase, and it is the
+authority — the invocation prompt should agree with it, and if it does not, say so
+and stop rather than guessing.
 
 ```
+No `.harness/milestones.md` yet
+                             →  generate milestones    → read references/planning.md
+                                and return. Do not carry on into implementing the
+                                first one: that is a fresh context's phase.
 Status TODO or IN_PROGRESS   →  implementation phase   → read references/planning.md
 Status REVIEW + a report path →  one fix cycle         → read references/fix-cycle.md
 Status REVIEW + "the cap is spent"
@@ -40,8 +46,16 @@ long enough to hold both is one nobody can keep self-consistent. Reading the
 wrong one costs context; reading neither means running the phase without its
 rules.
 
+**Generating milestones.** `.harness/milestones.md` does not exist and the skill
+invoked you to create it. Read `references/planning.md` — the slice rule, the
+criteria budget and the architecture coverage gate are all there, and generating
+without them is the failure this case exists to prevent — then inspect the
+repository, write the file, and return. There is no milestone status to dispatch
+on because there are no milestones; that is the one case where the authority rule
+above has nothing to read.
+
 **Implementation phase.** Read `references/planning.md` → check state size → read
-requirements → inspect repository → create milestones if missing → select the current one → check its
+requirements → inspect repository → select the current one → check its
 size and shape, splitting it if it fails → break it into tasks → route every task
 by tier → validate each result independently → run the milestone's validation →
 record evidence → set `REVIEW` and return. **Do not invoke the reviewer**, and do
@@ -93,11 +107,8 @@ trimming afterwards — the saving lands on the next session, never on the one t
 paid for it. Check again before you finish, for milestones completed this run.
 
 Never archive the active milestone, the **most recently settled** one, or a
-`BLOCKED` one. Move content; never summarise it. A milestone a human closed out
-short of `DONE` **is** settled and archivable. Recency is measured over settled
-milestones, not `DONE` ones — a `DONE` milestone that later milestones have been
-settled since is no longer anything's predecessor, and it is often the largest
-section in the file.
+`BLOCKED` one; move content, never summarise it. The template states the rest —
+what counts as settled, how recency is measured, what stays behind.
 
 ### Delegate the opening navigation, not the reading that follows
 
@@ -334,12 +345,8 @@ downward costs one cheap attempt. A wrong guess upward costs the whole differenc
 on every task you route that way, and nothing in this system will ever flag it.**
 
 Routing up is not the cautious choice. It is the expensive choice, and it is the
-one that fails silently.
-
-Risky work still gets maximum capability — that guarantee is unchanged. What
-changes is where it runs. Implementation done in your context stays in your
-context for every later turn of the milestone, and that accumulation, not the
-per-turn constant, is what makes a long milestone expensive.
+one that fails silently. Risky work still gets maximum capability — what changes
+is where it runs, not whether it is available.
 
 ### Blocking a milestone before any task is routed
 
@@ -426,9 +433,7 @@ Escalation is a **model override on the same `worker` agent**, not a different
 agent: same instructions, same tool restrictions, same task-packet contract, more
 capability. Do not edit `model:` in `${CLAUDE_PLUGIN_ROOT}/agents/worker.md` to
 achieve this — that would promote every delegated task permanently, which is the
-cost the routing rule exists to avoid. If your runtime cannot override a
-subagent's model per invocation, run the ladder at the Cheap tier and escalate to
-the human sooner; record that in the milestone's `Follow-ups`.
+cost the routing rule exists to avoid.
 
 Escalating a tier does not relax verification. A top-tier worker's `PASS` is worth
 exactly what a Cheap-tier worker's `PASS` is worth: nothing until the verifier's
@@ -496,22 +501,8 @@ else in this file is a cost rule with a quality caveat; this one is the reverse.
 **This does not soften the core invariant; it relocates it.** You are still not
 taking an agent's word that work is complete — you are reading a command, an exit
 status and a file list produced by a context that did not write the code and
-cannot edit it. What you no longer do is execute that check inside the context
-that has to survive the whole milestone.
-
-**The verifier is deliberately not the gate**, which is why it runs at the Cheap
-tier while the reviewer's tier is derived from the work. The reviewer is the last
-thing before the completion gate, so a weak one is the harness's worst failure.
-The verifier sits in front of the retry ladder, its output is a command and an
-exit status rather than a judgement, and the fresh milestone reviewer re-runs the
-validation independently afterwards regardless of what the verifier said. A
-rubber-stamped task therefore still meets a tier-matched reviewer before anything
-becomes `DONE`.
-
-Its `tools:` omit `Write` and `Edit`. As B24 recorded for the orchestrator, that
-is a nudge rather than a guarantee while `Bash` is present — but a verifier has no
-legitimate reason to write anything, so the inconvenient path is at least visible
-in the transcript.
+cannot edit it. A verifier's report is not a verdict, and a tier-matched reviewer
+re-runs the validation before anything becomes `DONE`.
 
 ## One fix cycle
 
@@ -534,8 +525,8 @@ worker's or your own account of the work.
 that is where the passing verdict arrives. What the gate does is mechanical —
 count the reviewer's per-criterion rows against the criteria in the milestone
 entry, and confirm no `BLOCKER` or `IMPORTANT` remains — so it does not need a
-coordinator's context to run, and re-instantiating you to run it was six
-no-op invocations on the one project this has been measured on.
+coordinator's context to run, and re-instantiating you to run it is a no-op
+invocation.
 
 An implementation invocation that believes the milestone is finished still returns
 at `REVIEW`; there is no path to `DONE` that skips a fresh review, and none that
@@ -552,11 +543,9 @@ A milestone is a unit of context as well as a unit of work. Keep yours bounded:
   the task, and not the other tasks.
 - **Never read a subagent's `.output` file.** The invocation already returned its
   result; the file is its entire transcript, and reading it puts back exactly the
-  context delegation removed. Measured on a real milestone: 52 of the
-  orchestrator's 58 `Read` calls were subagent `.output` files and 6 were
-  repository files. Verify a claim against the repository — the diff, the code,
-  the tests — never against the claimant's account of it. That is the core
-  invariant, not only a cost rule.
+  context delegation removed. Verify a claim against the repository — the diff,
+  the code, the tests — never against the claimant's account of it. That is the
+  core invariant, not only a cost rule.
 - **Never read an as-built record.** `.harness/as-built/M<n>.md` and
   `drift.md` are written for the reviewer and for the human, not for you. The
   milestone's `### As-Built` field carries a path and a one-line result, and that
@@ -564,8 +553,8 @@ A milestone is a unit of context as well as a unit of work. Keep yours bounded:
   every turn that follows, which is the same mistake as reading an `.output` file
   in a different shape.
 - **Never background a subagent and poll for it.** A blocking invocation costs one
-  turn. A `sleep`-and-check loop costs a turn per check, each re-paying your whole
-  context to learn nothing, and the same measurement found 23 of them.
+  turn; a `sleep`-and-check loop costs a turn per check, each re-paying your whole
+  context to learn nothing.
 - Read `.harness/milestones.md` for the milestone you are running; read an
   archived milestone (`.harness/archive/M<n>.md`) only when you need its
   evidence.
@@ -596,32 +585,18 @@ it, in full. Sampling what you are judging yields a confident verdict backed by 
 partial look — indistinguishable from verification and worth less than nothing.
 Cheapen reconnaissance; never cheapen verification.
 
-Who does that reading changed, and the rule did not: for a task it is the
-verifier, for a milestone it is the reviewer, and both read in full in a context
-that exists for that purpose and is then discarded. Your own reading is
-reconnaissance and evidence-checking, so range-read it. The one thing you must not
-do is split the difference — skim a diff yourself and call the result
-verification. If you find yourself wanting to read the whole diff to settle
-something, that is a question for the reviewer, or a defect in what the verifier
-reported.
-
-When you finish a **phase**, return control rather than continuing into the next
-one — an implementation phase ends at `REVIEW`, a fix cycle ends after one
-cycle, and a milestone ends at `DONE` or `BLOCKED`. `milestones.md` is written so
-the next phase, and the next milestone, can start from a fresh context; carrying
-yours forward makes every later turn re-pay for work that is already recorded.
-The phase boundary is the cheapest thing in this system and the context you would
-carry across it is the most expensive.
+Reading in full is the verifier's job for a task and the reviewer's for a
+milestone, both in contexts that exist for it and are then discarded. Yours is
+reconnaissance and evidence-checking, so range-read it — and never split the
+difference by skimming a diff and calling it verification. Wanting to read a whole
+diff to settle something is a question for the reviewer, or a defect in what the
+verifier reported.
 
 ### Hand off before you fill your context
 
-A phase can outgrow its context before it outgrows its work. Your cost is the sum
-of your context across every turn, so the expensive turns are the last ones, and
-they are the ones you notice least.
-
-A phase that runs long ends with a tail that costs as much as everything before
-it, for work a fresh context would do at a fraction of the price: context is
-re-read on every turn, so the last turns are the dearest ones.
+A phase can outgrow its context before it outgrows its work. Context is re-read
+every turn, so a long phase ends with a tail costing as much as everything before
+it — for work a fresh context would do at a fraction of the price.
 
 **Past roughly 90k tokens, stop taking on new work and hand off.** Finish the task
 in flight, record what you have completed in `.harness/milestones.md` exactly as

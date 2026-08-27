@@ -135,6 +135,58 @@ two-invocation shape, and a new failure mode — *skipping `planning.md` while s
 producing a plausible size/shape check* — is written down, since that is exactly
 what the first run did and it is invisible in the report.
 
+## Out-of-milestone change — the B12 deletion pass, and a dispatch gap (2026-08-27)
+
+B12's question applied to the shipped set: what can be deleted while preserving
+the required behaviour?
+
+**Cross-file duplication is already low.** A shingle comparison across
+`orchestrator.md`, both references, `implement/SKILL.md`, the milestones template,
+`worker.md`, `verifier.md`, `reviewer.md` and `runtime-contract.md` found exactly
+**two** overlapping passages. So the pass is within-file: rationale, measurement
+narrative, and rules restated near where they were already stated.
+
+**Deleted, with what each removal costs in behaviour:**
+
+- The archiving exceptions in `orchestrator.md`, restated from the template it
+  points at in the same breath. Collapsed to one line rather than deleted, because
+  fixture `05` showed a pointer can be skipped and these three are the safety
+  rules.
+- Three paragraphs of verifier *design rationale* — why the role is pinned Cheap,
+  why its `tools:` omit `Write`. `docs/runtime-contract.md`'s tier table owns that.
+  The orchestrator needs to invoke the verifier and judge its return, not to know
+  why the tier is safe.
+- The remaining measurement citations Context boundaries kept through the last
+  pass — "52 of 58 `Read` calls", "23 of them".
+- The phase-return paragraph, which restated "Which invocation this is" from the
+  same file.
+- The second half of "Read in ranges", which restated the first.
+- Two paragraphs of hand-off rationale for a one-line rule.
+- The runtime-cannot-override fallback — `runtime-contract.md` §"Total absence
+  degrades safely" owns it.
+- In `implement/SKILL.md`, three separate measurement narratives supporting the
+  same rule (one session per milestone). Collapsed to one, keeping the M5a case,
+  because that is the one explaining why the rule is a *gate on the way in* rather
+  than an exit instruction — the form it already failed in once.
+
+`orchestrator.md` −2,500 chars from deletion, `implement/SKILL.md` −695,
+`worker.md` −132.
+
+**A dispatch gap, from automated review of PR #19.** The dispatch table keyed every
+case on milestone `Status`, and the preamble said status is the authority and to
+*stop rather than guess*. On a greenfield project there is no status, so the
+skill's "invoke the orchestrator to generate milestones" matched no case, and the
+safest reading of the rule pointed at stopping. `fixtures/05` had papered over it:
+the model inferred an implementation phase and read `planning.md` anyway. Fixed
+with an explicit first row and a phase description naming what `planning.md`
+carries that generation cannot do without.
+
+**Validation.** All three fixtures re-run after the pass. `05` — both
+orchestrators read `planning.md`, including the generation one under the new
+dispatch case, `DONE`. `11` — widens, `BLOCKER`, `Review Cycles: 2`, its own
+`M1-cycle2.patch`. `12` — scoped to the cycle-1 patch, one reviewer, no
+orchestrator, `Review Cycles: 1`.
+
 ## Out-of-milestone measurement — what the review layer costs and catches (2026-08-25)
 
 Human-directed, outside B27. Recorded here because it changes four shipped

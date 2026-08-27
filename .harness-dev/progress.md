@@ -135,6 +135,75 @@ two-invocation shape, and a new failure mode — *skipping `planning.md` while s
 producing a plausible size/shape check* — is written down, since that is exactly
 what the first run did and it is invisible in the report.
 
+## CORRECTION — every cost figure below is inflated ~1.70x (2026-08-27)
+
+**The measurement method was wrong.** Claude Code's transcripts split one API
+response across several `assistant` records that share a `message.id`: the text
+block is one record, each tool call is another, and **every record carries the
+same `usage` object**. Summing over records therefore counts one response two or
+three times. All the cost analysis in the sections below summed over records.
+
+Verified on the largest subagent transcript: 148 records, 93 distinct
+`message.id`s, 26.4M tokens summed over records against 16.4M deduplicated —
+**1.61x** in that file, **1.70x** across the project.
+
+```
+                              as reported      deduplicated
+project total                     $3,474            $2,042
+orchestrator                      $1,594  (46%)       $923  (45%)
+reviewer                            $410  (12%)       $263  (13%)
+verifier                             $70                $35
+```
+
+### What was wrong, and what still holds
+
+**Wrong, and one of them backwards:**
+
+- *"Coordinating review ($494) costs more than reviewing ($410)."* **False, and
+  reversed.** Deduplicated it is **$183 against $263 — reviewing costs more.**
+  This was the headline of the review-layer analysis and of PR #17.
+- *"53% of orchestrator turns issue no tool at all."* Actually **7%**. The 53% was
+  text blocks of tool-calling responses counted as separate no-tool turns.
+- *"1.00 tools per tool-turn — it never batches."* It does batch: 1.08 tools per
+  API call for the orchestrator, 1.75 for `Explore`. **Zero** multi-tool records
+  across 21,281 tool-calling records machine-wide should have been the tell — that
+  is not a behaviour, it is a format.
+- Every per-turn and per-invocation figure: the $0.388/turn, the $7.64 fixture
+  orchestrator, the before/after split comparison ($7.64 → $7.79).
+
+**Still holds:**
+
+- The review layer is **~22%** of project cost, against 26% as reported. Same
+  order; the conclusion that review is a large minority of spend stands.
+- Role shares barely move — orchestrator 46% → 45%, reviewer 12% → 13%.
+- **Six review cycles instantiated a coordinator that had nothing to route.** A
+  count, not a cost, and unaffected.
+- Navigation is **54% of the orchestrator's 3,062 tool calls** (1,658), on a
+  deduplicated basis.
+- Everything about *what reviews caught* — the `os._exit(0)` grader, the
+  "documents more than it enforces" class, the per-cycle finding tables. Those are
+  finding counts read from `.harness/archive/`, not from transcripts.
+- Every fixture result in this file. All of them are behavioural.
+
+### Does anything need reverting?
+
+No. The four review-layer changes were validated behaviourally by fixtures `11`,
+`12` and `05`, not by the cost argument, and the waste they remove is real if
+smaller than claimed. What was overstated is the *motivation*: PR #17 justified
+moving reviewer invocation into the skill partly on an asymmetry that does not
+exist. The change still stands on the six no-op coordinator instantiations and on
+the fixture evidence.
+
+**The shipped files carry none of this.** The B12 pass above had already removed
+every dollar figure from `agents/` and `skills/`, for unrelated reasons. The
+inflated numbers survive only in this file, in the PR descriptions for #17-#19,
+and in commit messages.
+
+**Method note for anyone measuring this again:** deduplicate by
+`message.id` before summing `usage`, and count API calls rather than `assistant`
+records. `.harness-dev/measure-context.py` predates this correction and counts
+per record — it needs the same fix before it is trusted again.
+
 ## Out-of-milestone change — the B12 deletion pass, and a dispatch gap (2026-08-27)
 
 B12's question applied to the shipped set: what can be deleted while preserving

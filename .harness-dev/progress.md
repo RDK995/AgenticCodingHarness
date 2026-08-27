@@ -17,6 +17,245 @@ B25 and B26 merged, but `~/tools/harness` — the clone the real runs load their
 agents and skills from — is still at `99f9044` and must be pulled before any run
 exercises them. B26's Cheap-share criterion waits on the same run.
 
+## Out-of-milestone change — splitting the orchestrator by phase (2026-08-25)
+
+Human-directed, outside B27, and prompted by a fair question: the orchestrator
+had grown to 912 lines and that felt like too much context. It was, but not for
+the reason it looked like.
+
+**What it cost, measured.** `agents/orchestrator.md` was 46.9k chars ≈ **11.7k
+tokens**, loaded whole on every phase. On a real fix cycle its first turn was
+27,286 tokens, so **43% of its opening context was its own definition** before it
+read anything, and across 47 turns its definition was 551k tokens — 10.8% of that
+invocation's $7.64. Against B25's finding that the orchestrator is 87% growth and
+13% fixed, that puts prompt size at roughly 5% of project cost.
+
+**What is actually phase-specific.** An early estimate of 46% was wrong — it
+counted the routing rule, task packets and the implementation loop as
+implementation-only, when a fix cycle routes corrections through all three. The
+real split: **18% implementation-only, 13% fix-only, 69% shared.**
+
+**Change made.** Two reference files under `agents/references/`, read on dispatch
+and named in the dispatch table:
+
+- `planning.md` — reconnaissance, generating milestones, the size/shape check and
+  splitting. Read on an implementation phase only; the generation half fires once
+  per project.
+- `fix-cycle.md` — the fix cycle, the snapshot mechanics, what to record.
+
+Plus a pass removing measurement prose from the core — the 62%-of-cost line, the
+35-of-47-shell-commands count, the 110,899-character packet figure, the tier cost
+table, the 28k→187k tail. Each kept its rule and dropped its arithmetic. The
+evidence lives here, where it can be argued with.
+
+| | before | after |
+| --- | --- | --- |
+| core, always loaded | 912L / ~11.7k tok | **614L / ~8.0k tok** (−31%) |
+| implementation phase | 11.7k | 10.3k (−12%) |
+| fix cycle | 11.7k | 9.6k (−18%) |
+
+**Measured on the same fixture, before and after, and the cost result is a wash:**
+
+```
+before   orchestrator first turn 27,286   46 turns  2,103,759 read   $7.64
+after    orchestrator first turn 22,769   47 turns  2,048,691 read   $7.79
+```
+
+Opening context is genuinely **17% smaller** and total traffic 2.6% lower, but
+cost moved +2% — inside single-run variance. That is exactly what the structure
+predicted: shrinking a prompt that is 13% of an invocation by 31% touches ~4% of
+its cost, which noise swamps. **Peak context rose slightly** (61,989 → 64,090),
+because a reference read is still a read: the split saves only on the half a
+phase does *not* load.
+
+**So this is not a cost change, and should not be recorded as one.** What it buys
+is real but different:
+
+- **Consistency.** Five defects were found in the review-layer work above, and
+  three were contradictions *between sections* of a document too long to hold in
+  one view — the completion gate against the scoped review, the cap check against
+  the reviewer invocation that moved in front of it, the final-review dispatch the
+  new table removed. Two survived two live fixture runs and were caught only by
+  automated review. A 614-line core is the lever on that; the token count was
+  never the problem.
+- **Phase budget.** The 90k mid-phase ceiling exists to force `CONTINUE` handoffs.
+  Opening at 22.8k instead of 27.3k leaves ~5% more of the budget for work.
+
+**Validation.** Both fixtures rebuilt and re-run on the split. `11` widens for the
+stated reason, catches the `BLOCKER`, ends `DONE` at `Review Cycles: 2` with three
+criteria ticked and its own `M1-cycle2.patch` written. `12` scopes to the cycle-1
+patch, one reviewer, no orchestrator, `Review Cycles: 1`. No cross-reference was
+left dangling: the skill's pointer to "Snapshot the tree" now names
+`references/fix-cycle.md`, and `docs/runtime-contract.md` records
+`agents/references/` in the packaging row.
+
+**A defect in the split, caught by `fixtures/05` (2026-08-27).** `11` and `12`
+both start at `REVIEW`, so every run of them dispatches to `fix-cycle.md` — the
+implementation branch, and therefore `planning.md`, was never exercised. `05` is
+the only fixture that starts from nothing, and on its first run **the
+implementation-phase orchestrator did not read `planning.md` at all.** It still
+reported a size/shape check, performed from the phase summary in the core file,
+and reached the right answer on a two-criterion milestone by luck rather than by
+rule. Compliance was 1 of 2 orchestrators.
+
+Two changes, and the second is the one that matters:
+
+- **The size/shape check moved back into `orchestrator.md`.** It fires on *every*
+  implementation phase while milestone generation fires once per project, and a
+  rule that must always run cannot live behind a read that might not happen. This
+  costs tokens back — core is 689 lines / ~9.0k tokens rather than 614 / ~8.0k —
+  and it is the right trade for the same reason the whole split is: correctness,
+  not cost. `planning.md` now holds reconnaissance and generation only.
+- **The reference read became the first step of the phase**, in the phase summary
+  rather than only in the dispatch table.
+
+Re-run after both: **2 of 2 orchestrators read `planning.md`**, and no agent read
+`fix-cycle.md` — the phase that does not need it did not load it, which is the
+split doing its job.
+
+**And the final holistic review ran for the first time.** Reaching it takes two
+invocations, because the LOOP stops at the milestone boundary. It behaved exactly
+as the PR #18 change specified, and recorded so itself:
+
+> Scoped to what no milestone review could see: requirement coverage across the
+> whole project, integration as a caller would exercise it, and the
+> Constraints/Non-Goals sections. It was **not** handed the project diff — M1's
+> diff already carries a fresh Mid-tier cycle-1 PASS.
+
+Top tier, verdict `PASS`, recorded under the `## Final Review` heading PR #18
+introduced, with a per-obligation table covering both acceptance criteria, both
+functional requirements, the edge case, the constraint and the non-goal. It
+re-ran the suite itself and then re-ran it under `python3 -I` from a clean temp
+directory — which is what turns "standard library only" from an inference into an
+observation. That was not asked for.
+
+`fixtures/05`'s own `EXPECTED.md` needed updating rather than the harness: its
+"final holistic review reports COMPLETE" line now records the scoping and the
+two-invocation shape, and a new failure mode — *skipping `planning.md` while still
+producing a plausible size/shape check* — is written down, since that is exactly
+what the first run did and it is invisible in the report.
+
+## CORRECTION — every cost figure below is inflated ~1.70x (2026-08-27)
+
+**The measurement method was wrong.** Claude Code's transcripts split one API
+response across several `assistant` records that share a `message.id`: the text
+block is one record, each tool call is another, and **every record carries the
+same `usage` object**. Summing over records therefore counts one response two or
+three times. All the cost analysis in the sections below summed over records.
+
+Verified on the largest subagent transcript: 148 records, 93 distinct
+`message.id`s, 26.4M tokens summed over records against 16.4M deduplicated —
+**1.61x** in that file, **1.70x** across the project.
+
+```
+                              as reported      deduplicated
+project total                     $3,474            $2,042
+orchestrator                      $1,594  (46%)       $923  (45%)
+reviewer                            $410  (12%)       $263  (13%)
+verifier                             $70                $35
+```
+
+### What was wrong, and what still holds
+
+**Wrong, and one of them backwards:**
+
+- *"Coordinating review ($494) costs more than reviewing ($410)."* **False, and
+  reversed.** Deduplicated it is **$183 against $263 — reviewing costs more.**
+  This was the headline of the review-layer analysis and of PR #17.
+- *"53% of orchestrator turns issue no tool at all."* Actually **7%**. The 53% was
+  text blocks of tool-calling responses counted as separate no-tool turns.
+- *"1.00 tools per tool-turn — it never batches."* It does batch: 1.08 tools per
+  API call for the orchestrator, 1.75 for `Explore`. **Zero** multi-tool records
+  across 21,281 tool-calling records machine-wide should have been the tell — that
+  is not a behaviour, it is a format.
+- Every per-turn and per-invocation figure: the $0.388/turn, the $7.64 fixture
+  orchestrator, the before/after split comparison ($7.64 → $7.79).
+
+**Still holds:**
+
+- The review layer is **~22%** of project cost, against 26% as reported. Same
+  order; the conclusion that review is a large minority of spend stands.
+- Role shares barely move — orchestrator 46% → 45%, reviewer 12% → 13%.
+- **Six review cycles instantiated a coordinator that had nothing to route.** A
+  count, not a cost, and unaffected.
+- Navigation is **54% of the orchestrator's 3,062 tool calls** (1,658), on a
+  deduplicated basis.
+- Everything about *what reviews caught* — the `os._exit(0)` grader, the
+  "documents more than it enforces" class, the per-cycle finding tables. Those are
+  finding counts read from `.harness/archive/`, not from transcripts.
+- Every fixture result in this file. All of them are behavioural.
+
+### Does anything need reverting?
+
+No. The four review-layer changes were validated behaviourally by fixtures `11`,
+`12` and `05`, not by the cost argument, and the waste they remove is real if
+smaller than claimed. What was overstated is the *motivation*: PR #17 justified
+moving reviewer invocation into the skill partly on an asymmetry that does not
+exist. The change still stands on the six no-op coordinator instantiations and on
+the fixture evidence.
+
+**The shipped files carry none of this.** The B12 pass above had already removed
+every dollar figure from `agents/` and `skills/`, for unrelated reasons. The
+inflated numbers survive only in this file, in the PR descriptions for #17-#19,
+and in commit messages.
+
+**Method note for anyone measuring this again:** deduplicate by
+`message.id` before summing `usage`, and count API calls rather than `assistant`
+records. `.harness-dev/measure-context.py` predates this correction and counts
+per record — it needs the same fix before it is trusted again.
+
+## Out-of-milestone change — the B12 deletion pass, and a dispatch gap (2026-08-27)
+
+B12's question applied to the shipped set: what can be deleted while preserving
+the required behaviour?
+
+**Cross-file duplication is already low.** A shingle comparison across
+`orchestrator.md`, both references, `implement/SKILL.md`, the milestones template,
+`worker.md`, `verifier.md`, `reviewer.md` and `runtime-contract.md` found exactly
+**two** overlapping passages. So the pass is within-file: rationale, measurement
+narrative, and rules restated near where they were already stated.
+
+**Deleted, with what each removal costs in behaviour:**
+
+- The archiving exceptions in `orchestrator.md`, restated from the template it
+  points at in the same breath. Collapsed to one line rather than deleted, because
+  fixture `05` showed a pointer can be skipped and these three are the safety
+  rules.
+- Three paragraphs of verifier *design rationale* — why the role is pinned Cheap,
+  why its `tools:` omit `Write`. `docs/runtime-contract.md`'s tier table owns that.
+  The orchestrator needs to invoke the verifier and judge its return, not to know
+  why the tier is safe.
+- The remaining measurement citations Context boundaries kept through the last
+  pass — "52 of 58 `Read` calls", "23 of them".
+- The phase-return paragraph, which restated "Which invocation this is" from the
+  same file.
+- The second half of "Read in ranges", which restated the first.
+- Two paragraphs of hand-off rationale for a one-line rule.
+- The runtime-cannot-override fallback — `runtime-contract.md` §"Total absence
+  degrades safely" owns it.
+- In `implement/SKILL.md`, three separate measurement narratives supporting the
+  same rule (one session per milestone). Collapsed to one, keeping the M5a case,
+  because that is the one explaining why the rule is a *gate on the way in* rather
+  than an exit instruction — the form it already failed in once.
+
+`orchestrator.md` −2,500 chars from deletion, `implement/SKILL.md` −695,
+`worker.md` −132.
+
+**A dispatch gap, from automated review of PR #19.** The dispatch table keyed every
+case on milestone `Status`, and the preamble said status is the authority and to
+*stop rather than guess*. On a greenfield project there is no status, so the
+skill's "invoke the orchestrator to generate milestones" matched no case, and the
+safest reading of the rule pointed at stopping. `fixtures/05` had papered over it:
+the model inferred an implementation phase and read `planning.md` anyway. Fixed
+with an explicit first row and a phase description naming what `planning.md`
+carries that generation cannot do without.
+
+**Validation.** All three fixtures re-run after the pass. `05` — both
+orchestrators read `planning.md`, including the generation one under the new
+dispatch case, `DONE`. `11` — widens, `BLOCKER`, `Review Cycles: 2`, its own
+`M1-cycle2.patch`. `12` — scoped to the cycle-1 patch, one reviewer, no
+orchestrator, `Review Cycles: 1`.
+
 ## Out-of-milestone measurement — what the review layer costs and catches (2026-08-25)
 
 Human-directed, outside B27. Recorded here because it changes four shipped

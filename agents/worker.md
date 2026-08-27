@@ -85,10 +85,9 @@ implementation.
 
    **Never read the same content twice.** What you have already read is still in
    your context; reading it again appends a second copy and you pay for both on
-   every turn that follows. Measured on a real correction task: one 10.5k-character
-   test file was read whole, then re-read as three overlapping ranges, two of them
-   byte-identical — four copies of largely the same file, in a context that then
-   carried all four. Before a read, check whether you already hold it. If you need
+   every turn that follows — a file read whole and then re-read as overlapping
+   ranges leaves several copies of itself in a context that carries all of them.
+   Before a read, check whether you already hold it. If you need
    a range of a file you have read in full, scroll your own context rather than
    the disk. Re-read only when you have changed the file since.
 3. Implement the requested change using Red → Green → Refactor exactly as defined in

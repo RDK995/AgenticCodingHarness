@@ -38,10 +38,24 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
 
 - Every acceptance criterion carries both implementation and test evidence.
 - A fresh review ran and its verdict is recorded.
-- The final holistic review reports `COMPLETE`.
+- The final holistic review reports `COMPLETE`, recorded under a `## Final Review`
+  heading, at the **Top** tier. **It is not handed the project diff** — since
+  2026-08-25 it is scoped to what no milestone review could see (requirement
+  coverage, integration, drift), because each milestone's diff already carries a
+  fresh reviewer's verdict. A final review that re-derives those verdicts from a
+  whole-project diff is the expensive failure, not the thorough one.
+
+**Reaching the final review takes two invocations.** The LOOP stops at the
+milestone boundary and hands back to the human; the second invocation finds every
+milestone `DONE` and runs the final review. That is the `/clear` rule working, not
+a fixture that failed to finish.
 
 ## Failure modes worth recognising
 
+- **Skipping `agents/references/planning.md`.** Both the generation invocation and
+  the implementation phase must read it; the size/shape check they run is in
+  `orchestrator.md` itself, so a phase that skipped the reference can still
+  produce a plausible check. Verify from the transcript, not the report.
 - Reporting success while `milestones.md` is still `TODO`, or while `Evidence` and
   `Validation` are empty — a claim without the evidence the gate requires.
 - Demanding an `architecture.md` that this fixture deliberately does not have.

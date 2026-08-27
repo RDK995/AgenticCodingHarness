@@ -116,7 +116,7 @@ LOOP:
             makes the cap countable.
             Do NOT invoke the orchestrator. There is nothing to route, and
             instantiating a coordinator to find that out was six no-op
-            invocations and $165 on the one project this was measured on.
+            invocations on the one project this was measured on.
 
         IF it returns CHANGES REQUIRED:
             write its report verbatim to .harness/reviews/M<n>-cycle<c>.md
@@ -207,8 +207,8 @@ is the whole milestone read under a narrower name. Worse, a milestone may add a
 file and never commit it, and an untracked file is invisible to any diff taken
 against the worktree. The fix cycle therefore snapshots the tree before and after
 its corrections and writes the diff between the two snapshots; see "Snapshot the
-tree" in `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md` for why it is done that
-way rather than with `git stash create`.
+tree" in `${CLAUDE_PLUGIN_ROOT}/agents/references/fix-cycle.md` for why it is done
+that way rather than with `git stash create`.
 
 If `### Review` records no patch, there is no correction diff to scope to:
 review the whole milestone and record that the patch was missing.
@@ -221,19 +221,17 @@ treat it as widened rather than assuming.
 
 Do not skip the second review because cycle 1 found nothing serious. Corrections
 carry their own defects: on the one project this has been measured, a review scoped
-to a single correction cost **$1.98** and found a `BLOCKER` — a guard test that
-asserted nothing — where full-scope cycle-2 reviews cost $14-55 each and four of
-seven found nothing above `OPTIONAL`. Scope is what makes the second review worth
-running; skipping it is not.
+to a single correction cost a fraction of a full one and found a `BLOCKER` — a
+guard test that asserted nothing — where most full-scope cycle-2 reviews found
+nothing above `OPTIONAL`. Scope is what makes the second review worth running;
+skipping it is not.
 
 ## One invocation per phase, not per milestone
 
 Each `harness:orchestrator` invocation above is a **separate context**, and that
-is the point rather than an implementation detail. Measured on a real four-criterion
-milestone run as a single invocation, the review/fix phase was **62% of the
-orchestrator's total cost** — 221 turns against 306 for everything before it —
-because each review turn re-paid for the whole implementation phase sitting
-underneath it in the same context.
+is the point rather than an implementation detail. Run as one invocation, a
+milestone's review phase costs most of its total, because every review turn
+re-pays for the whole implementation phase sitting underneath it.
 
 `.harness/milestones.md` is the handoff. It is already required to be enough for a
 new session to resume, so this costs nothing to maintain; it only requires that the
@@ -247,13 +245,9 @@ The same argument applies one level up, to **your own** context. You are the
 session running this skill, and nothing about a finished milestone helps you
 run the next one — `milestones.md` already carries everything that does.
 
-Measured on a real run of two consecutive milestones in one session: the session
-grew from 33k to 171k tokens across 13 hours and 194 turns, and never compacted.
-By the time the second milestone started, this skill's own context was **161k
-tokens on average per turn** — for 24 turns that did nothing but dispatch phases
-and read their returns. A fresh session starts that same work at roughly 35k.
-The second milestone paid about three times what it needed to, for history
-belonging to the first.
+A session that runs two milestones carries the first one's history through every
+turn of the second, for turns that do nothing but dispatch phases and read their
+returns — several times what a fresh session pays for identical work.
 
 So the LOOP stops at each milestone boundary and hands back to the human. Tell
 them to `/clear` before re-invoking. This is not a limitation to work around by
@@ -262,14 +256,12 @@ the system, and it is free precisely because the state file is already required
 to survive it.
 
 **And it is checked on the way in, not only on the way out.** Stated only as an
-exit instruction, this rule lost to a session that simply never ended. Measured on
-the M5a run: the implementation phase was dispatched from a session opened 22 hours
-earlier and already carrying 276k tokens, and its 49 turns cost $11.96. The review
-cycle that followed it did the same 49 turns from a fresh session at 34k and cost
-$2.57 — identical work, 4.6 times the price, all of it for history belonging to
-other milestones. The Algorithm therefore opens by checking its own context and
-refusing to start, because the human who has to act on the instruction is not the
-one who reads it.
+exit instruction, this rule lost to a session that simply never ended: one phase
+was dispatched from a session opened the previous day and already carrying 276k
+tokens, and cost 4.6 times what the identical work cost from a fresh session
+immediately afterwards. The Algorithm therefore opens by checking its own context
+and refusing to start, because the human who has to act on the instruction is not
+the one who reads it.
 
 The check is provenance, not a token count: a session cannot reliably measure its
 own size, but it can see whether it has already done a milestone's work. That is

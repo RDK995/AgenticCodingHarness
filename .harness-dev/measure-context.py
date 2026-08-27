@@ -17,6 +17,13 @@ input + cache_creation + cache_read + output tokens per assistant turn.
 `fixed` is the smallest context observed times the turn count; `growth` is the
 rest. Reports per-context totals, each orchestrator's turn profile, and the split
 between the implementation phase and the review/fix phase.
+
+A "turn" here is one **API call**, not one `assistant` record. Claude Code splits
+a single response across several records sharing a `message.id` — the text block,
+then each tool call — and repeats the same `usage` on every one of them. Counting
+per record inflates totals by roughly 1.7x and invents no-tool turns that never
+happened. Every figure this script produced before 2026-08-27 was wrong that way;
+see the CORRECTION section in `.harness-dev/progress.md`.
 """
 import json
 import re
@@ -26,22 +33,35 @@ from pathlib import Path
 
 
 def turns(path):
-    for line in path.open():
+    seen = {}
+    for i, line in enumerate(path.open()):
         try:
             d = json.loads(line)
         except ValueError:
             continue
         if d.get("type") != "assistant":
             continue
-        u = (d.get("message") or {}).get("usage") or {}
+        msg = d.get("message") or {}
+        # One API response is split across several `assistant` records that share
+        # a message.id — the text block is one, each tool_use is another — and
+        # every record repeats the same `usage`. Summing per record inflates the
+        # total by ~1.7x. Accumulate per message.id and count usage once.
+        mid = msg.get("id")
+        if mid is None:
+            mid = ("anon", i)
+        e = seen.setdefault(mid, {"u": None, "tools": [], "ts": d.get("timestamp", "")})
+        if msg.get("usage") and e["u"] is None:
+            e["u"] = msg["usage"]
+        for b in (msg.get("content") or []):
+            if isinstance(b, dict) and b.get("type") == "tool_use":
+                e["tools"].append(b)
+    for e in seen.values():
+        u = e["u"] or {}
         if not u:
             continue
         ctx = (u.get("input_tokens", 0) + u.get("cache_creation_input_tokens", 0)
                + u.get("cache_read_input_tokens", 0))
-        content = (d.get("message") or {}).get("content") or []
-        tools = [b for b in content
-                 if isinstance(b, dict) and b.get("type") == "tool_use"]
-        yield d.get("timestamp", ""), ctx, u.get("output_tokens", 0), tools
+        yield e["ts"], ctx, u.get("output_tokens", 0), e["tools"]
 
 
 def analyse(path):

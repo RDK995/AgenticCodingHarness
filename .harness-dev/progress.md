@@ -165,9 +165,25 @@ state for M1 fix cycle`. `05` reached `DONE` with its suite green; `11` widened,
 caught the `BLOCKER`, and ended at `Review Cycles: 2` with three criteria ticked
 and both its patches written.
 
-These are 4-file fixtures, so two navigator calls is the ceiling of what they can
-show. Whether the trigger holds on a project with a 3,800-line `milestones.md` is
-the measurement that matters and has not been taken.
+**What that evidence cannot show, with the sizes stated rather than gestured at.**
+`11` starts from **12 tracked files** — 85 lines of Python across five modules and
+three test files — and a 93-line seeded `milestones.md`. `05` starts from **one
+file**, its 35-line `requirements.md`. Against them, the project the 54% came from
+carries **405 tracked files**, a 2,429-line `milestones.md`, and 18,978 further
+lines under `.harness/archive/`.
+
+So there is very little in a fixture to navigate *to*, and two navigator calls is
+near the ceiling of what one can demonstrate. Whether the trigger holds at two
+orders of magnitude more state is the measurement that matters, and it has not
+been taken. It is the same measurement that would settle whether navigation is
+still a real target at all: the fixtures put it at 9% of tool calls and the real
+project at 54%, and the difference between those is project size, not definitions.
+
+(An earlier draft of this paragraph called these "4-file fixtures" and cited a
+"3,800-line `milestones.md`". Both were wrong — four is the number of files `11`'s
+seeded *correction* touches, not the fixture's size, and the state file has since
+been archived down to 2,429 lines. Corrected after review, and recorded rather
+than quietly edited, because the paragraph uses those sizes as its evidence.)
 
 **Not done: a companion "batch your tool calls" rule.** Its premise — 1.00 tools
 per turn, never batches — was the artefact corrected below. The agents already

@@ -89,6 +89,52 @@ left dangling: the skill's pointer to "Snapshot the tree" now names
 `references/fix-cycle.md`, and `docs/runtime-contract.md` records
 `agents/references/` in the packaging row.
 
+**A defect in the split, caught by `fixtures/05` (2026-08-27).** `11` and `12`
+both start at `REVIEW`, so every run of them dispatches to `fix-cycle.md` — the
+implementation branch, and therefore `planning.md`, was never exercised. `05` is
+the only fixture that starts from nothing, and on its first run **the
+implementation-phase orchestrator did not read `planning.md` at all.** It still
+reported a size/shape check, performed from the phase summary in the core file,
+and reached the right answer on a two-criterion milestone by luck rather than by
+rule. Compliance was 1 of 2 orchestrators.
+
+Two changes, and the second is the one that matters:
+
+- **The size/shape check moved back into `orchestrator.md`.** It fires on *every*
+  implementation phase while milestone generation fires once per project, and a
+  rule that must always run cannot live behind a read that might not happen. This
+  costs tokens back — core is 689 lines / ~9.0k tokens rather than 614 / ~8.0k —
+  and it is the right trade for the same reason the whole split is: correctness,
+  not cost. `planning.md` now holds reconnaissance and generation only.
+- **The reference read became the first step of the phase**, in the phase summary
+  rather than only in the dispatch table.
+
+Re-run after both: **2 of 2 orchestrators read `planning.md`**, and no agent read
+`fix-cycle.md` — the phase that does not need it did not load it, which is the
+split doing its job.
+
+**And the final holistic review ran for the first time.** Reaching it takes two
+invocations, because the LOOP stops at the milestone boundary. It behaved exactly
+as the PR #18 change specified, and recorded so itself:
+
+> Scoped to what no milestone review could see: requirement coverage across the
+> whole project, integration as a caller would exercise it, and the
+> Constraints/Non-Goals sections. It was **not** handed the project diff — M1's
+> diff already carries a fresh Mid-tier cycle-1 PASS.
+
+Top tier, verdict `PASS`, recorded under the `## Final Review` heading PR #18
+introduced, with a per-obligation table covering both acceptance criteria, both
+functional requirements, the edge case, the constraint and the non-goal. It
+re-ran the suite itself and then re-ran it under `python3 -I` from a clean temp
+directory — which is what turns "standard library only" from an inference into an
+observation. That was not asked for.
+
+`fixtures/05`'s own `EXPECTED.md` needed updating rather than the harness: its
+"final holistic review reports COMPLETE" line now records the scoping and the
+two-invocation shape, and a new failure mode — *skipping `planning.md` while still
+producing a plausible size/shape check* — is written down, since that is exactly
+what the first run did and it is invisible in the report.
+
 ## Out-of-milestone measurement — what the review layer costs and catches (2026-08-25)
 
 Human-directed, outside B27. Recorded here because it changes four shipped

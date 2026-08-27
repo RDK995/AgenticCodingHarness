@@ -40,8 +40,8 @@ long enough to hold both is one nobody can keep self-consistent. Reading the
 wrong one costs context; reading neither means running the phase without its
 rules.
 
-**Implementation phase.** Check state size → read requirements → inspect
-repository → create milestones if missing → select the current one → check its
+**Implementation phase.** Read `references/planning.md` → check state size → read
+requirements → inspect repository → create milestones if missing → select the current one → check its
 size and shape, splitting it if it fails → break it into tasks → route every task
 by tier → validate each result independently → run the milestone's validation →
 record evidence → set `REVIEW` and return. **Do not invoke the reviewer**, and do
@@ -174,11 +174,86 @@ component owns a responsibility?
 
 ## Planning a milestone
 
-Reconnaissance, generating milestones, and the size/shape check you run on a
-milestone before you pick it up are in
-`${CLAUDE_PLUGIN_ROOT}/agents/references/planning.md`. **Read it on an
-implementation phase, before you break anything into tasks.** A fix cycle does
-not need it and must not read it.
+Reconnaissance and generating milestones are in
+`${CLAUDE_PLUGIN_ROOT}/agents/references/planning.md`. **On an implementation
+phase, read it before you plan anything** — a fix cycle does not need it and must
+not read it.
+
+The size and shape check below stayed here rather than moving with them, because
+it fires on *every* implementation phase while generation fires once per project,
+and a rule that must always run cannot live behind a read that might not happen.
+That is not hypothetical: the first run after the split performed this check from
+the phase summary above without opening the reference, and reached the right
+answer on a two-criterion milestone by luck rather than by rule.
+
+## When you pick up a milestone: check its size and shape
+
+The budget and the slice rule above are applied when milestones are *generated*.
+A milestone you are picking up may have been planned before those rules existed,
+or by a run that got them wrong. Check it now, before you break it into tasks —
+the alternative is discovering it at turn 250, which is exactly what the budget
+exists to prevent.
+
+This is an **implementation-phase** check, and only on a milestone that has not
+started: `Status: TODO`, with no `Baseline` and an empty `Evidence`. Never split a
+milestone that is already `IN_PROGRESS` with work recorded against it, and never
+during a review/fix cycle — the diff, the review and the criteria would no longer
+describe the same thing. An oversized milestone discovered mid-flight is a
+`Follow-ups` note, not a split.
+
+Two checks, against the milestone you are about to run:
+
+**Size.** Count its acceptance criteria.
+
+```
+1-5    run it
+6-7    run it; note the size under Follow-ups
+8+     split it before running anything
+```
+
+**Shape.** Does at least one acceptance criterion exercise the behaviour through
+a real entry point — a CLI invocation, an HTTP request, a public API call? If the
+only way to demonstrate the milestone is a unit test of an internal component, it
+is a component milestone, and "Slice thin, end to end" above says it must be
+re-cut. A milestone whose `Architecture` field names exactly one component is the
+usual symptom, not the proof; read the criteria.
+
+### Splitting a milestone you did not plan
+
+Split it in `.harness/milestones.md`, then **return without implementing
+anything**. The skill re-enters its loop and a fresh context runs the first part.
+Splitting is cheap and implementing is not; do not spend the context you just
+saved by carrying on into the work.
+
+Rules for the split:
+
+- **Suffix, do not renumber.** `M6` becomes `M6a`, `M6b`, `M6c`. Renumbering
+  every later milestone invalidates every reference to them — in the archive, in
+  commit messages, in the architecture file, and in whatever the human remembers.
+- **Conserve the criteria exactly.** Every acceptance criterion from the original
+  appears in exactly one part, unchanged in wording. None added, none dropped,
+  none reworded. Count them before and after and confirm the totals match.
+- **Split on the outcome, not the checklist** — the rule in "How big is a
+  milestone" applies unchanged. Each part must be independently implementable,
+  testable and reviewable. If a part cannot be reviewed on its own, the seam is
+  in the wrong place.
+- **Each part gets every template heading**, an `### Outcome` of its own, and its
+  own `### Architecture` field. Carry the original's `### Follow-ups` to the part
+  they belong to.
+- **Record that you split it, and why**, in the first part's `### Outcome` —
+  one sentence naming the original milestone and the count that triggered it.
+  A human reading the file later should not have to work out where `M6a` came
+  from.
+- Say in your return that you split rather than implemented, and what the parts
+  are.
+
+A milestone that fails the **shape** check is a re-cut, not a split: its criteria
+have to be reorganised into slices rather than dealt into piles, and that may
+change their wording. That is a planning decision with no obviously correct
+answer, so do not do it silently — set the milestone `BLOCKED`, record the
+problem through the Human Escalation Contract in
+`${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md` with a proposed re-cut, and let a
+human agree it.
 
 ## Creating task packets
 

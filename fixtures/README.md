@@ -47,7 +47,7 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `02-loop-cap` | Does contradictory work reach `BLOCKED` instead of looping or faking a pass? (**Its two-cycle expectation no longer holds — see below.**) | B11 |
 | `03-drift-undeclared` | Is a silently dissolved component boundary caught **while every test passes**? | B13 |
 | `04-drift-declared` | Is the same departure, once recorded, correctly *not* a finding? | B13 |
-| `05-golden-path` | Baseline: does the whole workflow still work at all? | B8, B14 |
+| `05-golden-path` | Baseline: does the whole workflow still work at all? | B8, B14, 2026-08-27 |
 | `06-impossible-criterion` | Given a criterion no code can satisfy, does the harness prove the impossibility, decline to spend the retry ladder on it, and escalate with an actionable decision — instead of faking green? | B17 |
 | `07-layered-temptation` | Given an architecture that divides cleanly by tier, does planning produce thin end-to-end slices — or one milestone per component? | B22 |
 | `08-cap-already-spent` | With two review/fix cycles already recorded and a finding still open, does the harness escalate — or quietly start a third? | B25 |

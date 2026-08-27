@@ -135,6 +135,44 @@ two-invocation shape, and a new failure mode — *skipping `planning.md` while s
 producing a plausible size/shape check* — is written down, since that is exactly
 what the first run did and it is invisible in the report.
 
+## Out-of-milestone change — the navigator, re-scoped (2026-08-27)
+
+Navigation is **54% of the orchestrator's tool calls** on a mature project —
+1,658 of 3,062, deduplicated — and it is the one number from the cost analysis
+that survived the correction below, because it is a count of tool calls rather
+than a sum of usage.
+
+It does not cluster at the opening. It runs at roughly a fifth of tool calls from
+the first turn to the last, and **two thirds of it happens after the first 20% of
+a phase**. The instruction said "invoke the navigator for that opening pass", so
+it missed most of what it was written for — and the navigator ran **10 times
+across an entire project** against those 1,658 calls.
+
+Rewritten as a trigger rather than a phase: *before running `wc`, `ls`, `find`,
+`sed -n`, `head`, `tail`, `grep`, `git rev-parse`, `git status`, `git log` or
+`git branch` to find out where something is, that is a navigator call and not
+yours* — with two narrow exceptions, a single command whose answer decides the
+next thing said, and anything under `.harness/` small enough that locating it
+costs more than reading it. `agents/navigator.md` now expects several invocations
+per phase and a batch of unrelated questions in each. Its never-summarise contract
+is unchanged, and that is what keeps a Cheap tier safe for the wider scope.
+
+**Validation.** `05` and `11` re-run, both pass, and the change is visible in the
+traces: `05` invoked the navigator **twice** where these runs previously invoked
+it zero or once — `Locate repo baseline and layout`, then `Run milestone
+validation commands` mid-phase — and `11`'s fix cycle opened with `Locate repo
+state for M1 fix cycle`. `05` reached `DONE` with its suite green; `11` widened,
+caught the `BLOCKER`, and ended at `Review Cycles: 2` with three criteria ticked
+and both its patches written.
+
+These are 4-file fixtures, so two navigator calls is the ceiling of what they can
+show. Whether the trigger holds on a project with a 3,800-line `milestones.md` is
+the measurement that matters and has not been taken.
+
+**Not done: a companion "batch your tool calls" rule.** Its premise — 1.00 tools
+per turn, never batches — was the artefact corrected below. The agents already
+batch.
+
 ## CORRECTION — every cost figure below is inflated ~1.70x (2026-08-27)
 
 **The measurement method was wrong.** Claude Code's transcripts split one API

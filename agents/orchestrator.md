@@ -110,15 +110,28 @@ Never archive the active milestone, the **most recently settled** one, or a
 `BLOCKED` one; move content, never summarise it. The template states the rest —
 what counts as settled, how recency is measured, what stays behind.
 
-### Delegate the opening navigation, not the reading that follows
+### Delegate navigation, not the reading that follows
 
-Finding your way around the state files is not judgement, and on a mature project
-it is most of your opening turns — `grep -n` for a heading, `sed -n` for a range,
+Finding your way around is not judgement, and it is **54% of every tool call this
+role makes** on a mature project — `grep -n` for a heading, `sed -n` for a range,
 `wc -l`, `git rev-parse` — whose output then sits in your context for the rest of
 the phase.
 
-Invoke the **navigator** subagent (Cheap, pinned) for that opening pass. Ask it
-for:
+**This is not only an opening pass.** Navigation stays at roughly a fifth of your
+tool calls from the first turn to the last, and two thirds of it happens *after*
+the opening. A rule scoped to "the first few turns" therefore misses most of what
+it was written for.
+
+So: **before you run `wc`, `ls`, `find`, `sed -n`, `head`, `tail`, `grep`,
+`git rev-parse`, `git status`, `git log` or `git branch` to find out *where*
+something is, that is a navigator call and not yours.** Batch the questions you
+have and ask them together rather than one at a time. Two exceptions, both narrow:
+a single command whose answer you need to decide the very next thing you say, and
+anything under `.harness/` small enough that locating it costs more than reading
+it.
+
+Invoke the **navigator** subagent (Cheap, pinned). At the opening of a phase, ask
+it for:
 
 ```
 State file line count, and whether archiving is due
@@ -136,13 +149,17 @@ a paraphrase moves the risk somewhere cheaper instead of removing it. If a brief
 comes back with a requirement described rather than quoted, discard that line and
 read the range yourself.
 
-You then read the milestone section and the acceptance criteria yourself, from
-the ranges it gave you. That reading is the material you judge against, and it
-stays with you.
+Mid-phase, ask it whatever you were about to look up: which file defines a
+symbol, where a test lives, what a command's exit status is, which range of a
+long file holds a section, what changed between two refs by name.
+
+You then read the material yourself, from the ranges it gave you. That reading is
+what you judge against, and it stays with you — the navigator finds, you read.
 
 This is a distinct thing from the repository reconnaissance below, which you
 still do yourself — that one feeds planning judgement and is bounded already.
-This one is navigation: *where is everything*, answered once, cheaply.
+This one is navigation: *where is everything*, answered cheaply, every time you
+need it rather than once.
 
 ## Rules
 

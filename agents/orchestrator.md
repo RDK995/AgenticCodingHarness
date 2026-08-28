@@ -629,6 +629,26 @@ you would at a phase boundary — accepted tasks and their evidence, what remain
 the baseline — and return `CONTINUE`. The implement skill invokes a fresh
 orchestrator for the same phase, which reads that record and carries on.
 
+**Which phases may hand off, because a handoff only works where the skill can
+resume it:**
+
+```
+implementation phase  →  CONTINUE. The record carries accepted tasks and
+                         what remains; a fresh phase reads it and carries on.
+fix cycle             →  CONTINUE, and do NOT increment `### Review Cycles`.
+                         The cycle is unfinished, so it has not happened yet.
+                         Record which findings you have corrected and which
+                         remain; the continuation reads the same report path.
+generating milestones →  never. See below.
+```
+
+**Generation does not hand off.** The plan is one artefact: a `milestones.md`
+covering half the requirements is indistinguishable, to everything downstream,
+from a complete one, and the loop would start building the wrong project. Write
+it in full or not at all. If you reach the budget before you can write a complete
+plan, write nothing, return `BLOCKED`, and record the reconnaissance you did
+complete so the next attempt does not repeat it.
+
 **Why turns and not tokens.** The budget that matters is roughly 90k tokens of
 context, and this rule used to say so. It never fired: measured across three
 consecutive milestones, phases ran to 145k, 170k and 210k before handing off, and

@@ -227,6 +227,45 @@ not a measurement.
 Expected if both hold: roughly $35 → $20 per milestone. Change 3 is worth about
 $0.30 and is certain.
 
+### A defect in change 1, from automated review of PR #21
+
+The turn budget was written into `## Context boundaries`, which is
+**phase-agnostic**, so it told every phase to return `CONTINUE` — while the skill
+handled `CONTINUE` only inside the `TODO`/`IN_PROGRESS` branch. Two real failures,
+plus a third the review did not name:
+
+- **A fix cycle at 20 turns.** `references/fix-cycle.md` said it must return
+  `REVIEW` or `BLOCKED`. Returning `REVIEW` mid-corrections sends half-corrected
+  work to a reviewer and spends a cycle of the two-cycle cap on it; returning it
+  *without* incrementing `### Review Cycles` trips the skill's "the cap is not
+  being honoured" stop and reports a harness defect that is not one.
+- **Generation at 20 turns.** No continuation path exists at all, so a partial
+  `milestones.md` would be read by the LOOP as the project's plan.
+- **The final-review fix cycle**, which reads the same reference and therefore
+  inherited the ability to return `CONTINUE` with nothing handling it.
+
+Fixed per phase rather than by restricting the budget to implementation, because
+two of the three genuinely need to continue:
+
+```
+implementation phase  →  CONTINUE, as before
+fix cycle             →  CONTINUE, and must NOT increment Review Cycles —
+                         the cycle is unfinished, so it has not happened
+final-review fix      →  CONTINUE, same treatment
+generating milestones →  never. Write the plan in full or write nothing:
+                         a half-plan is indistinguishable downstream from a
+                         whole one. Return BLOCKED with the recon completed.
+```
+
+The skill gained a `CONTINUE` branch for both fix-cycle kinds — fresh
+orchestrator, **same report path**, capped at 4, and no reviewer between
+continuations — and a `BLOCKED` branch for generation, plus a structural check
+that the last milestone is complete before entering the LOOP. Producer/consumer
+symmetry now holds for all four paths.
+
+`05` and `11` re-run and pass: `05` `DONE` with a green suite, `11` widened,
+`Review Cycles: 2`, both patches written.
+
 ## Out-of-milestone change — the navigator, re-scoped (2026-08-27)
 
 Navigation is **54% of the orchestrator's tool calls** on a mature project —

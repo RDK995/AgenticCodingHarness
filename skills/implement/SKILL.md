@@ -76,9 +76,16 @@ LOOP:
         IF CONTINUE: the phase is unfinished and the orchestrator handed off
         at its context ceiling, having recorded what it completed in
         milestones.md. Invoke a FRESH harness:orchestrator for the SAME phase.
-        Cap this at 3 continuations per phase; past that, STOP and report to
+        Cap this at 4 continuations per phase; past that, STOP and report to
         the human that the milestone does not fit its phase budget and needs
         splitting.
+
+        (The cap was 3 while a phase ran until its context felt full — in
+        practice 145k-210k tokens. The orchestrator now hands off at 20 turns,
+        which it can actually count, so phases are shorter and continuations
+        more frequent. 5 phases x 20 turns is a comparable total: across 63
+        measured invocations only 2 ran longer than that, and both were the
+        oversized milestones this cap exists to surface.)
 
     WHILE its Status is REVIEW:
         IF ### Review Cycles is already 2 and a BLOCKER or IMPORTANT

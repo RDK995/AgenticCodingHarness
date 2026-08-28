@@ -135,6 +135,98 @@ two-invocation shape, and a new failure mode — *skipping `planning.md` while s
 producing a plausible size/shape check* — is written down, since that is exactly
 what the first run did and it is invisible in the report.
 
+## Out-of-milestone review — P1-M11, and three changes from it (2026-08-28)
+
+Human-directed. P1-M11 on `OpenCodeOpenWeightHarness` ran 2026-08-28 06:36-08:18
+against the **current** harness — every change through `ce0a353` shipped 14 hours
+earlier — so what follows is a review of the harness as it now stands, not of a
+stale one. All figures deduplicated by `message.id`.
+
+**P1-M11 cost $34.75** across 17 subagent contexts:
+
+| | cost | share |
+| --- | --- | --- |
+| orchestrator — implementation phase | $14.38 | 41% |
+| orchestrator — fix cycle | $6.67 | 19% |
+| skill session | $5.21 | 15% |
+| **coordination subtotal** | **$26.26** | **76%** |
+| workers (5) | $3.80 | 11% |
+| verifiers (7) | $2.43 | 7% |
+| reviewers (2) | $2.21 | 6% |
+| navigator (1) | $0.05 | 0.1% |
+
+### What the review-layer work bought, measured on a real milestone
+
+The PR #17-#19 chain validated itself in the field, first time out. Cycle 1
+recorded `Pre-correction: ebc4d02…`; the fix cycle recorded that its corrections
+touched two files no finding named; **cycle 2 widened back to the whole milestone
+for exactly that reason**, naming `harness/api/server.test.ts` and
+`docs/api/…v1.md` against a finding that named only `harness/api/server.ts`.
+Verdict PASS on five criteria. `Review Cycles: 1` — the corrected counting is
+honoured. The snapshot mechanism ran (9 `git commit-tree` calls) and the reviewer
+confirmed a file byte-identical across the pre-correction snapshot, the
+post-correction snapshot and the working tree.
+
+And it is cheap: **two review cycles for $2.21**, against P1-M10's three cycles at
+$18.42 in the same window.
+
+Other practices clean: zero `.output` reads (was 52 of 58 `Read`s historically),
+zero orchestrator edits to source, packets and reports by path throughout, tier
+mix 11 `haiku` / 4 `sonnet` / 4 `opus`, 4 sleep-polls (was 23), `/clear` honoured
+between M10 and M11.
+
+### Three deviations, and the changes made
+
+**1. The context ceiling fires at ~1.6x its stated threshold — $13.46 of $34.75
+(39%).** `CONTINUE` *is* returned (M10 shows a continuation and a resumption), but
+M10's implementation phase ran to 169,736 tokens first and M11's to 145,929
+without handing off at all. The cause is structural and is the same one M5a found
+for `/clear`: **an agent cannot observe its own context size**, so "past roughly
+90k tokens" is a condition it can only guess at.
+
+Changed to a count it can keep. Across **63 measured orchestrator invocations**,
+context crossed 90k at a median of **turn 19** (min 10, max 40), so the rule is
+now *"count your turns; at 20, stop taking on new work and hand off"*, with 90k
+retained as the stated reason and the proxy's limits spelled out. The skill's
+continuation cap went 3 → 4 to match: shorter phases mean more continuations, and
+5 phases x 20 turns is comparable to what phases were actually consuming — of
+those 63 invocations only 2 ran longer, and both were oversized milestones the cap
+exists to surface.
+
+**2. Navigation is 61% of the orchestrator's tool calls; the navigator ran once,
+for $0.05.** 39 of 64 tool calls were locate-shaped, worth about **$13.91** at the
+blended $0.357 per orchestrator call. The re-scope shipped the previous evening
+did not take. Best explanation: it was a `###` subsection under a heading about
+the state file's size, so it read as opening-pass advice however its body was
+worded. Promoted to a top-level rule sitting **beside the routing rule**, ending
+with the diagnosis — *routing decides who does a task; this decides who does a
+lookup; they are the same question*. The seam it left is fixed: the file-size
+section told the orchestrator to run `wc -l` itself, which the rule now forbids,
+so it takes the count from the navigator's opening brief.
+
+**3. Verifier re-reads.** `Verify P1-M11-T2` made 7 exact repeat calls of 33
+(21%). `worker.md` has had a never-read-twice rule since M4b; `verifier.md` never
+got one, flagged as a follow-up in the M5a analysis and open since. Added, worded
+so it cannot be read as "check less": *re-running a command is not a re-read; if
+you need to see a test run twice, run it twice and report both.*
+
+### Validation, and what it cannot show
+
+`05` and `11` re-run, both pass. `05` reached `DONE` with three criteria and a
+green suite; `11` widened for the recorded reason, caught the `BLOCKER`, ended at
+`Review Cycles: 2` with both patches written. Nothing regressed.
+
+**But the fixtures cannot test change 2 at all.** They generate 7-12% navigation
+against the real project's 61%, because there is almost nothing in them to
+navigate: 12 tracked files against 405. Before and after the hoist the fixture
+numbers are 7% / 3 navigator calls and 12% / 2 — noise at that size. **The only
+test of change 2 is the next real milestone**, and the same is true of change 1:
+no correctly-timed handoff has ever been observed, so its ~20% saving is a model,
+not a measurement.
+
+Expected if both hold: roughly $35 → $20 per milestone. Change 3 is worth about
+$0.30 and is certain.
+
 ## Out-of-milestone change — the navigator, re-scoped (2026-08-27)
 
 Navigation is **54% of the orchestrator's tool calls** on a mature project —

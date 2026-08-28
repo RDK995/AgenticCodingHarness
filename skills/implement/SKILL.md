@@ -51,6 +51,16 @@ Read .harness/milestones.md
 IF missing:
     invoke harness:orchestrator to do reconnaissance and generate milestones
 
+    IF it returns BLOCKED: STOP and report to the human. Generation does not
+    hand off — a milestones.md covering half the requirements is
+    indistinguishable downstream from a complete one, so the orchestrator
+    writes the plan in full or writes nothing. BLOCKED here means it could
+    not, and the recon it recorded is what the next attempt starts from.
+
+    Before entering the LOOP, confirm the file exists and its last milestone
+    is complete — every template heading present. A truncated plan read as
+    complete builds the wrong project.
+
 LOOP:
     find the first milestone that is not DONE
 
@@ -76,9 +86,16 @@ LOOP:
         IF CONTINUE: the phase is unfinished and the orchestrator handed off
         at its context ceiling, having recorded what it completed in
         milestones.md. Invoke a FRESH harness:orchestrator for the SAME phase.
-        Cap this at 3 continuations per phase; past that, STOP and report to
+        Cap this at 4 continuations per phase; past that, STOP and report to
         the human that the milestone does not fit its phase budget and needs
         splitting.
+
+        (The cap was 3 while a phase ran until its context felt full — in
+        practice 145k-210k tokens. The orchestrator now hands off at 20 turns,
+        which it can actually count, so phases are shorter and continuations
+        more frequent. 5 phases x 20 turns is a comparable total: across 63
+        measured invocations only 2 ran longer than that, and both were the
+        oversized milestones this cap exists to surface.)
 
     WHILE its Status is REVIEW:
         IF ### Review Cycles is already 2 and a BLOCKER or IMPORTANT
@@ -124,7 +141,17 @@ LOOP:
             the PATH and not the report body (findings re-emitted into a
             prompt are the same defect task packets had before M4b)
 
-            it returns the milestone at REVIEW or BLOCKED — never DONE
+            it returns the milestone at REVIEW, CONTINUE or BLOCKED —
+            never DONE
+
+            IF CONTINUE: the fix cycle hit its turn budget with corrections
+            still outstanding. It has NOT incremented Review Cycles, because
+            the cycle has not happened yet. Invoke a FRESH harness:orchestrator
+            for the SAME fix cycle, passing the SAME report path. Cap this at
+            4 continuations per cycle; past that, STOP and report that the
+            findings do not fit a cycle's budget and need splitting or a human
+            decision. Do NOT invoke the reviewer between continuations — that
+            is the half-corrected re-review this branch exists to prevent.
 
             IF it returns REVIEW without Review Cycles having increased,
             or with Review Cycles above 2:
@@ -325,6 +352,13 @@ IF the reviewer returns CHANGES REQUIRED:
     and saying every milestone is DONE — it routes the findings as bounded
     correction tasks, validates them, and records them under ## Final Review in
     milestones.md
+
+    IF it returns CONTINUE: it hit its turn budget with corrections still
+    outstanding. Invoke a FRESH orchestrator for the SAME final-review fix
+    cycle with the SAME report path, capped at 4 continuations, and do not
+    request a review between them — a half-corrected final review is the same
+    defect as a half-corrected milestone one.
+
     then request another fresh final review
 
     cap this at 2 cycles total, same as the per-milestone review/fix loop

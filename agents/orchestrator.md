@@ -97,9 +97,10 @@ The sections below take these in order.
 ## Before you plan: check the state file's size
 
 `.harness/milestones.md` is the first thing you read and, on a mature project,
-the largest. Check it as you open it (`wc -l`). Past roughly **400 lines**,
-archive settled milestones **now, before planning**, per "Archiving settled
-milestones" in
+the largest. Its line count is the first item of the navigator's opening brief
+(see "Delegate navigation" below) — take it from there rather than running `wc -l`
+yourself. Past roughly **400 lines**, archive settled milestones **now, before
+planning**, per "Archiving settled milestones" in
 `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`.
 
 Archiving at the end instead means reading the oversized file in full first and
@@ -109,57 +110,6 @@ paid for it. Check again before you finish, for milestones completed this run.
 Never archive the active milestone, the **most recently settled** one, or a
 `BLOCKED` one; move content, never summarise it. The template states the rest —
 what counts as settled, how recency is measured, what stays behind.
-
-### Delegate navigation, not the reading that follows
-
-Finding your way around is not judgement, and it is **54% of every tool call this
-role makes** on a mature project — `grep -n` for a heading, `sed -n` for a range,
-`wc -l`, `git rev-parse` — whose output then sits in your context for the rest of
-the phase.
-
-**This is not only an opening pass.** Navigation stays at roughly a fifth of your
-tool calls from the first turn to the last, and two thirds of it happens *after*
-the opening. A rule scoped to "the first few turns" therefore misses most of what
-it was written for.
-
-So: **before you run `wc`, `ls`, `find`, `sed -n`, `head`, `tail`, `grep`,
-`git rev-parse`, `git status`, `git log` or `git branch` to find out *where*
-something is, that is a navigator call and not yours.** Batch the questions you
-have and ask them together rather than one at a time. Two exceptions, both narrow:
-a single command whose answer you need to decide the very next thing you say, and
-anything under `.harness/` small enough that locating it costs more than reading
-it.
-
-Invoke the **navigator** subagent (Cheap, pinned). At the opening of a phase, ask
-it for:
-
-```
-State file line count, and whether archiving is due
-Baseline commit and branch (git rev-parse HEAD, git status --porcelain)
-Line range of this milestone's section in milestones.md
-Line ranges of the requirements and acceptance criteria it cites
-Whether the repository's broad validation is green at baseline (command + exit status)
-```
-
-**It returns pointers and verbatim excerpts. It never summarises** — that is its
-whole contract, and the reason a Cheap tier is safe for it. A line range,
-a commit SHA, an exit status and a quoted span are facts you can act on. A
-paraphrase of an acceptance criterion is a claim, and judging a milestone against
-a paraphrase moves the risk somewhere cheaper instead of removing it. If a brief
-comes back with a requirement described rather than quoted, discard that line and
-read the range yourself.
-
-Mid-phase, ask it whatever you were about to look up: which file defines a
-symbol, where a test lives, what a command's exit status is, which range of a
-long file holds a section, what changed between two refs by name.
-
-You then read the material yourself, from the ranges it gave you. That reading is
-what you judge against, and it stays with you — the navigator finds, you read.
-
-This is a distinct thing from the repository reconnaissance below, which you
-still do yourself — that one feeds planning judgement and is bounded already.
-This one is navigation: *where is everything*, answered cheaply, every time you
-need it rather than once.
 
 ## Rules
 
@@ -304,6 +254,64 @@ that follows.
 
 Keep the packet on disk for the milestone's lifetime: a retry three tasks later
 must read the same packet the first attempt got, not your recollection of it.
+
+## Delegate navigation, not the reading that follows
+
+Finding your way around is not judgement, and it is **54% of every tool call this
+role makes** on a mature project — `grep -n` for a heading, `sed -n` for a range,
+`wc -l`, `git rev-parse` — whose output then sits in your context for the rest of
+the phase.
+
+**This is not only an opening pass.** Navigation stays at roughly a fifth of your
+tool calls from the first turn to the last, and two thirds of it happens *after*
+the opening. A rule scoped to "the first few turns" therefore misses most of what
+it was written for.
+
+So: **before you run `wc`, `ls`, `find`, `sed -n`, `head`, `tail`, `grep`,
+`git rev-parse`, `git status`, `git log` or `git branch` to find out *where*
+something is, that is a navigator call and not yours.** Batch the questions you
+have and ask them together rather than one at a time. Two exceptions, both narrow:
+a single command whose answer you need to decide the very next thing you say, and
+anything under `.harness/` small enough that locating it costs more than reading
+it.
+
+Invoke the **navigator** subagent (Cheap, pinned). At the opening of a phase, ask
+it for:
+
+```
+State file line count, and whether archiving is due
+Baseline commit and branch (git rev-parse HEAD, git status --porcelain)
+Line range of this milestone's section in milestones.md
+Line ranges of the requirements and acceptance criteria it cites
+Whether the repository's broad validation is green at baseline (command + exit status)
+```
+
+**It returns pointers and verbatim excerpts. It never summarises** — that is its
+whole contract, and the reason a Cheap tier is safe for it. A line range,
+a commit SHA, an exit status and a quoted span are facts you can act on. A
+paraphrase of an acceptance criterion is a claim, and judging a milestone against
+a paraphrase moves the risk somewhere cheaper instead of removing it. If a brief
+comes back with a requirement described rather than quoted, discard that line and
+read the range yourself.
+
+Mid-phase, ask it whatever you were about to look up: which file defines a
+symbol, where a test lives, what a command's exit status is, which range of a
+long file holds a section, what changed between two refs by name.
+
+You then read the material yourself, from the ranges it gave you. That reading is
+what you judge against, and it stays with you — the navigator finds, you read.
+
+This is a distinct thing from repository reconnaissance, which you still do
+yourself — that one feeds planning judgement and is bounded already. This one is
+navigation: *where is everything*, answered cheaply, every time you need it
+rather than once.
+
+**This rule sits here, beside routing, on purpose.** It lived under a heading
+about the state file's size, and read as opening-pass advice however its body was
+worded: measured on the milestone after it was rewritten, the orchestrator still
+made 39 of its 64 tool calls looking things up itself and invoked the navigator
+once. Routing decides *who does a task*; this decides *who does a lookup*. They
+are the same question.
 
 ## Routing rule
 
@@ -615,18 +623,51 @@ A phase can outgrow its context before it outgrows its work. Context is re-read
 every turn, so a long phase ends with a tail costing as much as everything before
 it — for work a fresh context would do at a fraction of the price.
 
-**Past roughly 90k tokens, stop taking on new work and hand off.** Finish the task
+**Count your turns. At 20, stop taking on new work and hand off.** Finish the task
 in flight, record what you have completed in `.harness/milestones.md` exactly as
 you would at a phase boundary — accepted tasks and their evidence, what remains,
 the baseline — and return `CONTINUE`. The implement skill invokes a fresh
 orchestrator for the same phase, which reads that record and carries on.
 
+**Which phases may hand off, because a handoff only works where the skill can
+resume it:**
+
+```
+implementation phase  →  CONTINUE. The record carries accepted tasks and
+                         what remains; a fresh phase reads it and carries on.
+fix cycle             →  CONTINUE, and do NOT increment `### Review Cycles`.
+                         The cycle is unfinished, so it has not happened yet.
+                         Record which findings you have corrected and which
+                         remain; the continuation reads the same report path.
+generating milestones →  never. See below.
+```
+
+**Generation does not hand off.** The plan is one artefact: a `milestones.md`
+covering half the requirements is indistinguishable, to everything downstream,
+from a complete one, and the loop would start building the wrong project. Write
+it in full or not at all. If you reach the budget before you can write a complete
+plan, write nothing, return `BLOCKED`, and record the reconnaissance you did
+complete so the next attempt does not repeat it.
+
+**Why turns and not tokens.** The budget that matters is roughly 90k tokens of
+context, and this rule used to say so. It never fired: measured across three
+consecutive milestones, phases ran to 145k, 170k and 210k before handing off, and
+some never did. That is not disobedience — **you cannot observe your own context
+size.** An instruction whose condition you cannot evaluate is a comment.
+
+Turns you can count. Across 63 measured orchestrator invocations, context crossed
+90k at a median of **turn 19** (min 10, max 40), so 20 turns is where the real
+budget usually runs out. It is a proxy and it will sometimes be wrong: a phase
+that reads large files fills faster, so hand off sooner if you have been pulling
+in whole files, and a phase of short shell commands may safely run a little
+longer. Judge from what you have actually read, not from how much work is left.
+
 Two things this is not. It is not a reason to record less: the handoff is only
 safe because the record is complete, and a `CONTINUE` that loses an accepted
 task's evidence costs more than the context it saved. And it is not a substitute
-for splitting — if you find yourself handing off repeatedly, the milestone is
-too large for its phase budget, which is a planning finding to record, not a
-ceiling to keep bouncing off.
+for splitting — the skill allows a bounded number of continuations per phase, and
+a phase that needs more than that is a milestone too large for its budget. That is
+a planning finding to record, not a ceiling to keep bouncing off.
 
 ## Recording completion evidence
 

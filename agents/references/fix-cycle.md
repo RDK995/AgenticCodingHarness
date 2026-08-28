@@ -100,10 +100,16 @@ and that scope is only as trustworthy as this list. If a correction touched a fi
 no finding named, say so explicitly — that is the fact that widens the next review
 back to the whole milestone, and it is invisible unless you record it.
 
-End the invocation in one of two states, and say which in your return:
+End the invocation in one of three states, and say which in your return:
 
 - **`REVIEW`** — findings were fixed and validated; the work needs a fresh review
   it must not get from this context.
+- **`CONTINUE`** — you reached the turn budget with corrections still outstanding.
+  Record which findings you corrected and which remain, and **do not increment
+  `### Review Cycles`**: the cycle is unfinished, so it has not happened. The
+  skill invokes a fresh fix cycle with the same report path. Returning `REVIEW`
+  here instead would send half-corrected work to a reviewer and spend a cycle of
+  the cap on it.
 - **`BLOCKED`** — see the cap below, or the Human Escalation Contract in
   `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md`.
 

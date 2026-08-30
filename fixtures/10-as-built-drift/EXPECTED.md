@@ -118,6 +118,69 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
   `search.py` reading it directly. This is the subtlest of the three and is not
   required for a pass.
 
+## Command C — the final review grades `drift.md`
+
+Added in **B27 task 6**. A and B prove the comparison is *drawn* correctly; this
+proves it is *graded* correctly, which is the half `03` and `04` cover for the
+per-milestone path and nothing covered for the final one.
+
+Run after B, in the same copy. First fill in M2's `### As-Built` field with the
+path and one-line result A returned — the loop would have done that, and a
+reviewer reading a record with an empty field is being tested on a different
+scenario.
+
+```bash
+claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
+  --allowedTools "Read Grep Glob Bash" --agent harness:reviewer --model opus \
+  -p "Final review (all milestones DONE).
+
+      Original requirements: .harness/requirements.md
+      Agreed architecture: .harness/architecture.md
+      All milestone outcomes: .harness/milestones.md (M1 and M2, both DONE)
+      Drift comparison: .harness/as-built/drift.md
+      Final validation command to re-run yourself:
+        python3 -m unittest discover -s tests
+
+      Do not read a project-wide diff. Work from the milestone records,
+      drift.md, and the validation you run yourself; read source only where a
+      specific question sends you."
+```
+
+### Expected outcome — C
+
+The fixture's three divergences are graded, not merely repeated:
+
+- **`NEW-SearchFilter` and its edges → `IMPORTANT`.** Undeclared, so the
+  architecture no longer describes the system and nobody chose that.
+- **C3 Formatter → not a finding.** `D1` accounts for it. Raising it anyway is
+  the failure that trains a reader to ignore the file.
+- **The verdict is `CHANGES REQUIRED`**, and the reviewer says explicitly that
+  `drift.md`'s `UNDECLARED` entries are real findings rather than noise.
+
+**The reviewer must not treat `drift.md` as authoritative.** It is written by a
+Cheap context, and `agents/reviewer.md` requires checking entries against the
+diff. The first validated run did exactly that and went further than the answer
+key: it renamed C2's on-disk JSON field from `text` to `body` — a change legal
+under the architecture, since C2 owns that file — and demonstrated `note search`
+crashing with `KeyError: 'text'` while `note list` kept working. That converts
+"`search.py` reads the file directly" from a naming quibble into a demonstrated
+defect, and it is the characterisation the B27 follow-up predicted the reviewer
+would have to reach from the edge alone. It did.
+
+That run also found, unprompted, that **nothing functional is committed at
+`HEAD`** (`note/search.py` is untracked while the M1 commit already imports it,
+so a clean clone `ImportError`s) and that **the test suite survives four
+mutations** — case-sensitivity, reversed `matching()`, reversed `read_all()`, and
+a `list` branch printing nothing. Both are `BLOCKER`s the fixture did not plant
+and both are true. `git status --porcelain` carrying M2's work is deliberate
+setup here, so the first is an artifact of the fixture rather than a harness
+defect — but a reviewer that did *not* notice a repository whose committed state
+cannot import itself would have been the weaker result.
+
+It also caught an internal inconsistency in B's own output: `drift.md` said
+`**Edges (3):**` above a list of two. `OPTIONAL`, correctly — the substance was
+right and both edges verified against source.
+
 ## Failure modes worth recognising
 
 **Grading is the failure that matters.** The agent is told repeatedly that it

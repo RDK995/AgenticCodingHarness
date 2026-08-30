@@ -55,6 +55,7 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `10-as-built-drift` | As-built recording from a milestone's diff, and declared vs undeclared divergence in the composed comparison | B27 |
 | `11-correction-wandered` | When a correction edits a file no finding named, does the second review widen back to the whole milestone — or pass a correct-looking correction that broke the entry point? | 2026-08-25 |
 | `12-scoped-second-review` | When a correction stays inside its finding, does the second review stay scoped, and does a passing review complete the milestone without instantiating a coordinator? | 2026-08-25 |
+| `13-architecture-golden-path` | Does the `implement` loop itself call RECORD after each `DONE` and COMPOSE before the final review, keep the diagram out of `milestones.md`, and hand `drift.md` to a top-tier final review? | B27 |
 
 ## `02` and the two-cycle cap
 
@@ -132,6 +133,25 @@ reports `PASS` there has not failed loudly — it has produced evidence that loo
 exactly like success. Treat `01` and `03` as the two that decide whether a model
 can hold the `reviewer` role at all; see `docs/runtime-contract.md` §Capability
 tiers for what that role has to catch, and re-run both whenever its pin changes.
+
+## `10` and `13`, and the difference between them
+
+`10` tests what `harness:as-built` *reports*: invoke it directly, hand it a
+milestone and a baseline, and check the record and the comparison it writes.
+`13` tests whether the `implement` loop *calls* it — after each `DONE`, once
+before the final review — and what it does with what comes back.
+
+Neither substitutes for the other, and `10` alone was the gap B27 sat in for its
+last task. An agent that records perfectly and a loop that never invokes it
+produce the same thing: no as-built files, and nothing in either fixture's direct
+invocation would notice.
+
+`13` also carries the only end-to-end evidence that the `### As-Built` field
+holds a **path rather than a picture**. That is the whole cost argument for the
+feature — a diagram read into the coordinating context stops costing once and
+starts costing its own size on every following turn — and it is invisible to any
+fixture that invokes the agent directly, because there is no milestone record in
+that path to get it wrong.
 
 ## The one that tests planning
 

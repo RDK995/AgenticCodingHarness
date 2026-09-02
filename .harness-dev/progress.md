@@ -2,19 +2,21 @@
 
 ## Current
 
-Milestone: B29 — Skill session diet (post-V1)
-Task: validation — re-run fixtures `11` and `05` to completion once the account
-usage limit resets. All four tasks are implemented; `12` passed complete, `11`
-and `05` were killed mid-run by the limit.
-Status: IN_PROGRESS (4 of 4 tasks implemented; 3 of 4 acceptance criteria proven;
-validation incomplete for environmental reasons, recorded under B29).
+Milestone: B30 — Close the three accuracy holes (post-V1)
+Task: 3 — entry-point criteria must exclude injected compensations. Tasks 1, 2
+and 4 are implemented; 5 and 6 (the environmental re-probe, and fixtures `13`
+and `14`) remain.
+Status: IN_PROGRESS.
 
-Also open: B28 at REVIEW (7 of 7 tasks done, 6 of 7 criteria proven) — its last
-criterion is a field measurement no fixture can produce. Its section sits below
-B29's.
+Also open, both at REVIEW and both for the same reason — a remaining acceptance
+criterion that is a field measurement no fixture can produce:
 
-**Why B28 is not `DONE`, deliberately.** The completion gate requires evidence for
-every acceptance criterion, and its criterion 7 — *fix cycle >20 turns returns CONTINUE;
+- **B29** — 4 of 4 tasks done, 3 of 4 criteria proven, all fixtures passing.
+- **B28** — 7 of 7 tasks done, 6 of 7 criteria proven.
+- **B27** — 5 of 6 tasks done, 4 of 7 criteria proven (needs a real run).
+
+**Why these sit at `REVIEW` rather than `DONE`.** The completion gate requires
+evidence for every acceptance criterion. B28's criterion 7 — *fix cycle >20 turns returns CONTINUE;
 median handoff turn ≤22; <10 foreground sleeps; zero off-harness opus lookups* —
 names a measurement on the next real project. No fixture can produce it: fixture
 phases do not reach 20 turns, nothing in one is slow enough to tempt a `sleep`,
@@ -1164,8 +1166,8 @@ orchestrator reads the range itself.
 26. B26 — Cheap by default (post-V1) — DRAFTED; Cheap-share criterion now met (B28 task 6)
 27. B27 — The architecture is drawn, and what was built is drawn back (post-V1) — REVIEW
 28. B28 — Close the defects the 2026-09-02 measurement found (post-V1) — REVIEW
-29. B29 — Skill session diet (post-V1) — IN_PROGRESS, validation incomplete
-30. B30 — Close the three accuracy holes (post-V1) — TODO
+29. B29 — Skill session diet (post-V1) — REVIEW
+30. B30 — Close the three accuracy holes (post-V1) — IN_PROGRESS
 31. B31 — Git discipline in target projects (post-V1) — TODO, ruling recorded
 32. B32 — Navigation extras: state ledger and symbol map (post-V1) — TODO
 
@@ -2388,7 +2390,9 @@ None.
 
 ## B29 — Skill session diet (post-V1)
 
-Status: IN_PROGRESS
+Status: REVIEW — 4 of 4 tasks done, 3 of 4 acceptance criteria proven, all
+fixtures passing. Held short of `DONE` on the cost criterion, which is a field
+measurement no fixture can produce.
 
 The skill session is $212.97 — 35% of project spend, second-largest cost centre
 — with peaks of 171k, up to 98 turns, and 810k output tokens (12x the
@@ -2687,8 +2691,8 @@ The three B29 changes visible in that run:
 | Fixture | Result | Evidence |
 | --- | --- | --- |
 | `12` | **PASS — complete** | `Status: DONE`, `Review Cycles: 1`, three criteria `[x]`, one subagent (the scoped reviewer), no orchestrator, and **no report file written** — the seeded `M1-cycle1.patch` is all that is in `.harness/reviews/`. |
-| `11` | **PARTIAL — cut off** | Got through the cycle-2 review and the fix cycle: the review graded **AC3 FAIL** and raised the `BLOCKER` on `receipt/report.py`, the fix cycle ran, and the entry point now prints `TOTAL $25.06` correctly. Killed before the re-review, so it sits at `Status: REVIEW`, `Review Cycles: 1`, 0 criteria ticked. Its end state (`DONE` at `Review Cycles: 2`) is **NOT-RUN**. |
-| `05` | **PARTIAL — cut off** | Reached `Status: IN_PROGRESS` with four criteria ticked and a green suite. Everything past that is **NOT-RUN**. |
+| `11` | **PASS — complete on the re-run** | `Status: DONE`, `Review Cycles: 2`, three criteria `[x]`, entry point `TOTAL $25.06`, suite green, its own `M1-cycle2.patch` written. Cycle 2 **widened and said why** — the skill's dispatch carried *"Full milestone scope. Cycle 1's correction changed files that no cycle-1 finding named, so this review is deliberately widened back to the whole milestone"*, and the record keeps a `Scope note, for the record` saying the same and adding *"The widening is what found the BLOCKER"*. It graded **AC3 FAIL** and raised the `BLOCKER` on `receipt/report.py`. The post-cycle-2 review then correctly stayed **scoped** — *"Your reading is scoped to the cycle-2 correction diff… Your grading is not scoped"* — so both halves of the rule appear in one milestone. |
+| `05` | **PASS — complete on the re-run**, both invocations | See below. |
 
 **What the partial runs do establish, because it happened before the cut.** Both
 branches of the new reviewer-writes-its-own-report rule fired correctly, and the
@@ -2707,13 +2711,16 @@ numbers are the point of the change:
   `.harness/reviews/M1-cycle2.md`. Return to me only: the verdict, the
   per-criterion table, and the report path. Do not return the findings in full."*
 
-**Two changes landed after these runs started and are therefore unvalidated by
-them**: the state-file archiving check at the milestone boundary, and the two
-`## Never` entries forbidding the skill from writing a review report or
-root-causing a defect itself. They are consistency-checked only.
+**Still unexercised after the re-run:** the two `## Never` entries forbidding the
+skill from writing a review report or root-causing a defect itself. No fixture
+tempts either — every fixture's reviewer is reachable and every defect in one is
+already localised. Consistency-checked only. (The third late change, the
+archiving check, *was* exercised — see `05` above. The prediction that fixtures
+could not reach any of the late changes was wrong twice over, which is the
+argument for running them rather than reasoning about them.)
 
-**Outstanding before B29 can be `DONE`:** re-run `11` and `05` to completion on
-the current tree, once the usage limit resets.
+**Validation is complete.** Five fixture invocations across `05` (x2), `11` and
+`12`, all meeting their expectations.
 
 ### Blockers
 
@@ -2721,7 +2728,7 @@ None.
 
 ## B30 — Close the three accuracy holes (post-V1)
 
-Status: TODO
+Status: IN_PROGRESS
 
 One true escape in 17 milestones, but every failure that reached the human went
 through one of three holes, and two near-free gates from the research belong

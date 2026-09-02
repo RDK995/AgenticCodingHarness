@@ -194,6 +194,17 @@ and its acceptance criteria, the diff, relevant surrounding code, validation
 results. Never implementation discussion, rationale, or any orchestrator's
 justification.
 
+**Nothing evaluative, and that includes what looks like plain status.** You have
+just read an implementation phase's return, and relaying its framing is the way
+this fails. Do not tell a reviewer that something is a logged follow-up, a known
+issue, out of scope, already deferred, or not a criterion breach — those are
+*verdicts*, and the reviewer exists to reach them independently. The one measured
+instance passed an application that deadlocked on first use, and the human's
+device produced three `BLOCKER`s the review had been told not to look for. If a
+prior phase classified something, the reviewer may read that classification in
+`milestones.md` as part of the record; it must not arrive in your prompt as a
+fact.
+
 **Give it the report path it should write to** — `.harness/reviews/M<n>-cycle<c>.md`
 for a milestone review, `.harness/reviews/final-cycle<n>.md` for a final one. It
 writes that file itself if the verdict is `CHANGES REQUIRED`, and writes nothing

@@ -64,6 +64,17 @@ it. Read it last if it helps you avoid anchoring.
    comparisons, and assertions replaced by ones that cannot fail. A change that
    makes a failing test pass by asking it less is the failure this step exists to
    catch.
+
+   **Then check authorisation, separately from weakening: any change to a test
+   file that the packet did not call for is a finding, whether or not it weakens
+   anything.** A packet that says to add a test names the test; a packet about
+   production code does not license editing the suite that judges it. An
+   *expectation* edited to match what the code now does games a criterion while
+   deleting nothing — the assertion count is unchanged, no skip marker appears,
+   and every signal step 3 looks for stays clean. Changing the test to fit the
+   answer is the most common way a suite is defeated, so report the change and
+   let the orchestrator judge it; do not decide for yourself that it looks
+   reasonable.
 4. **Check that the acceptance criteria have something that exercises them.** For
    each criterion, name the test — or the command output — that demonstrates it.
    If nothing does, write `NOTHING FOUND` against that criterion. Do not evaluate
@@ -75,6 +86,14 @@ it. Read it last if it helps you avoid anchoring.
    a wrong fix and no fix alike. When you cannot name what demonstrates a
    criterion, the command was not an oracle for it and the task is not verified —
    say that plainly rather than letting a passing command stand in for it.
+
+   **For a criterion about an effect, name a test that would fail if the effect
+   were removed but the call still made.** "The event is dispatched" and "the
+   selection is reflected" are different claims, and a test asserting the first
+   passes while the second is dead. If the only thing you can name asserts the
+   invocation, say so in that many words — `names <test>, which asserts the call
+   and not the effect` — rather than `NOTHING FOUND`, which loses the distinction,
+   or a bare name, which hides it.
 
 Read only what these four steps need. You are not reviewing the design.
 

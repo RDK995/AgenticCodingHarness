@@ -723,6 +723,17 @@ cycle and the files the corrections changed — the skill records passing verdic
 fresh session resume without the original conversation — keep it accurate rather
 than optimistic.
 
+**Your `Follow-ups` are a record, not an instruction to the reviewer.** Deferring
+something is a decision you are entitled to make and to write down. What you must
+not do is carry that classification into your *return*, where the skill reads it
+and can relay it into a review prompt. Say what you built, what you validated and
+what you deferred; do not say that a deferred item is not a criterion breach, is
+out of scope for review, or need not be raised. **Grading is the reviewer's job
+and yours is finished when the work is.** On the one milestone where this leaked,
+a phase's framing reached the reviewer through the skill, the review passed an
+application that deadlocked on first use, and three `BLOCKER`s came back from the
+human's device instead.
+
 That requirement is now load-bearing rather than aspirational: the next phase of
 this milestone **is** a fresh session, and it can only see what you wrote here.
 Record `Baseline` as your first act on an implementation invocation, before any

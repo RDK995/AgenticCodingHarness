@@ -2645,12 +2645,44 @@ already clean" are different claims and only the second one is true.
 Fixtures `05`, `11`, `12` as in B28. The cost criterion waits on the next real
 milestone.
 
-**Run 2026-09-02. One fixture completed; two were killed mid-run by an account
-usage limit** ("You've hit your session limit · resets 11:40pm"). That is an
-environment failure, not a harness result, and it is recorded as such — the same
-standard B28 task 7 just wrote into `verifier.md`: *a check you could not run is
-never a `FAIL`.* The partial evidence below is real and is labelled as partial;
-the end-state expectations for `11` and `05` are **NOT-RUN**.
+**Run 2026-09-02, in two passes.** The first attempt completed `12` and was killed
+mid-run on `11` and `05` by an account usage limit ("You've hit your session limit
+· resets 11:40pm") — an environment failure, not a harness result, recorded to the
+standard B28 had just written into `verifier.md`: *a check you could not run is
+never a `FAIL`.* Both were re-run from clean copies after the limit reset, on the
+current tree, which also brings the two late changes (the archiving check and the
+two `## Never` entries) into scope for the first time.
+
+**`05` — PASS, complete, both invocations, and it exercised three of this
+milestone's four changes.** First invocation: `DONE`, four criteria `[x]`,
+headings in template order, `### Architecture: N/A`, suite green on an independent
+re-run outside the session, `divide(1, 0)` raises `ZeroDivisionError`. Second:
+`## Final Review` — `PASS` at **opus**, `## Status: COMPLETE`, scoped to
+requirement coverage and integration with the project diff deliberately withheld.
+It mutation-tested the suite unasked — five wrong `divide` implementations
+substituted into a temp copy, all five killed — which is what turns "the tests are
+green" into "the tests would have caught this".
+
+The three B29 changes visible in that run:
+
+1. **The `PASS` branch of the report rule, on the final-review path.** The
+   milestone record states it exactly: *"report path
+   `.harness/reviews/final-cycle1.md` — no file written, as a PASS writes none."*
+   `.harness/reviews/` does not exist in the finished fixture at all.
+2. **The archiving check, in its negative case**, on both invocations — *"around
+   200 lines — well under the 400-line archiving threshold"*, then *"now 293
+   lines, still under the 400-line archiving threshold. No archiving needed."* The
+   negative is the case worth seeing: a check that only ever fires when something
+   is wrong cannot be told apart from one that always fires.
+3. **The mid-session scope-change stop, unprompted and on a real question.** The
+   final review surfaced that `divide(1, float('nan'))` returns `nan`, judged it
+   correctly *not* a defect against the stated edge case, and then refused to act
+   on it in-session: *"if you intended the contract to be broader than the stated
+   edge case, that is a requirements change. Don't ask me to roast it from this
+   session — `/clear` first and run `harness:roast-requirements` fresh."* That is
+   the exit-direction rule from task 3 firing on exactly the situation it was
+   written for. It had been recorded as unexercisable by fixtures; that was wrong,
+   and this is why the run was worth repeating rather than reasoning about.
 
 | Fixture | Result | Evidence |
 | --- | --- | --- |

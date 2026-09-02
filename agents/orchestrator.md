@@ -504,7 +504,12 @@ exactly what a Cheap-tier worker's `PASS` is worth: nothing until the verifier's
 report confirms it and you have judged that report.
 
 **Record, for each task, the tier it entered at, the reason if that was not Cheap,
-and what happened at each rung.** Not only the tier that eventually succeeded:
+and what happened at each rung — under `### Evidence`, which is the field that
+owns this.** Do not open a heading of your own for it. The milestone entry's
+headings are fixed by
+`${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md` and
+adding to them breaks the archiving rule, which moves named fields, and anything
+else that reads the file by heading. Not only the tier that eventually succeeded:
 
 ```
 T3 — R1 decision record        Cheap, attempt 1, PASS

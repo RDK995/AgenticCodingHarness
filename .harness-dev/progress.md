@@ -2,15 +2,17 @@
 
 ## Current
 
-Milestone: B30 — Close the three accuracy holes (post-V1)
-Task: 3 — entry-point criteria must exclude injected compensations. Tasks 1, 2
-and 4 are implemented; 5 and 6 (the environmental re-probe, and fixtures `13`
-and `14`) remain.
-Status: IN_PROGRESS.
+Milestone: B31 — Git discipline in target projects (post-V1)
+Task: not yet started. B31's section is below, with the human ruling already
+recorded in it.
+Status: TODO.
 
-Also open, both at REVIEW and both for the same reason — a remaining acceptance
-criterion that is a field measurement no fixture can produce:
+Four milestones sit at REVIEW, each held there by one remaining acceptance
+criterion that is a field measurement no fixture can produce. **They are not
+blocked and they do not block B31** — each needs the next real project to run,
+and they should be closed together when it does:
 
+- **B30** — 6 of 6 tasks done, 3 of 4 criteria proven, all fixtures passing.
 - **B29** — 4 of 4 tasks done, 3 of 4 criteria proven, all fixtures passing.
 - **B28** — 7 of 7 tasks done, 6 of 7 criteria proven.
 - **B27** — 5 of 6 tasks done, 4 of 7 criteria proven (needs a real run).
@@ -1167,7 +1169,7 @@ orchestrator reads the range itself.
 27. B27 — The architecture is drawn, and what was built is drawn back (post-V1) — REVIEW
 28. B28 — Close the defects the 2026-09-02 measurement found (post-V1) — REVIEW
 29. B29 — Skill session diet (post-V1) — REVIEW
-30. B30 — Close the three accuracy holes (post-V1) — IN_PROGRESS
+30. B30 — Close the three accuracy holes (post-V1) — REVIEW
 31. B31 — Git discipline in target projects (post-V1) — TODO, ruling recorded
 32. B32 — Navigation extras: state ledger and symbol map (post-V1) — TODO
 
@@ -2728,7 +2730,9 @@ None.
 
 ## B30 — Close the three accuracy holes (post-V1)
 
-Status: IN_PROGRESS
+Status: REVIEW — 6 of 6 tasks done, 3 of 4 acceptance criteria proven, all
+fixtures run passing. Held short of `DONE` on the field criterion, which needs a
+real project.
 
 One true escape in 17 milestones, but every failure that reached the human went
 through one of three holes, and two near-free gates from the research belong
@@ -2861,6 +2865,86 @@ no mechanism-substitution issue found there."* That is the case worth seeing.
 A rule that only ever fires cannot be told from one that fires indiscriminately,
 and `03` is the fixture where a false positive would have shown up, since its
 tests are honest and its defect is elsewhere.
+
+**`11` — PASS, unchanged.** `Status: DONE`, `Review Cycles: 2`, three criteria
+`[x]`, entry point `TOTAL $25.06`, suite green, its own `M1-cycle2.patch`. Cycle 2
+widened with the reason carried in the dispatch — *"Scope: the WHOLE milestone,
+not a correction patch. (A correction was made after cycle 1 and it touched files
+beyond those the cycle-1 finding named…)"* — and the review after the cycle-2
+correction split reading from grading correctly: *"Your READING of the diff is
+scoped to the correction patch… Your GRADING is NOT scoped."*
+
+Its milestone entry has **9 headings, not 10, and that is correct** — the seeded
+fixture predates `### As-Built` (B27) and has 9. The run preserved the seeded
+heading set exactly, which is the check `05` failed; checked here rather than
+assumed, since a missing heading and an invented one look equally wrong from a
+count alone.
+
+**`12` — PASS, unchanged.** `Status: DONE`, `Review Cycles: 1`, three criteria
+`[x]`, one subagent (the scoped reviewer) and no orchestrator, and no report file
+written — the seeded `M1-cycle1.patch` is still all that is in
+`.harness/reviews/`. The B30 rules added no findings to a milestone that is
+genuinely correct, which is the regression that mattered: the research this
+milestone drew on measures LLM reviewers over-flagging correct code, and `12` is
+the only fixture whose repository is right.
+
+**`05` — FAILED one mechanical expectation on the first B30 run, and it exposed a
+latent defect that predates this milestone.** Everything else was right: `DONE`,
+four criteria `[x]`, `### Architecture: N/A`, suite green on an independent
+re-run, `divide(1, 0)` raises. But `05`'s `EXPECTED.md` requires the headings to
+match `milestones-template.md` *exactly and in order*, and the run produced an
+**eleventh heading, `### Tasks And Routing`**, inserted between `### Validation`
+and `### Review`, holding the per-task tier record.
+
+**Cause, and it is not B30.** `orchestrator.md`'s rule read *"Record, for each
+task, the tier it entered at, the reason if that was not Cheap, and what happened
+at each rung"* — and **never said where**. The template's field guide assigns that
+to `### Evidence`, but that guide is the *skill's* reference and the orchestrator
+never reads it, so nothing in the orchestrator's own instructions named a
+destination. Two earlier runs of `05` (on the B28 and B29 trees) happened to put
+it under `### Evidence`; this one invented a heading. Same instruction, different
+guess — which is what an under-specified rule looks like, and the reason it is
+worth fixing rather than re-rolling.
+
+It matters beyond the fixture: the archiving rule moves *named* fields, so an
+invented heading is content the archiver does not know to move.
+
+Fixed by naming the destination and forbidding new headings, with the reason
+stated. The other two recording rules in the same family were checked and are
+already located — `## Deviations` in `architecture.md`, `### Review` in
+`fix-cycle.md`; only the tier rule was floating.
+
+**Re-run after the fix: PASS.** Exactly **10 headings, template order**, and the
+per-task tier record sits inside `### Evidence` where the rule now sends it
+(`T1 — divide() + its unittest suite   Cheap, attempt 1, PASS`, with the named
+reason under it). `DONE`, four criteria `[x]`, `### Architecture: N/A`, suite
+green independently, `divide(1, 0)` raises.
+
+**One passing re-run does not prove much on its own**, and is not claimed to:
+two earlier runs got this right *without* the fix, so a third success is
+consistent with the defect simply not recurring. What the fix buys is that the
+instruction now determines the outcome rather than leaving it to be guessed —
+which is the same argument as every other under-specification closed in this
+file, and it is not settled by one sample either way.
+
+**`05` second invocation — PASS.** `## Final Review`, verdict `PASS` at `opus`,
+scoped to the milestone records and the validation it ran rather than a
+whole-project diff, and it re-ran the suite plus fresh-process probes of
+`divide(1, d)` for `d` in `{0, 0.0, -0.0}` itself. **No report file written and no
+`.harness/reviews/` directory created at all** — B29's `PASS`-writes-nothing rule
+holding on the final-review path under the B30 reviewer. Milestone body still
+exactly 10 headings after the second invocation.
+
+**An ambiguity in `05`'s own answer key, corrected rather than the harness.** It
+required the final review to report `COMPLETE` *"recorded under a `## Final
+Review` heading"*, and this run reported `COMPLETE` as the first line of its
+response to the human while the heading carried the verdict and tier. That is
+exactly what `SKILL.md` asks for — *"tell the user implementation is COMPLETE"* —
+so the run is conformant and the expectation was conflating two different things.
+An earlier run additionally wrote a `## Status: COMPLETE` section, which is more
+than asked rather than the standard. `EXPECTED.md` now says which half lives
+where, and that both shapes pass. Recorded because I came close to scoring a
+conformant run as a failure on it.
 
 **A defect in B29's report rule, found by `01`.** Invoked directly rather than
 through the skill, `01` gets no report path — and the reviewer wrote one anyway,

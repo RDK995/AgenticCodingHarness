@@ -38,8 +38,13 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
 
 - Every acceptance criterion carries both implementation and test evidence.
 - A fresh review ran and its verdict is recorded.
-- The final holistic review reports `COMPLETE`, recorded under a `## Final Review`
-  heading, at the **Top** tier. **It is not handed the project diff** — since
+- The run reports `COMPLETE` **to the human** — that is what `SKILL.md` asks for
+  ("tell the user implementation is COMPLETE"), so the conversation is where to
+  check it, not necessarily the file. What must be in `milestones.md` is a
+  `## Final Review` heading carrying the reviewer's verdict and the tier it ran
+  at. A run that also writes an overall `## Status: COMPLETE` section is doing
+  more than asked, not less; both shapes have been observed and both pass.
+- The final holistic review runs at the **Top** tier. **It is not handed the project diff** — since
   2026-08-25 it is scoped to what no milestone review could see (requirement
   coverage, integration, drift), because each milestone's diff already carries a
   fresh reviewer's verdict. A final review that re-derives those verdicts from a

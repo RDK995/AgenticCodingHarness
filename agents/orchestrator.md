@@ -255,6 +255,28 @@ that follows.
 Keep the packet on disk for the milestone's lifetime: a retry three tasks later
 must read the same packet the first attempt got, not your recollection of it.
 
+**A packet that asks a worker to *prove* something needs a procedure and a
+budget.** "Show this works end to end", "reproduce the failure", "prove the
+feature on a real device" — these are the packets that go wrong, because there is
+no line at which the worker is finished and no test that settles it. Measured on
+one project, a live-proof worker ran to 130 turns and 183.6k tokens, a larger
+context than any orchestrator in the same project, debugging open-endedly inside a
+task packet.
+
+So for any proof or verification task, put two things in `Constraints`:
+
+- **the procedure** — the specific steps that constitute the proof, and what
+  observation ends it. If you cannot write that down, the task is not bounded and
+  routing it as one hides that fact rather than resolving it;
+- **a turn budget of roughly 30.** A worker that has not completed the proof
+  inside it returns `FAIL` with what it *did* observe — the commands run, what
+  each showed, where it stopped — rather than continuing to debug.
+
+A `FAIL` carrying observations is worth more to you than a proof reached after a
+hundred turns of undirected debugging, and it costs a fraction of it. Deciding
+whether that debugging is worth routing, and at which tier, is your call and not
+the worker's: it cannot see the milestone, the budget, or the other tasks.
+
 ## Delegate navigation, not the reading that follows
 
 Finding your way around is not judgement, and it is **54% of every tool call this
@@ -416,6 +438,14 @@ validation for that task, and only then move to the next task. Run the
 broadest appropriate validation for the whole milestone, record its result, set
 `REVIEW`, and return. Requesting the review is the *next* invocation's job.
 
+**Before you route each task, state the turn number you are on.** At 20 or above,
+routing another task is forbidden: finish the one in flight, record, and return
+`CONTINUE` per "Hand off before you fill your context" below. Say the number out
+loud in the turn where you route — a budget checked at a decision point can fire,
+and one held in the background demonstrably does not. Measured across 44
+invocations under the standing rule alone, 29 exceeded 20 turns and the median
+handoff came at turn 26.
+
 ### Task-level retry and escalation
 
 The ladder climbs tiers rather than repeating one. A task enters at the rung its
@@ -508,9 +538,18 @@ return rather than a full diff and a test log:
   is a misattribution to correct, not a failed attempt.
 - Is `Tests Weakened` `NO`?
 - Does every acceptance criterion have something named against it?
+- Is `Checks Not Run` `NONE`? A named check the verifier's environment refused is
+  unproven, not passed — and not a failed attempt either.
 - Does `Discrepancies With The Worker's Claim` say anything you should act on?
 
-Any of those failing means the attempt failed, and the ladder climbs.
+Any of those failing means the attempt failed, and the ladder climbs — except
+`Checks Not Run`, which climbs nothing. **A `BLOCKED` return with checks not run
+is a capability problem, not a worker's failure**, and retrying the task at a
+higher tier verifies nothing because the next verifier hits the same wall. Route
+the missing check somewhere that can run it — a worker can perform a mutation the
+verifier cannot, and you can run one yourself when nothing else can — or record it
+unproven and say so in `Evidence`. Never let a `NOT-RUN` be recorded as evidence,
+and never spend a ladder rung on one.
 
 **Judging that evidence stays with you, and never moves to a cheaper agent.**
 This is the seam the harness rests on. On a real milestone this step caught a
@@ -623,10 +662,12 @@ A phase can outgrow its context before it outgrows its work. Context is re-read
 every turn, so a long phase ends with a tail costing as much as everything before
 it — for work a fresh context would do at a fraction of the price.
 
-**Count your turns. At 20, stop taking on new work and hand off.** Finish the task
-in flight, record what you have completed in `.harness/milestones.md` exactly as
-you would at a phase boundary — accepted tasks and their evidence, what remains,
-the baseline — and return `CONTINUE`. The implement skill invokes a fresh
+**Count your turns. At 20, stop taking on new work and hand off.** The count is
+checked where new work is taken on — before routing a task in "Implementation
+loop", before routing a correction in `references/fix-cycle.md` — not only here.
+Finish the task in flight, record what you have completed in
+`.harness/milestones.md` exactly as you would at a phase boundary — accepted tasks
+and their evidence, what remains, the baseline — and return `CONTINUE`. The implement skill invokes a fresh
 orchestrator for the same phase, which reads that record and carries on.
 
 **Which phases may hand off, because a handoff only works where the skill can

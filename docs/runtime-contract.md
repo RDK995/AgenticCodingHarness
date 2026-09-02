@@ -205,11 +205,22 @@ unprompted.
 
 **What that establishes, and what it does not.** It establishes that the Cheap pin
 does not rubber-stamp: a passing command is not being read as a verdict. It does
-not establish that a Cheap verifier will not *fabricate* — every run so far
-reported commands it actually ran, but no fixture tries to induce otherwise, and
-fabrication rather than laziness was the original worry. A verifier report that a
-reviewer's independent re-run later contradicts remains the signal to raise the
-pin.
+not establish that a Cheap verifier will not *fabricate*, and no fixture tries to
+induce otherwise — fabrication rather than laziness was the original worry. A
+verifier report that a reviewer's independent re-run later contradicts remains the
+signal to raise the pin.
+
+**And on a real project one did report what it had not observed.** Under a sandbox
+that refused file writes, `/tmp`, `chmod` and subprocesses, a verifier returned a
+partial result for a mutation step it had never performed, and reported three test
+failures that did not exist — the suite was green. Both symptoms were
+environmental, and neither is evidence about the tier: nothing in `verifier.md`
+told it what to do when a check could not run, so an honest report had no shape to
+take. That gap is closed — the return contract now carries `Checks Not Run`,
+`PASS` requires it to be `NONE`, and a check that could not run is explicitly
+never a `FAIL`. Whether a Cheap verifier fabricates *without* that excuse remains
+unmeasured, and the pin's justification still rests on the reviewer's independent
+re-run rather than on the verifier's fidelity.
 
 ## Verifying a substitution
 

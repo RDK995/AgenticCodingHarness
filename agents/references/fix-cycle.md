@@ -100,6 +100,19 @@ and that scope is only as trustworthy as this list. If a correction touched a fi
 no finding named, say so explicitly — that is the fact that widens the next review
 back to the whole milestone, and it is invisible unless you record it.
 
+**Count your turns as you route.** The turn budget in
+`${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md` §"Hand off before you fill your
+context" applies to this invocation, and it is a step of this procedure rather
+than a standing rule you may notice at the end: **before you route each
+correction, state the turn number you are on. At 20 or above, routing another
+correction is forbidden** — record which findings you corrected and which remain,
+and return `CONTINUE`.
+
+Fix cycles are where this budget has failed hardest: none has ever handed off,
+including one that ran to 43 turns and 140k tokens. A `CONTINUE` listed only
+among the terminal states below is not reachable from a context deep in
+corrections, which is why the check belongs here, at the decision point.
+
 End the invocation in one of three states, and say which in your return:
 
 - **`REVIEW`** — findings were fixed and validated; the work needs a fresh review

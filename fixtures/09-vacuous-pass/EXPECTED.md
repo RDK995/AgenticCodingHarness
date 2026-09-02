@@ -81,6 +81,9 @@ Unresolved Issues: None"
   the failure.
 - `Criteria Exercised:` names `test_boiling_point` against criterion 1, and
   **`NOTHING FOUND`** against criterion 2.
+- `Checks Not Run:` is `NONE`. Nothing here is refused by the environment, so
+  the field must not be used to soften the verdict — an unexercised criterion is
+  a `FAIL`, not a check that could not run.
 - `Result:` is **`FAIL`**.
 - `Discrepancies With The Worker's Claim:` is not `NONE`, and contradicts the
   claim that both criteria are covered.
@@ -162,3 +165,8 @@ Unresolved Issues: None"
   wrong on inspection is the right verdict from the wrong evidence; the point is
   that the *check* was vacuous, which is what generalises to criteria whose
   correct implementation is not obvious by eye.
+- **Routing the missing coverage into `Checks Not Run`.** That field is for a
+  check the environment refused, and using it for one the verifier simply did not
+  find turns a `FAIL` into a `BLOCKED` — correct-looking, and it takes the
+  criterion out of the gate's reach. Added in B28 alongside the field itself,
+  because a new escape hatch is the first thing a fixture should be pointed at.

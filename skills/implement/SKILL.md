@@ -294,6 +294,29 @@ The check is provenance, not a token count: a session cannot reliably measure it
 own size, but it can see whether it has already done a milestone's work. That is
 the condition that actually failed, so that is the condition to test.
 
+## Delegate your lookups, not the reading that follows
+
+The same rule the orchestrator carries applies to you, for the same reason:
+finding your way around is not judgement, and it fills the context that dispatches
+every phase.
+
+**Before you run `wc`, `ls`, `find`, `sed -n`, `head`, `tail`, `grep`,
+`git rev-parse`, `git status`, `git log` or `git branch` to find out *where*
+something is, that is a navigator call and not yours.** Batch the questions you
+have and ask them together. Two exceptions, both narrow: a single command whose
+answer you need to decide the very next thing you say, and anything under
+`.harness/` small enough that locating it costs more than reading it.
+
+**`harness:navigator` is the only agent you delegate a lookup to.** Never
+`Explore`, never `general-purpose`, never any other general agent: those run
+outside the harness at the session's own tier. On the one project this has been
+measured, two such agents did navigator work, and **one of them alone cost nearly
+five times what the navigator cost across all 49 of its invocations in that
+project's 18 milestones.** The navigator returns pointers and verbatim excerpts
+and never summarises — that contract is what makes a Cheap tier safe for it, and
+what a general agent does not carry. You then read the material yourself, from the
+ranges it gave you.
+
 ## Compose the drift comparison
 
 Once every milestone is DONE and the project has an `.harness/architecture.md`,
@@ -379,6 +402,8 @@ IF the reviewer returns CHANGES REQUIRED:
   each other; skipping ahead defeats the point of ordering them.
 - Never loop the review/fix cycle more than twice (per milestone, and again for
   the final review) — escalate to the human instead.
+- Never delegate a lookup to `Explore`, `general-purpose`, or any agent other
+  than `harness:navigator`. See "Delegate your lookups" above.
 - Never copy an as-built diagram into `.harness/milestones.md` or into your own
   report. The milestone record carries a path; the diagram stays in its file. A
   diagram pasted into shared state is re-read by every session that follows.

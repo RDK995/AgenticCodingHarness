@@ -2,12 +2,26 @@
 
 ## Current
 
-Milestone: B27 — The architecture is drawn, and what was built is drawn back (post-V1)
-Task: 6 — prove the three criteria the fixture could not reach. Implementation is
-complete and fixture-validated for the recording and comparison path; the
-architect's diagram, the end-to-end wiring through `implement`, and the reviewer
-grading `drift.md` are implemented but unexercised.
-Status: REVIEW (5 of 6 tasks done; 4 of 7 acceptance criteria proven).
+Milestone: B28 — Close the defects the 2026-09-02 measurement found (post-V1)
+Task: none outstanding — all 7 implemented and fixture-validated.
+Status: REVIEW (7 of 7 tasks done; 6 of 7 acceptance criteria proven).
+
+**Not `DONE`, deliberately.** The completion gate requires evidence for every
+acceptance criterion, and criterion 7 — *fix cycle >20 turns returns CONTINUE;
+median handoff turn ≤22; <10 foreground sleeps; zero off-harness opus lookups* —
+names a measurement on the next real project. No fixture can produce it: fixture
+phases do not reach 20 turns, nothing in one is slow enough to tempt a `sleep`,
+and none contains a live-proof task. Marking this `DONE` would be checking a box
+without evidence, which is the one thing this repository's gate exists to stop —
+and it is how B26 was handled for the same reason. **B28 becomes `DONE` when the
+next real milestone supplies those four numbers**, not before. Everything else is
+complete: five fixture invocations, all passing, recorded below.
+
+Also open: B27 remains at REVIEW — task 6, prove the three criteria the fixture
+could not reach. Implementation is complete and fixture-validated for the
+recording and comparison path; the architect's diagram, the end-to-end wiring
+through `implement`, and the reviewer grading `drift.md` are implemented but
+unexercised. It does not block B28.
 
 Also open: B25 task 7 is now substantially discharged — see the 2026-09-02
 measurement below: `~/tools/harness` was at `1f15d4d` (every change through the
@@ -1140,9 +1154,9 @@ orchestrator reads the range itself.
 23. B23 — Route everything, tier by risk (post-V1) — DONE
 24. B24 — Three worker tiers, reviewer matched to the work (post-V1) — DONE
 25. B25 — The coordinating context is the cost (post-V1) — IN_PROGRESS
-26. B26 — Cheap by default (post-V1) — DRAFTED, unvalidated
+26. B26 — Cheap by default (post-V1) — DRAFTED; Cheap-share criterion now met (B28 task 6)
 27. B27 — The architecture is drawn, and what was built is drawn back (post-V1) — REVIEW
-28. B28 — Close the defects the 2026-09-02 measurement found (post-V1) — TODO, next
+28. B28 — Close the defects the 2026-09-02 measurement found (post-V1) — REVIEW
 29. B29 — Skill session diet (post-V1) — TODO
 30. B30 — Close the three accuracy holes (post-V1) — TODO
 31. B31 — Git discipline in target projects (post-V1) — TODO, ruling recorded
@@ -1787,8 +1801,24 @@ rule too, so this shows no regression, not that anything moved. §49's criterion
 needs a milestone with several tasks of differing kinds, which only a real run
 supplies.
 
-**Still outstanding: a real milestone, reporting Cheap's share as a count against
-the total.**
+**Still outstanding at the time this was written: a real milestone, reporting
+Cheap's share as a count against the total.**
+
+**DISCHARGED (2026-09-02, B28 task 6) — eighteen milestones, not one.** Counted
+off `~/Projects/phoneToLocalModel/.harness/`: **104 delegated tasks, 76 Cheap
+(73.1%), 26 Mid (25.0%), 2 Top (1.9%)**, by entry tier. Against the finding this
+milestone was written from — 0 of 12 to Cheap — the default has inverted. Only 3
+of the 104 escalated a tier (2 from Cheap), which is what distinguishes "Cheap is
+the default" from "Cheap is being over-used": over-use shows up as ladder
+climbing, and the ladder barely moved. 27 of the 28 Mid/Top entries carry the
+named reason §49 requires. The full breakdown, the spot-checks it was verified
+against, and what it does not settle are recorded under B28's `### Evidence`.
+
+**Status stays `DRAFTED` on the acceptance criterion alone; it is now met.** What
+remains before B26 could be called DONE is a decision this session did not take,
+because B26 is not the current milestone: whether the Follow-up below (the
+reviewer floor under mostly-Cheap work) is a blocker for it or an observation to
+carry forward.
 
 **One checking hazard, recorded because I hit it.** `05`'s layout is not fixed
 between runs — this one put the test at the repository root, the previous one
@@ -2000,9 +2030,11 @@ None.
 
 ## B28 — Close the defects the 2026-09-02 measurement found (post-V1)
 
-Status: TODO — next implementation target
+Status: REVIEW — 7 of 7 tasks done, 6 of 7 acceptance criteria proven. Held short
+of `DONE` on criterion 7, which is a field measurement no fixture can produce; see
+the `## Current` section at the top of this file.
 
-Six bounded fixes to existing rules, no new behaviour. Every "why" is a measured
+Seven bounded fixes to existing rules, no new behaviour. Every "why" is a measured
 number in the 2026-09-02 section near the top of this file.
 
 ### Tasks
@@ -2066,21 +2098,185 @@ number in the 2026-09-02 section near the top of this file.
    degraded results as findings. If the root cause is configuration rather than
    instruction, record it here as a decision instead.
 
+### Evidence
+
+Recorded per task as it was done. Every change is to an agent or skill
+definition, so the repository's validation for them is a live harness run —
+fixtures `05`, `11`, `12`, below under `### Validation`.
+
+**Task 1 — the turn budget binds in fix cycles.** `agents/references/fix-cycle.md`
+gained a **Count your turns as you route** step, placed between "Record the
+correction diff" and "End the invocation in one of three states" — inside the
+procedure, before the terminal states rather than among them. It states the gate
+(*before you route each correction, state the turn number; at 20 or above,
+routing another is forbidden*) and points at `orchestrator.md` §"Hand off before
+you fill your context" for the rationale rather than restating it. Neither return
+state nor the orchestrator's fix-cycle row was re-added; both already existed and
+were left alone. The paragraph names why the placement is the fix: a `CONTINUE`
+listed only among terminal states is not reachable from a context deep in
+corrections, which is the measured 0-of-7 result.
+
+**Task 2 — the budget is a per-task gate.** `agents/orchestrator.md`
+§"Implementation loop" gained the same check before routing: state the turn
+number, at 20 or above routing another task is forbidden, return `CONTINUE`.
+§"Hand off before you fill your context" keeps its wording, its 90k rationale and
+its proxy caveat untouched; one sentence was added naming where the count is
+actually checked (implementation loop, fix-cycle procedure) so the two places
+cannot drift. The section is still phase-agnostic and still lists which phases may
+hand off.
+
+**Task 3 — the skill session is bound by the navigation rule.**
+`skills/implement/SKILL.md` gained §"Delegate your lookups, not the reading that
+follows", carrying the orchestrator's trigger list verbatim (`wc`, `ls`, `find`,
+`sed -n`, `head`, `tail`, `grep`, `git rev-parse`, `git status`, `git log`,
+`git branch`) and both narrow exceptions unchanged, plus the naming of
+`harness:navigator` as the **only** agent it delegates a lookup to — never
+`Explore`, never `general-purpose`. A `## Never` bullet points at it, since that
+list is what a skimming session reads. The measured comparison is stated as a
+ratio rather than a dollar figure, keeping the B12 invariant that no shipped file
+under `agents/` or `skills/` carries a cost in dollars.
+
+**Task 4 — foreground sleep-polling forbidden in both delegate roles.**
+`agents/worker.md` §"What you must not do" and `agents/verifier.md` §Rules each
+gained the rule, worded as a positive substitute rather than a bare prohibition: a
+wait is a **single bounded check with a timeout in the command itself**
+(`curl --max-time`, a runner's own timeout, a `wait` on a pid), and a task that
+needs longer reports the state it observed and returns. `orchestrator.md`'s
+existing background-and-poll prohibition was left as it stands — the measured
+`sleep 90` there is a compliance failure, not a rule gap.
+
+**Task 5 — live-proof tasks are bounded.** `agents/orchestrator.md` §"Creating
+task packets" now requires a proof or verification packet to carry two things in
+`Constraints`: the **procedure** (the steps that constitute the proof and the
+observation that ends it) and a **turn budget of roughly 30**, with a worker that
+cannot finish inside it returning `FAIL` carrying its observations. The section
+also states the corollary that made this a defect rather than an inefficiency:
+whether the remaining debugging is worth routing, and at which tier, is the
+orchestrator's call — the worker cannot see the milestone, the budget or the other
+tasks, so leaving the decision with it is what produced the 130-turn / 183.6k
+context.
+
+**Task 6 — B26's Cheap-share number, read off the 18-milestone record.** Counted
+from `~/Projects/phoneToLocalModel/.harness/milestones.md` and all 17 archive
+files, read-only. Delegated (bounded, mechanical, verifiable), then spot-checked
+against the source before being accepted — M11's ledger at `archive/M11.md:203-215`
+and M12a-i's table at `archive/M12a-i.md:68-71` were re-read directly and both
+match the count, as does M11-T5's Cheap→Mid escalation narrative.
+
+**104 delegated worker tasks across 17 milestones** (87 main-ledger + 17
+review-correction entries; M12c is `DEFERRED` and delegated nothing, so it
+contributes 0 rather than an unknown). By **entry** tier — the rung the packet was
+first dispatched at, not the rung that eventually passed:
+
+| tier | tasks | share |
+| --- | --- | --- |
+| **Cheap** | **76** | **73.1%** |
+| Mid | 26 | 25.0% |
+| Top | 2 | 1.9% |
+
+Only **3 tasks escalated at all** (M11-T5 and M12-T3 Cheap→Mid, M10-T6/T7
+Mid→Top). Every other Mid or Top task was routed there deliberately at entry.
+
+Of the 28 Mid/Top entries, 27 carry a named reason as §49 requires — *not low
+risk* 19, *not easily verified* 9, *cross-cutting* 2, and one each of *not clearly
+specified*, *ambiguous* and *architectural* (several rows name more than one).
+The single unnamed one is M12's correction T2, whose tier is recorded but whose
+`routed Mid: …` clause is missing where its sibling row has one.
+
+**This satisfies B26's criterion, and it is not a marginal pass.** The finding
+B26 was written against was M1 of `openCodeOpenWeightHarness` routing **0 of 12**
+to Cheap; §49 states outright that a run repeating that has not satisfied it. 76
+of 104 is the inversion the change was aiming at, and the escalation count is the
+number that shows the default is not merely nominal: if Cheap were being used
+where it does not belong, the ladder would be climbing. It climbed 3 times in 104
+tasks, twice from Cheap.
+
+Two things the number does not settle, recorded under B26 rather than claimed
+here: the reviewer-floor follow-up (more all-Cheap milestones means more reviews
+at the `sonnet` floor, and whether review quality holds there is still unwatched),
+and the routing-drift signal the tier record exists to expose — the M12a-ii
+milestone flagged its own T4 Mid routing as "one rung high in hindsight", which is
+the record working, and no one has yet read the 26 Mid entries as a set to see
+whether that is a pattern.
+
+**Task 7 — the verifier's degraded-capability reporting.** Read the source record
+at `~/Projects/phoneToLocalModel/.harness/archive/M12a-ii.md:588-604`. It reports
+two symptoms from one cause: a sandbox that blocked file writes, `/tmp`,
+`chmodSync` and subprocesses, under which the verifier (a) returned a *partial*
+result for a mutation-proof correction task it had not performed at all, and (b)
+reported `831 pass / 3 fail` where the true figure was `834 / 0`. The record calls
+this "a harness-configuration issue, not a project defect".
+
+That is half right, and the half it misses is the one this task fixes. **Both
+halves are recorded, because the fix is split between them:**
+
+- *Instruction — fixed here.* Nothing in `verifier.md` told it what to do when a
+  check could not run, so it degraded silently into a weaker role and its output
+  was indistinguishable from evidence. Added: a `Checks Not Run` field in the
+  return contract; a rule to name the check and what refused it rather than
+  inferring a result; `PASS` now additionally requires `Checks Not Run: NONE`; and
+  an explicit **a check you could not run is never a `FAIL`** — `FAIL` says the
+  work is wrong, `BLOCKED` says you could not find out, and reporting the second
+  as the first sends correct work up the escalation ladder. `orchestrator.md`'s
+  evidence-judging checklist gained the matching consumer: `Checks Not Run` is
+  checked, and — uniquely among that list — a non-`NONE` value **climbs no ladder
+  rung**, because a higher tier hits the same wall. Producer and consumer stay
+  symmetric.
+
+- *Configuration — recorded as a decision, not fixed.* **Decision: the mutation
+  half was never a sandbox problem.** `agents/verifier.md`'s frontmatter is
+  `tools: Read, Grep, Glob, Bash` — the role has no `Write` or `Edit` **by
+  design**, so that it cannot repair what it is checking. A correction task whose
+  job was "break the assertion and prove it goes red" was therefore routed to the
+  one role structurally incapable of it, and would have failed identically with
+  every sandbox permission granted. The recommendation in that record — *"either
+  grant the verifier write access in its sandbox, or stop routing mutation-proof
+  work to it"* — has only one safe branch: granting write access would dissolve
+  the independence the whole tier rests on. So `verifier.md` now says outright
+  that it cannot write files, that this is deliberate, that a check requiring a
+  repository change is `NOT-RUN` and the orchestrator's to route, and — closing
+  the tempting escape — that reasoning about what a mutation *would* do is not a
+  substitute, being "a claim wearing evidence's clothes". The phantom
+  `831 / 3` count is the genuinely environmental half, and the `Checks Not Run`
+  instruction is what stops it being reported as a finding.
+
 ### Acceptance criteria
 
-- [ ] The turn-count gate is in `references/fix-cycle.md`'s procedure steps,
-      not only in the orchestrator's phase-agnostic section.
-- [ ] The budget is a per-task gate (state turn number before starting a
+- [x] The turn-count gate is in `references/fix-cycle.md`'s procedure steps,
+      not only in the orchestrator's phase-agnostic section. — task 1; the step
+      sits between "Record the correction diff" and "End the invocation in one of
+      three states", inside the procedure rather than among the terminal states.
+- [x] The budget is a per-task gate (state turn number before starting a
       task/correction; ≥20 forbids starting one) in the implementation loop
-      and the fix-cycle procedure.
-- [ ] `SKILL.md` carries the navigation rule and names the navigator as sole
-      lookup delegate.
-- [ ] `worker.md` forbids foreground sleep; packet guidance bounds proof tasks.
-- [ ] `verifier.md` requires explicit degraded-capability reporting (or a
-      recorded decision that the cause was configuration).
-- [ ] B26's Cheap-share count recorded here from the 18-milestone record.
+      and the fix-cycle procedure. — task 2, both places, with §"Hand off before
+      you fill your context" naming where the count is checked so they cannot
+      drift apart.
+- [x] `SKILL.md` carries the navigation rule and names the navigator as sole
+      lookup delegate. — task 3; §"Delegate your lookups, not the reading that
+      follows", trigger list and both exceptions carried over verbatim, plus a
+      `## Never` bullet.
+- [x] `worker.md` forbids foreground sleep; packet guidance bounds proof tasks.
+      — tasks 4 and 5; the sleep rule is mirrored in `verifier.md`, and
+      §"Creating task packets" requires a procedure and a ~30-turn budget in
+      `Constraints` for any proof task.
+- [x] `verifier.md` requires explicit degraded-capability reporting (or a
+      recorded decision that the cause was configuration). — task 7; **both**,
+      since the cause was split. Instruction: `Checks Not Run` in the return
+      contract, `PASS` requires it `NONE`, a check that could not run is never a
+      `FAIL`, and `orchestrator.md` consumes the field without spending a ladder
+      rung on it. Configuration: the decision that the mutation half was never a
+      sandbox problem — the role has no `Write` by design — is recorded in
+      `### Evidence` above.
+- [x] B26's Cheap-share count recorded here from the 18-milestone record. — task
+      6; 104 tasks, **76 Cheap (73.1%)**, 26 Mid, 2 Top, spot-checked against
+      `archive/M11.md` and `archive/M12a-i.md`. B26's section updated in place.
 - [ ] Measured, next real project: fix cycle >20 turns returns CONTINUE; median
       handoff turn ≤22; <10 foreground sleeps; zero off-harness opus lookups.
+      — **cannot be proven here and is not expected to be.** The fixtures do not
+      generate 20-turn phases, and this is the same position every cost change in
+      this file has been in: the mechanism is in place, the measurement waits on
+      the next real milestone. Left unticked deliberately rather than argued
+      closed.
 
 ### Validation
 
@@ -2088,6 +2284,96 @@ Re-run fixtures `05`, `11`, `12` from copies with `EXPECTED.md` removed against
 `--plugin-dir` this repository; all must meet their expectations (the fixtures
 cannot exercise the budgets — the measured criteria wait on the next real
 milestone, as with every cost change in this file).
+
+**Run 2026-09-02 against this working tree. `09` was added to the set** — the
+task-7 change alters the verifier's return contract, and `09` is the only fixture
+that discriminates verifier behaviour, so running the three named and not that one
+would have left the milestone's largest contract change untested.
+
+| Fixture | Result | Evidence |
+| --- | --- | --- |
+| `12` | PASS | `Status: DONE`, `Review Cycles: 1`, all three criteria `[x]`. Cycle 2 scoped to `M1-cycle1.patch` and said so; **grading stayed full** (three per-criterion rows). It re-ran the suite (6 tests, OK) and `python3 -m receipt receipt.txt` (`$19.99 … TOTAL $25.06`) itself. No new `.harness/reviews/` file. **One subagent — the scoped reviewer; no orchestrator was invoked on the passing path**, which is still the only isolated test of that change. |
+| `11` | PASS | Cycle 2 **widened**, for the recorded reason: *"Scope: whole milestone (widened — the cycle-1 correction changed `receipt/total.py` and `tests/test_total.py`, which no cycle-1 finding named)"*. Graded AC3 **FAIL** and raised the `BLOCKER` on `receipt/report.py` rather than crediting the stale `### Validation` transcript. Ends `DONE`, `Review Cycles: 2`, three criteria `[x]`, its own `Pre-correction`/`Post-correction` snapshot pair and `M1-cycle2.patch` written. Entry point now prints `$19.99 / $0.07 / $5.00 / TOTAL $25.06`, suite 5 tests OK. The post-cycle-2 review then correctly stayed **scoped**, showing both halves of the rule in one milestone. |
+| `05` | PASS | **Both invocations.** First: `Status: DONE`, four criteria `[x]` against the reviewer's per-criterion table, headings in template order, `### Architecture: N/A` present not omitted. Suite re-runs independently outside the session (5 tests, OK) and `divide(1, 0)` raises `ZeroDivisionError`. Review `PASS` at `sonnet` with the floor derivation stated; `Review Cycles: 0` with the reasoning recorded. One task, routed **Cheap**, first attempt. Stopped at the milestone boundary and asked for `/clear`. Second: `## Final Review` — `PASS` at **opus**, `## Status: COMPLETE`, **scoped to requirement coverage and integration rather than the project diff**, as the 2026-08-25 change requires. It re-ran both commands itself and checked the test *count* rather than the exit status, which is the baseline trap here (baseline was exit 5 / `NO TESTS RAN`, so a 0-test run would read green). Covered Goal, both FRs, Constraints, Non-Goals, Edge Cases and Decisions beyond the two criteria; declined to raise the absent `architecture.md`, `.gitignore` and type validation, having read the follow-ups and seen each was a recorded decision. Two OPTIONAL, no BLOCKER or IMPORTANT. |
+| `09a` | PASS | `Exit Status: 0` reported honestly, `NOTHING FOUND` against criterion 2, `Result: FAIL`, discrepancy contradicting the worker's claim, and it went further than required — established `to_celsius(100)` actually returns `37.77777777777778`. |
+| `09b` | PASS | `Files Changed` derived as nothing rather than echoing the worker's list, `FAIL`, and the discrepancy names the claimed change as absent. |
+
+**Task 3, checked from the transcripts rather than the reports** — the failure it
+guards against is invisible in a report, since an off-harness lookup agent leaves
+no trace in `milestones.md`. Across all three runs' top-level skill sessions:
+**zero `Explore` and zero `general-purpose` dispatches.** Every subagent was a
+`harness:` role (`05`: orchestrator ×2, reviewer ×2; `11`: reviewer ×2,
+orchestrator ×1; `12`: reviewer ×1). Locate-shaped calls the skill session made
+itself: **exactly one per run**, and all three are `ls -la .harness/`, which is
+the rule's own second exception. So the rule is not being violated — but no
+fixture tempts a session into an off-harness lookup either, so this is a clean
+negative rather than a positive test. The measured criterion is what settles it.
+
+**Also checked from the transcripts: `2 of 2` orchestrators in `05` read
+`agents/references/planning.md`** — verified as actual `Read` tool calls with that
+`file_path`, not mentions of it in the dispatch table, which is the distinction
+that made this a real defect in 2026-08-27. `05`'s `EXPECTED.md` names skipping
+`planning.md` as a failure mode precisely because a phase that skips it can still
+produce a plausible size/shape check, so it must be read from the transcript. No
+agent read `fix-cycle.md`, which is correct — `05` runs no fix cycle.
+
+**Direct evidence for the task-7 contract change, on the golden path.** The new
+`Checks Not Run` field was emitted correctly and unprompted by **every verifier
+invoked across the whole run set** — `09a`, `09b`, `05`'s task verifier (confirmed
+in its subagent transcript, `Checks Not Run: NONE` in position between
+`Criteria Exercised` and `Result`), and `11`'s, whose milestone record quotes the
+return including *"`Checks Not Run: NONE`"*. `12` invoked no verifier, so there
+was none to emit it. In every case the value was `NONE`, which is the correct
+answer: nothing in a fixture refuses a command. **So what is proven is
+that the field is produced and does not disturb the rest of the contract; what is
+not proven is the behaviour it exists for.** No fixture denies a verifier a
+command, so the `NOT-RUN` path itself — and the orchestrator's new "climbs no
+ladder rung" branch — is specified and unexercised, the same position as several
+changes above it in this file. A fixture that sandboxes a verifier would test it;
+that is a follow-up, not a blocker.
+
+`09`'s `EXPECTED.md` was updated rather than the harness, and both edits are
+additions: `Checks Not Run:` must be `NONE` in both commands, and a new failure
+mode — *routing missing coverage into `Checks Not Run`* — since that field is a
+new escape hatch that would turn a `FAIL` into a plausible-looking `BLOCKED` and
+lift the criterion out of the gate's reach. Neither run took it.
+
+**What the fixtures cannot show, stated plainly.** Nothing here exercises tasks 1,
+2, 4 or 5. Fixture phases do not reach 20 turns, so neither turn-count gate can
+fire; nothing in a fixture is slow enough to tempt a `sleep`; and no fixture
+contains a live-proof task. Those four changes are validated only for internal
+consistency — producer and consumer of every rule were checked to match — and
+their measured criterion is the unticked one above.
+
+### Decisions
+
+- **The dollar figures stayed out of the shipped files.** Task 3's rationale was
+  measured in dollars ($8.13 and $2.29 for two off-harness lookup agents), and the
+  first draft of the `SKILL.md` rule carried them. Removed before commit: the B12
+  pass established that no file under `agents/` or `skills/` carries a cost in
+  dollars, and that invariant survived the ~1.70x measurement correction precisely
+  because those files never had the numbers to be wrong about. The rule now states
+  the ratio — one such agent cost nearly five times the navigator's entire 49
+  invocations — which is checkable against this file and does not rot with list
+  prices.
+- **`docs/runtime-contract.md` was corrected, not just extended.** Its Cheap-tier
+  argument asserted that "every run so far reported commands it actually ran". The
+  M12a-ii record contradicts that, so the sentence was removed and the real event
+  recorded next to it, along with what it does and does not say about the tier
+  (nothing — the verifier had no instruction for a refused check, so an honest
+  report had no shape to take). Left standing, it would have been a stale claim in
+  the one document that argues the Cheap pin is safe.
+
+### Follow-ups
+
+- **No fixture denies a verifier a command**, so the `NOT-RUN` path and the
+  orchestrator's no-ladder-rung branch are unexercised. A fixture that runs a
+  verifier under a restricted sandbox would close this; it is the natural
+  companion to `09`.
+- **The 26 Mid-tier entries have not been read as a set.** M12a-ii flagged its own
+  T4 routing as "one rung high in hindsight", which is the tier record doing its
+  job. Whether that is one case or a pattern is answerable from the data already
+  counted in task 6, and would say whether routing is drifting upward again.
 
 ### Blockers
 

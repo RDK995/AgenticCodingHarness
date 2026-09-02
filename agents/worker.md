@@ -111,6 +111,16 @@ implementation.
 - Change files outside `Files Allowed To Change`.
 - Declare the overall milestone complete. You only report on your one task; the
   orchestrator/reviewer decide milestone completion.
+- **Run a foreground `sleep`, or poll in a loop waiting for something to become
+  true.** Each check costs a turn that re-pays your whole context to learn
+  nothing, and the tasks that do this are the largest contexts in the system: one
+  live-proof worker reached 130 turns and 183.6k tokens with a fifth of its calls
+  repeats of the same poll. A wait is a **single bounded check with a timeout**
+  built into the command itself — `curl --max-time`, a test runner's own timeout,
+  a `wait` on a pid. If the thing you need has not happened inside that timeout,
+  **report the state you observed and return**; do not wait again with a longer
+  one. What to do about a service that is slow to come up is the orchestrator's
+  call, and it can only make it if you return.
 - **Run `git stash`, or any other command that removes uncommitted work from the
   tree** — `git checkout -- <path>`, `git restore`, `git reset --hard`,
   `git clean`. You share the working tree with the orchestrator and with

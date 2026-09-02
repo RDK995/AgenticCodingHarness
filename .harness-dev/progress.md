@@ -2,12 +2,19 @@
 
 ## Current
 
-Milestone: B28 — Close the defects the 2026-09-02 measurement found (post-V1)
-Task: none outstanding — all 7 implemented and fixture-validated.
-Status: REVIEW (7 of 7 tasks done; 6 of 7 acceptance criteria proven).
+Milestone: B29 — Skill session diet (post-V1)
+Task: validation — re-run fixtures `11` and `05` to completion once the account
+usage limit resets. All four tasks are implemented; `12` passed complete, `11`
+and `05` were killed mid-run by the limit.
+Status: IN_PROGRESS (4 of 4 tasks implemented; 3 of 4 acceptance criteria proven;
+validation incomplete for environmental reasons, recorded under B29).
 
-**Not `DONE`, deliberately.** The completion gate requires evidence for every
-acceptance criterion, and criterion 7 — *fix cycle >20 turns returns CONTINUE;
+Also open: B28 at REVIEW (7 of 7 tasks done, 6 of 7 criteria proven) — its last
+criterion is a field measurement no fixture can produce. Its section sits below
+B29's.
+
+**Why B28 is not `DONE`, deliberately.** The completion gate requires evidence for
+every acceptance criterion, and its criterion 7 — *fix cycle >20 turns returns CONTINUE;
 median handoff turn ≤22; <10 foreground sleeps; zero off-harness opus lookups* —
 names a measurement on the next real project. No fixture can produce it: fixture
 phases do not reach 20 turns, nothing in one is slow enough to tempt a `sleep`,
@@ -1157,7 +1164,7 @@ orchestrator reads the range itself.
 26. B26 — Cheap by default (post-V1) — DRAFTED; Cheap-share criterion now met (B28 task 6)
 27. B27 — The architecture is drawn, and what was built is drawn back (post-V1) — REVIEW
 28. B28 — Close the defects the 2026-09-02 measurement found (post-V1) — REVIEW
-29. B29 — Skill session diet (post-V1) — TODO
+29. B29 — Skill session diet (post-V1) — IN_PROGRESS, validation incomplete
 30. B30 — Close the three accuracy holes (post-V1) — TODO
 31. B31 — Git discipline in target projects (post-V1) — TODO, ruling recorded
 32. B32 — Navigation extras: state ledger and symbol map (post-V1) — TODO
@@ -2381,7 +2388,7 @@ None.
 
 ## B29 — Skill session diet (post-V1)
 
-Status: TODO
+Status: IN_PROGRESS
 
 The skill session is $212.97 — 35% of project spend, second-largest cost centre
 — with peaks of 171k, up to 98 turns, and 810k output tokens (12x the
@@ -2413,6 +2420,143 @@ task 1 finds it.
    early in stable prefixes; append-only phrasing for state the context carries
    forward. Cheap to do alongside; do not restructure for it.
 
+### Task 1 — what the skill session actually does (2026-09-02)
+
+Measured across **all 27 top-level sessions** rather than the 3–4 the task asked
+for, because the aggregate was cheap once the parser existed. **$217.53** by this
+script against the $212.97 recorded earlier — same measurement, minor method
+drift, and the shape below is unaffected.
+
+**A method error, caught and corrected mid-task, worth recording because it
+inverted the answer.** The first pass deduplicated assistant records by
+`message.id` *before* counting tool calls, and concluded that 201 of 262 turns
+(77%) were text-only — a dispatcher narrating. That is wrong, and it is precisely
+the artefact the CORRECTION section near the top of this file warns about: one API
+response is split across several records sharing a `message.id`, the text block in
+one and each tool call in another, so deduplicating first discards the tool calls
+and leaves the prose. Corrected method: **deduplicate `usage` by `message.id`, but
+count `tool_use` blocks across every record.** The corrected figure is the
+opposite — **728 of 834 API calls (87%) carry a tool.** The session is not
+narrating idly.
+
+**Where the output tokens go — 1,325,594 characters of assistant output:**
+
+| | chars | share |
+| --- | --- | --- |
+| **`Bash` → `milestones.md`** | **395,962** | **29.9%** |
+| prose the human reads | 322,025 | 24.3% |
+| subagent dispatch prompts (88) | 280,135 | 21.1% |
+| `Bash` → elsewhere | 111,845 | 8.4% |
+| `Bash` → other `.harness/` files | 91,222 | 6.9% |
+| `AskUserQuestion` (23) | 66,735 | 5.0% |
+| `Edit` / `Write` | 42,314 | 3.2% |
+
+**So B29's premise needs amending, and the task-2 hypothesis was aimed at the
+wrong quarter.** In-context narration and planning was the suspect; prose is
+**24%** of output, its median block is 168 characters, and only 7 blocks exceed
+4,000. What actually dominates is **shell commands operating on harness state**:
+598 `Bash` calls, 66% of them touching `.harness/`, 52% touching `milestones.md`
+alone. The session is not a dispatcher that talks too much. It is a **shell
+operator doing state-file surgery**, at roughly **7 Bash calls per dispatch**.
+
+Splitting those 312 `milestones.md` commands by shape:
+
+- **read-shaped: 213 calls, 83,546 chars, avg 392** — `awk`/`sed`/`grep` pulling a
+  range out of the state file. Small individually; this is navigator work, and
+  B28 task 3 already routes it (see the gap that measurement exposed, below).
+- **write-shaped: 99 calls, 277,162 chars, avg 2,799** — and this is the single
+  largest avoidable line in the whole session. The two biggest are **15,590 and
+  15,079 characters of review report**, re-emitted verbatim through
+  `cat > .harness/reviews/M10-cycle1.md <<'REPORT_EOF'`.
+
+**That is the defect, and it is a known one in a new place.** B25 change 3
+established that a task packet is written once and passed by path, because
+re-emitting it into a prompt pays for it twice. Review reports are the larger
+document and were exempt by accident: `SKILL.md` line 139 said *"write its report
+verbatim to `.harness/reviews/M<n>-cycle<c>.md`"*, so the report was **paid for
+three times** — once as the reviewer's output, once as the skill's input reading
+the return, and once more as the skill's output re-emitting it into a heredoc. The
+fix cycle's half was already correct (*"The cycle-1 review report is at
+`.harness/reviews/M10-cycle1.md`. Read it there."*); it was the write that leaked.
+
+**Dispatch prompts are healthy and were left alone.** 88 dispatches, 262,746
+chars, mean 2,985, median 2,690 — no outliers, and the by-path rule visibly
+holds in the samples read. This is the legitimate cost of dispatching.
+
+**A gap in B28's own navigation rule, exposed by this measurement.** Counting
+which utilities the sessions actually invoke: `grep` 376, `head` 320, `sed` 245,
+`ls` 108, `tail` 42, `wc` 39 — all named by the trigger list — but **`awk` 100,
+named by neither copy of the rule**, and `awk` is the tool the state-file range
+extraction is mostly written in. A rule can only route what it names. `awk` added
+to the trigger list in both `agents/orchestrator.md` and `skills/implement/SKILL.md`.
+`cat` (123) was considered and **not** added: reading a whole file is reading, and
+the rule's own line is *the navigator finds, you read*.
+
+**The prose quarter, classified by a delegated read** (the four largest sessions,
+25 blocks read in full, the rest from previews; its independently-derived turn
+and output-token totals matched this file's exactly, which is what makes the rest
+of its report worth quoting):
+
+| bucket | share of prose chars |
+| --- | --- |
+| in-context planning / design / debugging | **47.2%** |
+| status narration to the human | 28.9% |
+| dispatch decision | 9.0% |
+| completion-gate application | 8.3% |
+| human escalation and Q&A | 4.3% |
+| bookkeeping notes | 2.3% |
+| **re-emitting file content verbatim** | **0%** |
+
+**The two buckets that are the dispatcher's chartered job — dispatch decision and
+completion gate — are 17% of its prose.** And the zero is the useful number: the
+session never pastes a report or a diff back into the conversation, because the
+re-emission does not happen in prose at all. It happens in tool inputs, as the
+heredocs above. A prose-only audit would have found nothing and concluded there
+was nothing to cut.
+
+**Three findings from that read that changed what got implemented:**
+
+1. **`Skill` calls do not delegate.** Unlike `Agent`, a `Skill` call injects its
+   instructions into the *same* transcript and the same session executes them,
+   billed to that session's output. So a `roast-requirements` invoked mid-implement
+   is not a cheap hand-off to somewhere else — it is the implement session doing
+   requirements work at its own accumulated context size. This is *why* task 3's
+   chaining is expensive, and it was assumed rather than known before.
+2. **The skill has written a review report itself.** One session read the source,
+   diagnosed the defect, and authored a 6,414-character findings report with
+   numbered `BLOCKER`s at `.harness/reviews/M12-cycle1.md` — using `Write`, in
+   the one context that is not independent of the work under review. That is a
+   correctness failure, not a cost one. Two `## Never` entries added: never write
+   a review report yourself, never root-cause a defect yourself.
+3. **The state file was 2,081 lines against a 400-line archiving threshold**, and
+   archiving was declined twice mid-milestone — correctly, since a scripted edit
+   to a live state file had already corrupted it once. The cost lands on every
+   later edit: in one session, 21 `Edit` calls against that file averaged 1,664
+   characters and were **39% of the session's entire tool input**, because an
+   `Edit` must quote enough context to match uniquely and an oversized file makes
+   every match dearer. Nothing in the loop noticed — the orchestrator checks size
+   when it plans, by which point it has read the file. `SKILL.md` now checks at
+   the milestone boundary, which is the safe place to raise it, and asks the
+   navigator for the count rather than running `wc` itself.
+
+**Task 3's evidence, and it is sharper than the section assumed.** The drift is
+not occasional — it is **skill chaining**, and the chained sessions sit at the top
+of the cost table:
+
+```
+e16720bd  $17.01  162k peak   roast-requirements → architect → implement
+64e83799  $19.38  162k peak   implement (impl phase, cycle-1 review, fix cycle,
+                              cycle-2 review) → THEN roast-requirements
+824e6946  $11.04  129k peak   roast-requirements → architect
+```
+
+The entry gate said *"substantial work **unrelated** to the milestone about to
+run"*, and every one of these is **related** — the roast and the architecture are
+exactly what the milestone implements. The gate's wording waved through the most
+expensive shape there is. And `64e83799` runs the other way: a full implement loop
+first, then a requirements roast at 162k, which no entry gate can catch because
+implement had already started.
+
 ### Decisions taken in advance
 
 - **Not moving the skill loop off opus in this milestone.** Its completion gate
@@ -2421,18 +2565,123 @@ task 1 finds it.
   record the split as a proposal here for a later milestone — the same shape as
   the B26 decision, measurement before argument.
 
+  **Task 1 did show a mechanical majority, so the proposal is recorded — and not
+  acted on.** Of 748 tool calls, 598 are `Bash` and 87 are dispatches; 66% of the
+  Bash touches `.harness/`. Reading a range out of `milestones.md` with `awk`,
+  writing a heredoc back, `mkdir -p .harness/reviews` — none of that is
+  judgement, and it is the clear majority of the session's tool traffic and 45%
+  of its output characters.
+
+  **The proposal for a later milestone:** the judgement duties are small,
+  identifiable and rare — deriving the reviewer tier, applying the completion
+  gate against the per-criterion table, deciding the dispatch, and reading a
+  return well enough to disbelieve it. Everything else is bookkeeping. A split
+  would keep those four at the top tier and move the state-file mechanics
+  down. **Not done here for three reasons, all of which should be tested before
+  anyone tries it:** (1) B29's own cuts remove much of the mechanical bulk
+  outright — the report round-trip and the navigator-routed lookups — so the
+  ratio this proposal rests on will have moved by the time it could be
+  implemented, and it should be re-measured, not assumed; (2) the split point is
+  a *conversation boundary*, not a subagent boundary, and this harness has no
+  primitive for running part of a skill session at a different tier — inventing
+  one is exactly the "unnecessary workflow infrastructure" V1 refuses; (3) the
+  gate and the disbelieving are interleaved with the bookkeeping turn by turn,
+  not separable into a phase. Re-measure after B29 lands before reopening this.
+
+### Task 4 — KV-cache hygiene: already satisfied, and recorded rather than changed
+
+Checked rather than assumed, and no change was needed. **Zero volatile markers in
+any shipped prompt**: `grep -cE '20[0-9]{2}-[0-9]{2}-[0-9]{2}'` returns 0 for all
+of `agents/*.md`, `agents/references/*.md` and `skills/implement/SKILL.md`, and
+the first 20 lines of each carry no dates, turn counters, cycle numbers or dollar
+figures. The B12 deletion pass had already removed the measurement prose that
+would have carried them, for unrelated reasons.
+
+The task-packet contract is **already append-only in the right direction**:
+`Previous Attempt(s)` and `Escalated: tier` are the last two fields of the
+contract in `agents/worker.md`, so a retry appends to a prefix (`Goal` … `Return`)
+that is byte-identical to the one the first attempt got. That is the property
+this task was asking for, and it was there before the task existed.
+
+The section says *"cheap to do alongside; do not restructure for it"*, and the
+honest outcome is that there was nothing to do. Recorded as a verified negative
+rather than left ambiguous, because "we did a hygiene pass" and "the files were
+already clean" are different claims and only the second one is true.
+
 ### Acceptance criteria
 
-- [ ] Task 1's classification recorded here with turn counts.
-- [ ] The cuts implemented, each traceable to a classified cause.
-- [ ] Provenance gate covers mid-session scope changes.
+- [x] Task 1's classification recorded here with turn counts. — 27 sessions, 834
+      API calls, 728 carrying a tool, the full output-character breakdown above,
+      and the method error that inverted the first answer recorded with it.
+- [x] The cuts implemented, each traceable to a classified cause.
+      **Cut 1 — the reviewer writes its own report** (`agents/reviewer.md`
+      §"Where the report goes", `skills/implement/SKILL.md` in three places, the
+      `reviewer` row of `docs/runtime-contract.md`). Cause: 99 write-shaped
+      `milestones.md`/`.harness` commands, 277,162 chars, the two largest being
+      15.6k and 15.1k of review report re-emitted through a heredoc.
+      **Cut 2 — `awk` added to both navigation trigger lists.** Cause: `awk` is
+      used 100 times for state-file range extraction and was named by neither
+      copy of the rule, so B28 task 3 could not route it. `cat` considered and
+      rejected with the reason recorded.
+      **Not cut: prose.** The hypothesis in task 2 was in-context narration and
+      planning; measured, prose is 24% of output with a 168-character median
+      block. Cutting it would have been the wrong target, and the section's own
+      instruction — *do not guess at the cut list: task 1 finds it* — is what
+      stopped that.
+- [x] Provenance gate covers mid-session scope changes. — both directions.
+      Entry: any prior harness skill in the session is now a stop, with
+      "related work counts" stated explicitly, because *related* is the case the
+      old "unrelated" wording waved through and all three measured chained
+      sessions were related. Exit: a requirements change, scope re-negotiation
+      or next-milestone planning arising mid-implement is a stop — record it and
+      hand back for a `/clear`. Both have `## Never` entries.
 - [ ] Measured, next real milestone: skill session <20% of milestone cost and
-      peak context <90k.
+      peak context <90k. — **waits on a real run, as with every cost change in
+      this file.** The fixtures cannot produce it: their skill sessions are 7–18
+      tool calls against the measured project's 834 across 27.
 
 ### Validation
 
 Fixtures `05`, `11`, `12` as in B28. The cost criterion waits on the next real
 milestone.
+
+**Run 2026-09-02. One fixture completed; two were killed mid-run by an account
+usage limit** ("You've hit your session limit · resets 11:40pm"). That is an
+environment failure, not a harness result, and it is recorded as such — the same
+standard B28 task 7 just wrote into `verifier.md`: *a check you could not run is
+never a `FAIL`.* The partial evidence below is real and is labelled as partial;
+the end-state expectations for `11` and `05` are **NOT-RUN**.
+
+| Fixture | Result | Evidence |
+| --- | --- | --- |
+| `12` | **PASS — complete** | `Status: DONE`, `Review Cycles: 1`, three criteria `[x]`, one subagent (the scoped reviewer), no orchestrator, and **no report file written** — the seeded `M1-cycle1.patch` is all that is in `.harness/reviews/`. |
+| `11` | **PARTIAL — cut off** | Got through the cycle-2 review and the fix cycle: the review graded **AC3 FAIL** and raised the `BLOCKER` on `receipt/report.py`, the fix cycle ran, and the entry point now prints `TOTAL $25.06` correctly. Killed before the re-review, so it sits at `Status: REVIEW`, `Review Cycles: 1`, 0 criteria ticked. Its end state (`DONE` at `Review Cycles: 2`) is **NOT-RUN**. |
+| `05` | **PARTIAL — cut off** | Reached `Status: IN_PROGRESS` with four criteria ticked and a green suite. Everything past that is **NOT-RUN**. |
+
+**What the partial runs do establish, because it happened before the cut.** Both
+branches of the new reviewer-writes-its-own-report rule fired correctly, and the
+numbers are the point of the change:
+
+- **`CHANGES REQUIRED` branch (`11`).** The reviewer ran
+  `mkdir -p … && cat > …/M1-cycle2.md` itself and wrote a **6,754-character**
+  report. Its return to the skill was **1,392 characters** — verdict,
+  per-criterion table, path, and finding counts. The skill session made **zero**
+  writes of that file; its only two tool calls naming it are the reviewer
+  dispatch and the fix-cycle dispatch. Under the old rule those 6,754 characters
+  would have been in the return *and* in a heredoc the skill emitted.
+- **`PASS` branch (`12`).** The reviewer wrote nothing, which is what a passing
+  review should do, and the skill's dispatch carried the instruction that makes
+  it work: *"If your verdict is CHANGES REQUIRED, write your full report to
+  `.harness/reviews/M1-cycle2.md`. Return to me only: the verdict, the
+  per-criterion table, and the report path. Do not return the findings in full."*
+
+**Two changes landed after these runs started and are therefore unvalidated by
+them**: the state-file archiving check at the milestone boundary, and the two
+`## Never` entries forbidding the skill from writing a review report or
+root-causing a defect itself. They are consistency-checked only.
+
+**Outstanding before B29 can be `DONE`:** re-run `11` and `05` to completion on
+the current tree, once the usage limit resets.
 
 ### Blockers
 

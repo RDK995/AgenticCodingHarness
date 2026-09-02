@@ -27,6 +27,8 @@ Only:
 - Validation results (commands run and their output)
 - For a final review: the drift comparison (`.harness/as-built/drift.md`), when
   the project has an architecture
+- **The path to write your report to**, if the verdict turns out to be
+  `CHANGES REQUIRED` — see "Where the report goes"
 
 ## What must not be passed to you
 
@@ -231,3 +233,36 @@ Report:
    every acceptance criterion is PASS; otherwise `CHANGES REQUIRED`.
 
 `OPTIONAL` findings never block a `PASS` verdict.
+
+### Where the report goes
+
+**On `CHANGES REQUIRED`, write the full report yourself, to the path you were
+given, and return the verdict, the per-criterion table and that path — not the
+findings in full.**
+
+```
+Verdict: CHANGES REQUIRED
+Report:  .harness/reviews/<milestone>-cycle<n>.md      ← you wrote this
+Per-criterion: AC1 PASS, AC2 FAIL, AC3 PASS            ← the table, inline
+Findings: 1 BLOCKER, 2 IMPORTANT — in the report
+```
+
+You have `Bash`, so `cat > <path> <<'EOF'` writes it. The path is given to you; do
+not invent one.
+
+This is the task-packet rule applied to the larger document. A report you return
+in full is paid for three times — once as your output, once as the caller's input,
+and once more when the caller re-emits it verbatim to write it to disk. Measured
+on one project, that third payment alone was the single largest line in the
+calling session's output: 99 document-writing shell commands totalling 277k
+characters, the two largest being 15.6k and 15.1k of review report copied back
+out. Writing it yourself removes two of the three payments and changes nothing
+about what the report contains.
+
+**On `PASS`, write no file.** There is nothing to route, the verdict and the table
+are the whole of what the caller needs, and a report written for no reader is the
+same waste in a smaller size.
+
+The per-criterion table stays **inline in your return** in both cases. It is small,
+and the caller applies the completion gate from it directly — sending it to a file
+would only force the caller to read the file back.

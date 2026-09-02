@@ -18,8 +18,10 @@ phase, and invoking the `harness:reviewer` subagent yourself for every review.
 ```
 Check what is already in your own context, before reading anything.
 
-IF this session has already driven a milestone to DONE, or carries
-substantial work unrelated to the milestone about to run:
+IF this session has already driven a milestone to DONE,
+OR has already run another harness skill (roast-requirements,
+   architect) — related work counts, and is the common case,
+OR carries substantial work unrelated to the milestone about to run:
     STOP — tell the human to /clear and re-invoke this skill.
     Do not read requirements, architecture or milestones first:
     those reads, and every dispatch after them, are exactly what
@@ -136,7 +138,10 @@ LOOP:
             invocations on the one project this was measured on.
 
         IF it returns CHANGES REQUIRED:
-            write its report verbatim to .harness/reviews/M<n>-cycle<c>.md
+            the reviewer has already written the report to the path you
+            gave it. Do NOT write it yourself and do NOT copy its body
+            into anything — you were given a verdict, a per-criterion
+            table and a path, which is all you need.
             invoke a FRESH harness:orchestrator for ONE fix cycle, passing
             the PATH and not the report body (findings re-emitted into a
             prompt are the same defect task packets had before M4b)
@@ -188,6 +193,15 @@ Every review is invoked from here, with a fresh context, and given only the inpu
 and its acceptance criteria, the diff, relevant surrounding code, validation
 results. Never implementation discussion, rationale, or any orchestrator's
 justification.
+
+**Give it the report path it should write to** — `.harness/reviews/M<n>-cycle<c>.md`
+for a milestone review, `.harness/reviews/final-cycle<n>.md` for a final one. It
+writes that file itself if the verdict is `CHANGES REQUIRED`, and writes nothing
+if the verdict is `PASS`. What comes back to you is a verdict, a per-criterion
+table and a path. **Do not ask for the findings in full and do not write the file
+yourself:** a report that travels through your context to reach a file you then
+write is paid for three times, and on the one project this was measured that third
+payment was the largest single line in this session's output.
 
 **At no less than the highest tier that produced the work.** Read the tier
 recorded against each task in the milestone entry, take the highest, and override
@@ -282,6 +296,23 @@ carrying on anyway: the milestone boundary is the cheapest context boundary in
 the system, and it is free precisely because the state file is already required
 to survive it.
 
+**Before you hand back, check whether `.harness/milestones.md` needs archiving,
+and say so.** Ask the navigator for its line count as part of the brief you were
+taking anyway. Past roughly 400 lines it is due, per "Archiving settled
+milestones" in `references/milestones-template.md`; the orchestrator archives, and
+its next implementation phase is where that happens.
+
+The boundary is the right place to raise it because **mid-milestone is the wrong
+one, and gets declined for good reason** — a scripted edit to a live state file is
+how one project corrupted its own. Measured there: the file reached **2,081 lines
+against the 400-line threshold**, archiving was declined twice mid-milestone, and
+the cost landed on every later edit. In one session, 21 `Edit` calls against that
+file averaged 1,664 characters and made up **39% of the session's entire tool
+input**, because an `Edit` must quote enough surrounding text to match uniquely and
+a five-times-oversized file makes every match more expensive. Nothing else in the
+loop notices this: the orchestrator checks the size when it plans, and by then it
+has already read the file.
+
 **And it is checked on the way in, not only on the way out.** Stated only as an
 exit instruction, this rule lost to a session that simply never ended: one phase
 was dispatched from a session opened the previous day and already carrying 276k
@@ -294,13 +325,41 @@ The check is provenance, not a token count: a session cannot reliably measure it
 own size, but it can see whether it has already done a milestone's work. That is
 the condition that actually failed, so that is the condition to test.
 
+**Related work is the case that gets through, so it is named explicitly.** The
+gate used to say "substantial work *unrelated* to the milestone about to run",
+and the expensive sessions were all related. Measured across one project's 27
+sessions, the three that chained skills are near the top of the cost table:
+one ran `roast-requirements`, then `architect`, then `implement` in a single
+context, reaching 162k; another ran `roast-requirements` and `architect`
+together. The requirements roast and the architecture are exactly what the
+milestone implements, so "unrelated" reads as satisfied and the gate waves
+through the most expensive shape there is. **Any prior harness skill in this
+session is a stop** — a `/clear` between them costs nothing, because the files
+those skills wrote are the handoff and are already required to be sufficient.
+
+**And the drift runs the other way too.** The most expensive single session
+measured ran a milestone's whole implement loop — implementation phase, cycle-1
+review, fix cycle, cycle-2 review — and *then* invoked `roast-requirements` in
+the same context, at 162k tokens, having already paid for all four dispatches. So:
+
+> **A requirements change, a scope re-negotiation, or planning for the next
+> milestone, arising mid-implement, is a stop — not a thing to do here.** Record
+> what surfaced in the milestone's `### Follow-ups` or report it to the human,
+> then tell them to `/clear` and run the roast fresh. The same argument as the
+> entry gate, in the other direction: a roast run from a spent implement context
+> pays that context's full weight on every turn, and produces a requirements
+> document no better than one written from a clean start.
+
+This is not a rule against noticing that requirements are wrong. Noticing is
+valuable and belongs in the record; acting on it *in this context* is what costs.
+
 ## Delegate your lookups, not the reading that follows
 
 The same rule the orchestrator carries applies to you, for the same reason:
 finding your way around is not judgement, and it fills the context that dispatches
 every phase.
 
-**Before you run `wc`, `ls`, `find`, `sed -n`, `head`, `tail`, `grep`,
+**Before you run `wc`, `ls`, `find`, `sed -n`, `awk`, `head`, `tail`, `grep`,
 `git rev-parse`, `git status`, `git log` or `git branch` to find out *where*
 something is, that is a navigator call and not yours.** Batch the questions you
 have and ask them together. Two exceptions, both narrow: a single command whose
@@ -370,7 +429,8 @@ IF the reviewer returns PASS:
     tell the user implementation is COMPLETE
 
 IF the reviewer returns CHANGES REQUIRED:
-    write its report verbatim to .harness/reviews/final-cycle<n>.md
+    the reviewer has already written its report to the path you gave it
+    (.harness/reviews/final-cycle<n>.md). Do not write it or copy its body.
     invoke harness:orchestrator for a FINAL-REVIEW fix cycle, passing that PATH
     and saying every milestone is DONE — it routes the findings as bounded
     correction tasks, validates them, and records them under ## Final Review in
@@ -404,6 +464,21 @@ IF the reviewer returns CHANGES REQUIRED:
   the final review) — escalate to the human instead.
 - Never delegate a lookup to `Explore`, `general-purpose`, or any agent other
   than `harness:navigator`. See "Delegate your lookups" above.
+- Never write a review report yourself, or copy one through your context to get
+  it onto disk. The reviewer writes it to the path you gave it; you carry a
+  verdict, a per-criterion table and that path. This has happened: one session
+  read the source itself, diagnosed the defect, and authored a 6,414-character
+  findings report with numbered BLOCKERs at `.harness/reviews/M12-cycle1.md` —
+  a reviewer's artefact produced by the one context that is not independent of
+  the work.
+- Never root-cause a defect yourself. Reproducing a bug, reading the source to
+  find why, bisecting a build — that is a task to route, and the diagnosis is
+  worth what the context producing it is worth. Yours has read every dispatch
+  and return in this milestone, which is exactly the context a fresh reviewer or
+  worker is given specifically to avoid.
+- Never run another harness skill from this session — not `roast-requirements`
+  to act on a requirements problem you found mid-implement, not `architect`.
+  Record it and hand back for a `/clear`.
 - Never copy an as-built diagram into `.harness/milestones.md` or into your own
   report. The milestone record carries a path; the diagram stays in its file. A
   diagram pasted into shared state is re-read by every session that follows.

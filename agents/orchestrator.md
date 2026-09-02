@@ -289,7 +289,7 @@ tool calls from the first turn to the last, and two thirds of it happens *after*
 the opening. A rule scoped to "the first few turns" therefore misses most of what
 it was written for.
 
-So: **before you run `wc`, `ls`, `find`, `sed -n`, `head`, `tail`, `grep`,
+So: **before you run `wc`, `ls`, `find`, `sed -n`, `awk`, `head`, `tail`, `grep`,
 `git rev-parse`, `git status`, `git log` or `git branch` to find out *where*
 something is, that is a navigator call and not yours.** Batch the questions you
 have and ask them together rather than one at a time. Two exceptions, both narrow:

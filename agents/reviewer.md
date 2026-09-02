@@ -174,6 +174,22 @@ If implementation or test evidence is missing or unconvincing, the result is `FA
 — never infer completion solely from a summary written by another agent. A
 criterion with no test proving it is not proven, regardless of what anyone claims.
 
+**A criterion waived on an environmental excuse is re-probed here, by you, now.**
+"The service was not running", "the device was unavailable", "the model could not
+load" — each is a claim about the world at some earlier moment, and the world has
+since moved. Run the probe again before you accept it.
+
+**And check that the probe could tell absence from refusal.** An excuse that
+cannot distinguish *down* from *denied* is not evidence of absence. A `curl` that
+reports `000` says the client got no HTTP response — a connection refused, a DNS
+failure, a timeout, **or a flag that stopped the request ever being made**. It
+does not say the service is down. On the milestone where this was measured, the
+probe read `000` and the strongest clause of the criterion was excused on it while
+the harness was up and answering `401` — the request had never reached it. Where
+the distinction matters, demand a probe that reports a status code, and treat a
+bare `000`, an empty string or a non-zero exit with no output as *unknown*, which
+is a `FAIL` for a criterion that depends on it, not a pass.
+
 **For a criterion about a user-visible or side effect, the test must fail when the
 effect is removed and the invocation kept.** Ask it that way round: if the handler
 still fires, the event is still dispatched, the function is still called — but the
@@ -284,6 +300,13 @@ Findings: 1 BLOCKER, 2 IMPORTANT — in the report
 
 You have `Bash`, so `cat > <path> <<'EOF'` writes it. The path is given to you; do
 not invent one.
+
+**If no path was given, return the report in full instead.** That happens when
+you are invoked directly rather than through the `implement` skill — a fixture
+run, or a human asking for a review by hand. There is no caller contract to keep
+short and no agreed location to write to, so the report is the return. Writing to
+a path you chose yourself is the one wrong answer: the caller does not know where
+to look, and a file nobody reads is worse than no file.
 
 This is the task-packet rule applied to the larger document. A report you return
 in full is paid for three times — once as your output, once as the caller's input,

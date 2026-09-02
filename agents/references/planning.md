@@ -54,6 +54,21 @@ a real entry point**: a CLI invocation, an HTTP request, a public API call. If t
 only way to demonstrate a milestone is a unit test of an internal component, it is
 a component milestone and must be re-cut.
 
+**That criterion is met only by driving the built artifact the way a user drives
+it — nothing injected, nothing manually compensated.** A proof that supplies what
+the mechanism under test is supposed to supply has not exercised the entry point;
+it has exercised a path no user can take. Injecting the port the code should
+construct, calling `render()` because the subscription that should call it is
+dead, or asserting against a source module when the user runs a bundle — each
+satisfies the wording while removing the thing being proven. Write the criterion
+so the injected version cannot pass it.
+
+This clause exists because the rule above it was already in force and the hole
+stayed open anyway: on the project where this was measured every milestone had
+its entry-point criterion, and DOM wiring, a resume mechanism with zero
+production call sites, and an iOS storage assumption still reached the human
+unproven. The criterion was satisfied by proofs that supplied their own wiring.
+
 Order slices by integration risk, not by convenience. The first one should prove
 the part most likely to be wrong, because that is the evidence worth having early.
 A layered plan defers every integration risk to the end, where it costs the most

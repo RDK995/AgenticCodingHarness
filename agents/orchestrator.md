@@ -196,6 +196,15 @@ is a component milestone, and "Slice thin, end to end" above says it must be
 re-cut. A milestone whose `Architecture` field names exactly one component is the
 usual symptom, not the proof; read the criteria.
 
+**And can that criterion be satisfied by a proof that injects what the code should
+supply?** Read it as an adversary would: could I pass this by handing the system
+the port it was supposed to construct, by calling the render the subscription was
+supposed to trigger, or by testing the source when the user runs the bundle? If
+yes, the criterion is met by a path no user can take, and it needs rewording
+before you route anything against it — say so under `Follow-ups` and reword it.
+Boards planned before this rule existed are exactly where this bites, which is why
+the check is here and not only in generation.
+
 ### Splitting a milestone you did not plan
 
 Split it in `.harness/milestones.md`, then **return without implementing

@@ -2,9 +2,17 @@
 
 ## Current
 
-Milestone: none in flight. **The improvement plan from the 2026-09-02
-measurement is implemented and fixture-validated end to end — B28 through B32.**
-Task: nothing queued. The next work is a real project, not a milestone.
+Milestone: B33 — Acceptance scenarios before implementation (post-V1), queued
+by human direction 2026-09-03. B34 — Orchestrator diet and mechanical gates —
+is specced behind it; both sections are at the bottom of this file, written to
+be implemented by a fresh session from this file plus the named repository
+files alone. Implement B33 before B34: B34's deletion pass runs over sections
+B33 edits.
+
+**The improvement plan from the 2026-09-02 measurement is implemented and
+fixture-validated end to end — B28 through B32** — and the standing priority
+around both new milestones is unchanged: a real project on this harness is what
+supplies the field measurements six REVIEW milestones are waiting on.
 
 Six milestones sit at REVIEW, each held there by one or more remaining
 acceptance criteria that are field measurements no fixture can produce. **None
@@ -1171,7 +1179,7 @@ orchestrator reads the range itself.
 
 ## Milestones
 
-`12 / 12 V1 build milestones DONE` · `24 / 32 including post-V1 additions DONE`
+`12 / 12 V1 build milestones DONE` · `24 / 34 including post-V1 additions DONE`
 · `6 at REVIEW, every one waiting on the same field measurement`
 
 1. B1 — Plugin scaffold loads — DONE
@@ -1206,6 +1214,8 @@ orchestrator reads the range itself.
 30. B30 — Close the three accuracy holes (post-V1) — REVIEW
 31. B31 — Git discipline in target projects (post-V1) — REVIEW
 32. B32 — Navigation extras: state ledger and symbol map (post-V1) — REVIEW
+33. B33 — Acceptance scenarios before implementation (post-V1) — TODO
+34. B34 — Orchestrator diet and mechanical gates (post-V1) — TODO
 
 ## Reading this file
 
@@ -3524,6 +3534,164 @@ instruction set, and no fixture that runs only the happy path will find it.
   reader wanting to know whether the final review ran greps one heading, and
   giving the block a second kind of row would start it down the road to being a
   status page.
+
+### Blockers
+
+None.
+
+## B33 — Acceptance scenarios before implementation (post-V1)
+
+Status: TODO — queued by human direction, 2026-09-03.
+
+**Why.** Every accuracy failure that reached the human on phoneToLocalModel went
+through invocation-vs-effect testing or an inter-milestone coverage gap — the
+human's device was the only end-to-end detector, three times, and the M12
+cluster cost ~$164. An executable acceptance suite written from the milestone's
+criteria *before* implementation, driven through the real entry point, and
+frozen against later edits attacks exactly that class — and the freeze is the
+holdout pattern the research summary cites (ImpossibleBench: a mechanical
+"test files unchanged" gate drops test-gaming to near zero).
+
+**The decision (human, 2026-09-03).** Grain is **per milestone**, not per task:
+criteria live on milestones, and the measured project ran 104 tasks against 18
+milestones, so per-task authoring would cost ~6x and spec implementation steps
+reviewers should not be anchored to. Format is **Gherkin always** — the
+scenario document is the review artifact and must be human-readable on every
+target — with **the driver chosen by the target's surface underneath**:
+Playwright when the surface is a browser, HTTP-client bindings for an API,
+subprocess bindings for a CLI. Prefer a BDD runner the target already carries
+(cucumber-js, behave, pytest-bdd); where there is none, scenarios live as
+`.feature` text under `.harness/acceptance/` with a native-runner test file
+binding them 1:1 by scenario name — **no new dependency is installed into the
+human's repository for this** (same principle as B31's "do not `git init` a
+repository the human did not ask for").
+
+### Tasks
+
+1. **Template: an `### Acceptance Tests` field.**
+   `skills/implement/references/milestones-template.md`: new heading per
+   milestone recording the scenario file path(s), the binding test path(s), the
+   driver chosen and why (surface), and the freeze sha — the commit after which
+   no task may modify them. Retrofit rule in the ledger's style: boards written
+   before the heading existed gain it when the milestone is picked up. Archiving
+   is unaffected — the heading moves with the milestone.
+2. **Generation writes scenario-ready criteria.**
+   `agents/references/planning.md`: each acceptance criterion must be phrasable
+   as Given/When/Then through a real entry point. This sharpens the existing
+   shape check rather than adding a second one — a criterion that cannot be
+   phrased that way is the component-milestone smell already named there.
+3. **The suite is the first routed task of the implementation phase.**
+   `agents/orchestrator.md`: after the size/shape check, before any other task —
+   a packet to write the scenarios and bindings from the ACs verbatim, confirm
+   they **fail Red** against the un-implemented milestone, and commit them. The
+   orchestrator then records the freeze sha in `### Acceptance Tests`. Routing
+   rule applies unchanged ("a test written from an assertion the packet already
+   states" is Cheap). Driver-by-surface table lives here.
+4. **The freeze is checked mechanically, per task.**
+   `agents/verifier.md`: `Files Changed` intersecting the frozen paths is a
+   violation, same severity as a weakened test. The one legitimate reopen is a
+   criterion reworded through the existing escalation path, which re-freezes and
+   records why.
+5. **Review runs the scenarios and cites them.**
+   `agents/reviewer.md`, `skills/implement/SKILL.md`: the reviewer re-runs the
+   acceptance suite itself; the per-criterion table cites scenario results; the
+   completion gate adds two mechanical checks — suite green, and
+   `git diff <freeze-sha> HEAD -- <frozen paths>` empty.
+6. **Fixture validation.**
+   `05` (CLI target: scenarios written first, Red observed, frozen, `DONE` with
+   the gate's two new checks passing) and a new fixture at the next free number
+   (`15-…`): a seeded worker return whose "fix" edited a frozen acceptance test
+   to pass — the verifier must catch it mechanically. Update `EXPECTED.md`s and
+   `fixtures/README.md`.
+
+### Acceptance criteria
+
+- [ ] Template carries `### Acceptance Tests` with the retrofit rule; `05`
+      produces a milestone whose scenarios were committed and Red before any
+      implementation task ran (checkable from the branch's commit order).
+- [ ] A Gherkin scenario document exists per milestone and maps 1:1 to its
+      acceptance criteria, on a target with no BDD runner installed and no new
+      dependency added.
+- [ ] The new fixture's gamed acceptance test is caught by the verifier's
+      frozen-paths check, not by judgement.
+- [ ] Reviewer's per-criterion table cites scenario runs; completion gate checks
+      suite-green and freeze-diff-empty mechanically.
+- [ ] Field criterion, next real project: zero post-PASS escapes of the
+      invocation-vs-effect class on milestones run under this rule.
+
+### Validation
+
+Fixtures `05`, `15-…` (new), `11`/`12` re-run for regression (their seeded
+boards predate the heading — the retrofit rule is what they exercise). The field
+criterion waits on a real project.
+
+### Blockers
+
+None.
+
+## B34 — Orchestrator diet and mechanical gates (post-V1)
+
+Status: TODO — run after B33; the deletion pass runs over sections B33 edits.
+
+**Why.** `agents/orchestrator.md` is 910 lines / ~12.5k tokens — above the 912
+that triggered the 2026-08-25 split. That split measured the cost question:
+−31% prompt bought +2% cost (a wash; the definition is ~13% of an invocation).
+So this is **not a cost milestone** — a full trim recovers ~1% of project spend
+— it is a consistency one: the split's documented yield was fewer
+cross-section contradictions, three of five defects then were exactly that, and
+the four defects PR #22's review found are the same producer/consumer class.
+Shorter core, fewer contradictions. The second half converts instructions that
+measurably fail into checks that cannot: the turn budget was violated in 29 of
+44 invocations *as an instruction*.
+
+### Tasks
+
+1. **Deletion pass, B12-style: keep the rule, drop the arithmetic.** Targets in
+   `agents/orchestrator.md` (line refs as of `4c5d299`): 304-312 and 355-360
+   (navigation measurement narratives), 407-420 (compress Cheap-tier persuasion
+   to ~4 lines), 469-471, 283-286, 602-608, 173-175, 269-275 (measured-number
+   rationale; the evidence lives in this file). Keep 584-592 — the `tsc`/`NaN`
+   story is the load-bearing case for the one anti-cost rule. Target ≤ ~700
+   lines with every rule intact.
+2. **Extract the Human Escalation Contract** (~25L) to
+   `agents/references/escalation.md`, pointed to from the three paths that use
+   it — all deliberate slow paths where one extra read is free. Do **not**
+   extract git discipline or verify-judging: they fire every phase, and `05`
+   already demonstrated the must-always-rule-behind-a-maybe-read failure.
+3. **Dedupe the ledger prose.** The template owns the design
+   ("index of copies / body is authority"); `orchestrator.md`, `SKILL.md` and
+   `README.md` each restate it — cut each to one sentence and a pointer.
+4. **Mechanical gates as plugin scripts** (decision confirmed at pickup —
+   scripts ship under the plugin, invoked via `${CLAUDE_PLUGIN_ROOT}`):
+   completion-gate check (per-criterion rows vs criteria, no BLOCKER/IMPORTANT),
+   baseline sanity (40-hex, resolves, ≠ literal `HEAD` — would have caught
+   PR #22's P1 mechanically), ledger check (promote `check-ledger.py` from
+   `.harness-dev/` into the plugin), acceptance-freeze diff (from B33). Each
+   script replaces its instruction prose, so this both shortens the file and
+   removes judgement variance.
+5. **The turn-budget hook (decision, human).** A plugin `PreToolUse` hook
+   counting tool calls per session and injecting a warning at the threshold —
+   the one place runtime infrastructure has measured justification (66%
+   violation as prose). V1's no-infra principle is the counter-argument;
+   decide at pickup, and if declined, record why here.
+6. **Validation.** `05`, `11`, `12` re-run on the trimmed core — the same
+   regression bar every prior deletion pass met. Diff the rule inventory
+   before/after: every deleted line must be rationale, not rule.
+
+### Acceptance criteria
+
+- [ ] `orchestrator.md` ≤ ~700 lines with no rule removed (inventory diff
+      recorded here).
+- [ ] Escalation contract extracted; the three consuming paths point at it.
+- [ ] Mechanical checks exist as scripts and the instructions that described
+      them shrink to invocations.
+- [ ] `05`, `11`, `12` pass on the trimmed core.
+- [ ] Hook decision recorded either way.
+
+### Validation
+
+Fixtures `05`, `11`, `12`; the consistency claim is structural (line count +
+rule inventory), not a field measurement.
 
 ### Blockers
 

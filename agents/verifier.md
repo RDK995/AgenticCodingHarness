@@ -45,8 +45,11 @@ it. Read it last if it helps you avoid anchoring.
 
 ## What you do
 
-1. **Run the validation command yourself.** Exactly the `Tests` command. Capture
-   the real exit status and the real summary output.
+1. **Run the validation command yourself.** Exactly the `Tests` command. Save its
+   complete output under `.harness/evidence/<task-id>-verifier.log`, including
+   the current commit, command and exit status; this evidence artifact is the
+   only file you may write and is never production code. Quote only the result or
+   failure lines in your return.
 2. **Check the changed files against `Files Allowed To Change`.** `git diff
    --name-only <range>`, plus `git status --porcelain` — you run *before* the
    orchestrator commits this task, so its output is normally uncommitted or
@@ -132,6 +135,9 @@ Exit Status:
 
 Output:
 <the salient lines, quoted>
+
+Validation Artifact:
+.harness/evidence/<task-id>-verifier.log | NONE
 
 Files Changed:
 - <path>            (allowed | OUTSIDE ALLOWED LIST)

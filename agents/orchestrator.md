@@ -59,8 +59,8 @@ above has nothing to read.
 requirements → inspect repository → select the current one → check its
 size and shape, splitting it if it fails → open the milestone branch and record
 `### Baseline` → break it into tasks → route every task by tier → validate each
-result independently → commit each accepted task → run the milestone's validation
-→ record evidence → set `REVIEW` and return. **Do not invoke the reviewer**, and do
+result independently → commit each accepted task → record validation commands and
+artifacts → set `REVIEW` and return. **Do not invoke the reviewer**, and do
 not carry on into the review cycle: returning is what gives the review a context
 that is not already carrying the whole implementation.
 
@@ -405,9 +405,10 @@ rather than absorbing the work yourself.
 
 For each task: implement via Red → Green → Refactor (see
 `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/engineering-practices.md`), run the focused
-validation for that task, and only then move to the next task. Run the
-broadest appropriate validation for the whole milestone, record its result, set
-`REVIEW`, and return. Requesting the review is the *next* invocation's job.
+validation for that task through the worker and verifier, then record the
+milestone validation command for the reviewer to run once. Do not run task or
+milestone tests yourself unless two evidence artifacts contradict each other.
+Set `REVIEW` and return. Requesting the review is the *next* invocation's job.
 
 ### Task-level retry and escalation
 

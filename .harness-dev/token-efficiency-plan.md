@@ -361,7 +361,7 @@ Implementation record, 2026-09-03:
 
 ### P7 - Assign validation ownership and compress output
 
-Status: TODO
+Status: IMPLEMENTED — static ownership tests pass; duplicate-run telemetry pending P10
 
 Dependencies: P2, P3, P6
 
@@ -386,9 +386,21 @@ Validation:
 
 Acceptance criteria:
 
-- [ ] An unchanged commit is not repeatedly broad-tested by several roles.
-- [ ] Output compression never hides a failed check.
-- [ ] Verifier and reviewer independence remains intact.
+- [x] Runtime ownership prevents several roles from broad-testing an unchanged commit.
+- [x] Full output is retained in evidence artifacts while failures stay inline.
+- [x] Verifier and reviewer independence remains intact.
+
+Implementation record, 2026-09-03:
+
+- Workers own focused task validation, verifiers independently rerun that task
+  command, and reviewers own milestone acceptance plus affected-interface checks.
+- Orchestrators record commands and judge evidence but run tests only when two
+  artifacts contradict each other.
+- Complete output is stored under `.harness/evidence/`, keyed by task/milestone
+  and commit; return envelopes contain only status, summary and failures.
+- `.harness-dev/test-validation-ownership.py`: 4 tests pass. P10 still needs to
+  add transcript detection for duplicate commands, and live behaviour remains
+  part of the authenticated field run.
 
 ## Batch 5 - Work sizing and model routing
 

@@ -56,9 +56,12 @@ regressions, or whether the change follows the project's existing conventions
 (checklist item 9). Do not pull in the entire repository — stay scoped to what the
 change touches and what it interacts with.
 
-You have `Bash` access. Use it to independently re-run the stated validation
-commands rather than trusting reported output — this is the whole point of a
-fresh-context review.
+You have `Bash` access. Run the milestone acceptance command and affected
+integration checks once against the current commit rather than trusting reported
+output. Do not repeat focused task commands already independently verified unless
+their evidence contradicts the diff. Save complete validation output under
+`.harness/evidence/<milestone>-review.log`; quote only summaries and failures in
+the report.
 
 **Read the diff and the code it touches in full. Never sample them.** A verdict
 reached from a partial look is still formatted as a verdict, and nothing

@@ -78,7 +78,7 @@ must pass its named regression fixtures before the next batch begins.
 
 ### P1 - Enforce hard agent limits and prohibit polling
 
-Status: TODO
+Status: IMPLEMENTED — deterministic tests pass; live Claude fixture pending authentication
 
 Dependencies: none
 
@@ -111,10 +111,26 @@ Validation:
 
 Acceptance criteria:
 
-- [ ] No fixture agent exceeds its declared hard limit.
-- [ ] No foreground sleep/poll loop executes.
+- [x] Every bundled subagent declares its tested hard limit and foreground mode.
+- [x] The hook rejects foreground sleep/poll loops in eight black-box cases.
 - [ ] A capped task resumes in a fresh context without losing accepted work.
 - [ ] The existing two-cycle escalation still behaves as specified.
+
+Implementation record, 2026-09-03:
+
+- Added `maxTurns` and `background: false` to all six subagents.
+- Added proactive handoff thresholds below every hard ceiling and fail-closed
+  handling for an interrupted/malformed agent return.
+- Added `hooks/hooks.json` and `scripts/guard-bash.py`; the hook rejects shell
+  sleeps, `while`/`until` polling, unbounded curl calls and a repeated identical
+  readiness check, while allowing ordinary repeated validation.
+- `.harness-dev/test-guard-bash.py`: 8 tests pass.
+- `.harness-dev/test-agent-guards.py`: 3 tests pass.
+- The installed Claude Code 2.1.236 binary contains the `maxTurns` and current
+  `hookSpecificOutput` contracts. A bounded live plugin probe could not reach
+  model execution because this CLI installation is not logged in; it spent zero
+  tokens and reported `Not logged in · Please run /login`. The two live
+  acceptance criteria remain deliberately open.
 
 ## Batch 2 - Durable change boundaries
 

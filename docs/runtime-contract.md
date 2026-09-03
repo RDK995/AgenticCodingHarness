@@ -98,6 +98,19 @@ Do not emulate the override by editing `model:` in `agents/worker.md`, which
 promotes *every* delegated task permanently and quietly inverts the economics the
 routing rule exists to protect.
 
+**6. Hard subagent turn limits.** Every bundled subagent declares `maxTurns` and
+hands off before reaching it. The runtime must honour that field. The controller
+also handles runtimes that stop without a labelled partial result: a response
+without the role's required terminal field is `INTERRUPTED`, never evidence. Pin
+and record the runtime version used for a release instead of assuming a newly
+documented partial-result shape exists on an older CLI.
+
+**7. Plugin hooks.** The runtime must load `hooks/hooks.json` and permit its
+`PreToolUse` hook to deny a Bash call. This is the deterministic circuit breaker
+for foreground sleeps and polling loops. If policy disables plugin hooks, report
+that degradation before implementation rather than silently falling back to a
+prompt-only rule.
+
 ## Capability tiers
 
 The roles differ sharply in how much model capability they need, and the

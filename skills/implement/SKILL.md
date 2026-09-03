@@ -64,6 +64,13 @@ IF missing:
 LOOP:
     find the first milestone that is not DONE
 
+    For every subagent invocation below, validate its return contract before
+    acting on it. A response missing its required terminal field is
+    `INTERRUPTED`, including a response cut off by the runtime's hard turn cap.
+    Never infer PASS, FAIL or completion from an interrupted response. Re-enter
+    through repository state in a fresh agent; if no resumable state was written,
+    stop and report the interrupted role rather than guessing what it changed.
+
     IF none exists (all DONE):
         break out of LOOP
 

@@ -31,6 +31,23 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
 - Its headings match `skills/implement/references/milestones-template.md` exactly
   and in order.
 - `### Architecture` is `N/A` — present, not omitted.
+- **Git discipline (B31).** The work is on a milestone branch — `git branch`
+  shows one created by the run, and `git rev-parse --abbrev-ref HEAD` is it, not
+  the default branch. `### Baseline` records `<sha> on <that branch>` with a sha
+  that resolves. Each accepted task is its own commit, so `git log <baseline>..`
+  has more than one entry, and `git diff <baseline> HEAD` is the whole
+  milestone. **The default branch has no new commits, no remote was contacted,
+  and no branch was merged or deleted.** This fixture is the only one that
+  exercises the implementation phase from nothing, so it is the only place the
+  branch is actually opened.
+- **Every commit contains only what belongs in it**, because commits are staged
+  by path rather than with `git add -A`. This repository has no `.gitignore`, so
+  running the suite leaves an untracked `__pycache__/` — **it must still be
+  untracked at the end, and the missing `.gitignore` recorded under
+  `### Follow-ups`.** A non-empty `git status` is therefore the *pass* here, and
+  a `__pycache__/` committed into the human's history is the failure. (The
+  expectation originally read "`git status --porcelain` is empty at the end";
+  that was wrong, and the first run under B31 is what showed it.)
 - The test suite passes when re-run independently, outside the agent's session.
 - `divide(1, 0)` raises rather than returning a sentinel.
 
@@ -61,3 +78,7 @@ a fixture that failed to finish.
 - Demanding an `architecture.md` that this fixture deliberately does not have.
 - Implementing the non-goals (add/subtract/multiply). They are stated as out of
   scope and belong in `### Follow-ups` if raised at all.
+- **Working on the default branch, or finishing with the work uncommitted.**
+  Either leaves the milestone's diff uncomputable from git, which is the whole
+  reason B31 exists. Equally a failure in the other direction: pushing, merging
+  the branch back, deleting it, or `git init`-ing anything.

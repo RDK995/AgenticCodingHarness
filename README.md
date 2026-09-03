@@ -65,6 +65,23 @@ If the harness ever stops with `BLOCKED`, that's deliberate: it hit an
 unresolved ambiguity or two failed review cycles, and it needs a decision only
 you can make, rather than continuing to guess.
 
+## What it does to your repository
+
+Each milestone runs on its own branch — `m<n>-<slug>`, created when the
+milestone opens, off whatever `HEAD` was — and every task the harness accepts is
+committed to it. Uncommitted work already in your tree comes across to that
+branch and is committed there first, as its own commit, so the branch you were
+on is left exactly as you found it. The result is that a milestone's diff is
+`git diff <baseline> HEAD` and nothing else: the reviewer, the verifier and the
+as-built record all read it straight out of git rather than reconstructing it.
+
+The harness **never pushes, never merges, never deletes a branch, never squashes,
+and never rewrites history.** Integrating a finished milestone is your decision,
+and may be a pull request or a review it cannot see. At `DONE` it keeps the
+independently verified per-task commits. If the target is not a git repository,
+it says so once in the milestone record and runs without any of this rather than
+running `git init` behind you.
+
 ## State
 
 Everything the harness needs to resume — even in a brand-new Claude session

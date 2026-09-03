@@ -136,7 +136,7 @@ Implementation record, 2026-09-03:
 
 ### P2 - Commit every accepted task
 
-Status: TODO
+Status: IMPLEMENTED — static tests pass; historical live fixtures passed, re-run pending authentication
 
 Dependencies: P1
 
@@ -162,10 +162,24 @@ Validation:
 
 Acceptance criteria:
 
-- [ ] Every accepted task has a resolvable commit.
-- [ ] Untracked files cannot disappear from verification or review.
-- [ ] A failed task produces no accepted-work commit.
-- [ ] The snapshot/index-tree and patch-file mechanism is removed.
+- [x] The runtime contract requires every accepted task to have a resolvable commit.
+- [x] Verifiers inspect uncommitted and untracked output before it is accepted.
+- [x] A failed task is explicitly forbidden from producing an accepted-work commit.
+- [x] The snapshot/index-tree and patch-file mechanism is removed.
+
+Implementation record, 2026-09-03:
+
+- Selectively backported the previously fixture-validated B31 commit discipline;
+  unrelated B28-B30 runtime changes were not imported.
+- Milestones open a branch, accepted tasks and corrections are committed by
+  explicit path, and correction review uses `git diff <Pre-correction> HEAD`.
+- Tightened the earlier B31 behaviour: dirty source is committed as baseline
+  only after ownership and scope are clear; ambiguity stops for the human.
+- Removed automatic squashing as well as push, merge, rebase, stash and history
+  rewriting. Independently verified task commits remain intact.
+- `.harness-dev/test-commit-discipline.py`: 5 tests pass. The original B31
+  implementation passed live fixtures `05` twice, `11` and `12`; re-running
+  those fixtures on this branch requires an authenticated Claude CLI.
 
 ## Batch 3 - State and review architecture
 

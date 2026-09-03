@@ -41,11 +41,12 @@ after, and never let it supply a component you did not find yourself.
 ### What you do
 
 1. **Establish the milestone's real change set.** `git diff --name-status
-   <baseline>..HEAD` **and** `git status --porcelain` — the harness does not
-   commit after every task, so a milestone's work is often uncommitted or
-   untracked and committed history alone will show nothing. Record which of the
-   two carries the work. Exclude `.harness/` throughout; that is the harness's
-   own record, not the system being built.
+   <baseline> HEAD` on the milestone branch: every accepted task and correction
+   was committed to it, so that range is the milestone. Run `git status
+   --porcelain` as well and record anything it shows — uncommitted work at this
+   point means something escaped the commit rule, and it still belongs in the
+   change set. Exclude `.harness/` throughout; that is the harness's own record,
+   not the system being built.
 
 2. **Attribute each changed file to a component.** Read `## Components` in
    `architecture.md` for the agreed ids and their `Location` lines, then decide
@@ -86,7 +87,7 @@ Return exactly this, and nothing longer:
 
 ```
 Milestone: M<n>
-Change Source: git diff <baseline>..HEAD | working tree | both
+Change Source: git diff <baseline> HEAD | non-git inspection
 Files Attributed: <count> of <count>
 Components Observed: C1, C3, NEW-<name>
 Edges Observed: <count>
@@ -165,7 +166,7 @@ that list — components and edges together — that no `D<n>` accounts for.
 # As Built — M<n>
 
 Baseline: <sha>
-Change source: <git diff | working tree | both>
+Change source: <git diff <baseline> HEAD | non-git inspection>
 
 ## Diagram
 

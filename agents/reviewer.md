@@ -26,9 +26,10 @@ Only:
 - The agreed architecture (`.harness/architecture.md`), when the project has one
 - The current milestone (or, for a final review, all milestone outcomes)
 - Acceptance criteria for what you're reviewing
-- The diff. For a milestone review, its diff from `### Baseline`. For a **second
-  cycle**, the correction diff only — the files a fix cycle changed — unless you
-  are told the scope widened. For a **final review**, no project-wide diff: work
+- The diff. For a milestone review, `git diff <### Baseline> HEAD` on the
+  milestone branch. For a **second cycle**, the correction diff only —
+  `git diff <Pre-correction> HEAD`, the range a fix cycle's corrections sit in —
+  unless you are told the scope widened. For a **final review**, no project-wide diff: work
   from the milestone records, `drift.md` and the validation you run, and read code
   where a specific question sends you
 - Relevant surrounding code

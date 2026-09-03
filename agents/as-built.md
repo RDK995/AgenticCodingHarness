@@ -35,12 +35,11 @@ after, and never let it supply a component you did not find yourself.
 ### What you do
 
 1. **Establish the milestone's real change set.** `git diff --name-status
-   <baseline> HEAD` on the milestone branch: every accepted task and correction
-   was committed to it, so that range is the milestone. Run `git status
-   --porcelain` as well and record anything it shows — uncommitted work at this
-   point means something escaped the commit rule, and it still belongs in the
-   change set. Exclude `.harness/` throughout; that is the harness's own record,
-   not the system being built.
+   <baseline>..HEAD` **and** `git status --porcelain` — the harness does not
+   commit after every task, so a milestone's work is often uncommitted or
+   untracked and committed history alone will show nothing. Record which of the
+   two carries the work. Exclude `.harness/` throughout; that is the harness's
+   own record, not the system being built.
 
 2. **Attribute each changed file to a component.** Read `## Components` in
    `architecture.md` for the agreed ids and their `Location` lines, then decide

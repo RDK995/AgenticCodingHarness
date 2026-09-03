@@ -37,7 +37,12 @@ generate milestones into it using **exactly** the structure in
 (`### Outcome`, not a renamed or added heading), same order, nothing extra.
 Reconnaissance is a planning input, not persisted state: use it to shape the
 milestones, but do not write a reconnaissance section into `milestones.md`
-itself. The file holds milestones only.
+itself. The file holds the ledger and the milestones, and nothing else.
+
+**Write the `## Ledger` block first**, above `## M1`: one row per milestone you
+are about to write, all `TODO` at `0` cycles and `here`, with `Current: M1`. It
+is the index every later phase opens the file with, and generation is the only
+place it can be created from a complete view of the plan.
 
 Milestones represent **observable outcomes**, not implementation steps. Tests
 belong inside each milestone, not as a separate milestone.
@@ -53,6 +58,21 @@ Every milestone must carry at least one acceptance criterion **exercised through
 a real entry point**: a CLI invocation, an HTTP request, a public API call. If the
 only way to demonstrate a milestone is a unit test of an internal component, it is
 a component milestone and must be re-cut.
+
+**That criterion is met only by driving the built artifact the way a user drives
+it — nothing injected, nothing manually compensated.** A proof that supplies what
+the mechanism under test is supposed to supply has not exercised the entry point;
+it has exercised a path no user can take. Injecting the port the code should
+construct, calling `render()` because the subscription that should call it is
+dead, or asserting against a source module when the user runs a bundle — each
+satisfies the wording while removing the thing being proven. Write the criterion
+so the injected version cannot pass it.
+
+This clause exists because the rule above it was already in force and the hole
+stayed open anyway: on the project where this was measured every milestone had
+its entry-point criterion, and DOM wiring, a resume mechanism with zero
+production call sites, and an iOS storage assumption still reached the human
+unproven. The criterion was satisfied by proofs that supplied their own wiring.
 
 Order slices by integration risk, not by convenience. The first one should prove
 the part most likely to be wrong, because that is the evidence worth having early.

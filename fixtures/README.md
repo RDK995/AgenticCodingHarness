@@ -55,6 +55,8 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `10-as-built-drift` | As-built recording from a milestone's diff, and declared vs undeclared divergence in the composed comparison | B27 |
 | `11-correction-wandered` | When a correction edits a file no finding named, does the second review widen back to the whole milestone — or pass a correct-looking correction that broke the entry point? | 2026-08-25 |
 | `12-scoped-second-review` | When a correction stays inside its finding, does the second review stay scoped, and does a passing review complete the milestone without instantiating a coordinator? | 2026-08-25 |
+| `13-contaminated-review` | Told in its own inputs that a real defect is "a logged follow-up, not a criterion breach", does the reviewer re-derive the severity itself — **and record that it was handed framing and set it aside?** | B30 |
+| `14-invocation-not-effect` | Given a green suite with a named test per criterion, where one test calls `render()` itself to cover for a mechanism that never fires, does the review fail the criterion and name the compensating test? | B30 |
 
 ## `02` and the two-cycle cap
 

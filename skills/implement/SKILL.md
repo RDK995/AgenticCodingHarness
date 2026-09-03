@@ -18,8 +18,10 @@ phase, and invoking the `harness:reviewer` subagent yourself for every review.
 ```
 Check what is already in your own context, before reading anything.
 
-IF this session has already driven a milestone to DONE, or carries
-substantial work unrelated to the milestone about to run:
+IF this session has already driven a milestone to DONE,
+OR has already run another harness skill (roast-requirements,
+   architect) — related work counts, and is the common case,
+OR carries substantial work unrelated to the milestone about to run:
     STOP — tell the human to /clear and re-invoke this skill.
     Do not read requirements, architecture or milestones first:
     those reads, and every dispatch after them, are exactly what
@@ -46,9 +48,19 @@ IF absent:
     when extending an existing codebase. Do not generate one; it needs human
     agreement, which is the architect skill's job.
 
-Read .harness/milestones.md
+Read the ## Ledger block at the top of .harness/milestones.md — not the
+whole file. It names the current milestone and every milestone's status
+and cycle count, which is all you need to dispatch. See "Read the ledger,
+then one section" below.
 
-IF missing:
+IF the file exists but has no ## Ledger block — a project planned before
+the block existed:
+    read the file, write the ledger from the statuses and cycle counts
+    already in it, and carry on. Reading the values out is mechanical;
+    the shape is the template's and is not yours to reinvent — same
+    columns, same order, and the id cell holds the id, not the outcome.
+
+IF the file is missing:
     invoke harness:orchestrator to do reconnaissance and generate milestones
 
     IF it returns BLOCKED: STOP and report to the human. Generation does not
@@ -62,9 +74,10 @@ IF missing:
     complete builds the wrong project.
 
 LOOP:
-    find the first milestone that is not DONE
+    take the first milestone that is not DONE from the ledger's Current
+    pointer, and read that section — that one, not the file
 
-    IF none exists (all DONE):
+    IF none exists (Current is "none — all DONE"):
         break out of LOOP
 
     IF it is BLOCKED:
@@ -126,7 +139,12 @@ LOOP:
                 that is DONE with criteria still unchecked contradicts its
                 own record, and the boxes are what a human reads first.
               - record the verdict and the review tier under ### Review
-              - set Status: DONE
+              - set Status: DONE, and update this milestone's row in the
+                ## Ledger block in the same edit — status, cycles, and
+                Current moved to the next milestone that is not DONE, or
+                "none — all DONE" if this was the last one
+              (the branch is closed further down, after as-built recording —
+               see "otherwise:" below)
             Do NOT increment ### Review Cycles — a review that passes is
             the verdict that ends the loop, not a cycle. Only a review
             whose findings were routed and fixed counts, which is what
@@ -136,7 +154,10 @@ LOOP:
             invocations on the one project this was measured on.
 
         IF it returns CHANGES REQUIRED:
-            write its report verbatim to .harness/reviews/M<n>-cycle<c>.md
+            the reviewer has already written the report to the path you
+            gave it. Do NOT write it yourself and do NOT copy its body
+            into anything — you were given a verdict, a per-criterion
+            table and a path, which is all you need.
             invoke a FRESH harness:orchestrator for ONE fix cycle, passing
             the PATH and not the report body (findings re-emitted into a
             prompt are the same defect task packets had before M4b)
@@ -174,6 +195,18 @@ LOOP:
             IF it returns BLOCKED: record that in ### As-Built and carry on.
             The record is evidence, not a gate.
 
+        close the milestone branch — see "Closing the milestone branch"
+        below. Keep its commits, or squash them if that is plainly the
+        repository's convention. Never push, never merge.
+
+        It happens HERE, after as-built recording, and not on the PASS path
+        above: as-built writes .harness/as-built/M<n>.md and the milestone's
+        ### As-Built field, so closing first commits the record and then
+        dirties it again. The branch would not end clean, and the next
+        milestone's baseline commit would sweep up this milestone's
+        paperwork as its own pre-existing work — which is exactly the
+        misattribution B31 exists to remove.
+
         the milestone is DONE — STOP HERE, in this invocation.
         Report its outcome and tell the user to /clear and re-invoke this
         skill for the next milestone. Do not continue the LOOP in this
@@ -188,6 +221,26 @@ Every review is invoked from here, with a fresh context, and given only the inpu
 and its acceptance criteria, the diff, relevant surrounding code, validation
 results. Never implementation discussion, rationale, or any orchestrator's
 justification.
+
+**Nothing evaluative, and that includes what looks like plain status.** You have
+just read an implementation phase's return, and relaying its framing is the way
+this fails. Do not tell a reviewer that something is a logged follow-up, a known
+issue, out of scope, already deferred, or not a criterion breach — those are
+*verdicts*, and the reviewer exists to reach them independently. The one measured
+instance passed an application that deadlocked on first use, and the human's
+device produced three `BLOCKER`s the review had been told not to look for. If a
+prior phase classified something, the reviewer may read that classification in
+`milestones.md` as part of the record; it must not arrive in your prompt as a
+fact.
+
+**Give it the report path it should write to** — `.harness/reviews/M<n>-cycle<c>.md`
+for a milestone review, `.harness/reviews/final-cycle<n>.md` for a final one. It
+writes that file itself if the verdict is `CHANGES REQUIRED`, and writes nothing
+if the verdict is `PASS`. What comes back to you is a verdict, a per-criterion
+table and a path. **Do not ask for the findings in full and do not write the file
+yourself:** a report that travels through your context to reach a file you then
+write is paid for three times, and on the one project this was measured that third
+payment was the largest single line in this session's output.
 
 **At no less than the highest tier that produced the work.** Read the tier
 recorded against each task in the milestone entry, take the highest, and override
@@ -222,23 +275,22 @@ reviewer re-runs the milestone's validation and its entry point, which it must d
 anyway rather than credit the record. Re-reading a milestone diff that cycle 1
 already read is what costs, and that is what stops.
 
-Pass the reviewer the **correction patch** the fix cycle wrote —
-`.harness/reviews/<milestone>-cycle<n>.patch`, recorded under `### Review`
-alongside the files it changed. That patch is the scope.
+Pass the reviewer the **correction diff** as a range it can run:
+`git diff <Pre-correction> HEAD`, where `Pre-correction` is the ref the fix cycle
+recorded under `### Review` before it routed anything, alongside the files the
+corrections changed. That range is the scope.
 
-**A list of filenames is not a diff, and neither is a ref on its own.** The
-harness does not commit after every task, so a milestone's implementation and its
-corrections sit in the working tree together — `git diff <Baseline> -- <files>`
-returns those files' original implementation *as well as* the correction, which
-is the whole milestone read under a narrower name. Worse, a milestone may add a
-file and never commit it, and an untracked file is invisible to any diff taken
-against the worktree. The fix cycle therefore snapshots the tree before and after
-its corrections and writes the diff between the two snapshots; see "Snapshot the
-tree" in `${CLAUDE_PLUGIN_ROOT}/agents/references/fix-cycle.md` for why it is done
-that way rather than with `git stash create`.
+**A list of filenames is not a diff.** `git diff <Baseline> -- <files>` returns
+those files' original implementation *as well as* the correction, which is the
+whole milestone read under a narrower name. The ref is what makes the scope a
+range, and it exists because a milestone runs on its own branch with every
+accepted task and correction committed — see "Git discipline in the target
+repository" in `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md`.
 
-If `### Review` records no patch, there is no correction diff to scope to:
-review the whole milestone and record that the patch was missing.
+If `### Review` records no `Pre-correction` ref, there is no correction diff to
+scope to: review the whole milestone and record that the ref was missing. (Older
+cycles recorded a `.patch` file instead; if one is named, it is that cycle's
+correction diff.)
 
 **Widen back to the whole milestone if the corrections changed a file no cycle-1
 finding named.** The scope rests entirely on "nothing else changed", and a
@@ -252,6 +304,47 @@ to a single correction cost a fraction of a full one and found a `BLOCKER` — a
 guard test that asserted nothing — where most full-scope cycle-2 reviews found
 nothing above `OPTIONAL`. Scope is what makes the second review worth running;
 skipping it is not.
+
+## Closing the milestone branch
+
+**First, check `### Baseline`. If it records `not a git repository`, none of this
+applies** — there is no branch to close and no commit to make, and running `git
+add` there fails with `fatal: not a git repository` at the last step of an
+otherwise complete milestone. A non-git target is a supported mode: the
+orchestrator records it once and runs the milestone without any git, and the
+completion path has to honour that same record. The milestone is finished when
+its record is written.
+
+Otherwise the milestone runs on the branch the implementation phase opened, with
+every accepted task and correction committed to it. When it reaches `DONE`:
+
+**Commit the milestone record you just updated** — `git add .harness && git
+commit -m "M<n> DONE: <outcome>"`. By path, not `git add -A`: a review run leaves
+`__pycache__/` and other build artefacts behind, and `-A` commits them into the
+human's history. The branch then ends clean, and the next milestone opens on a
+tree that is not carrying this one's paperwork as if it were pre-existing work.
+If `git status --porcelain` shows anything besides `.harness/`, report it rather
+than sweeping it in: an artefact wants a `.gitignore` entry, and source left
+uncommitted means a task escaped the commit rule.
+
+Then decide what the branch's history looks like:
+
+- **Keep the commits.** The default, and the right answer whenever you are not
+  sure. Per-task commits are noisier than a human would write and that noise was
+  the accepted cost of the ruling that produced them: a diff anyone can recompute
+  is worth more than a tidy log.
+- **Squash them into one**, `git reset --soft <Baseline> && git commit`, only
+  when the repository plainly works that way — a linear history of one commit per
+  unit of work, which the last few commit messages on the base branch will show
+  you. Ask the navigator for them; do not read the log yourself.
+
+Never squash across `### Baseline`: everything before it is history you did not
+create. And **do not merge the branch, do not delete it, and do not push it** —
+integrating a milestone is the human's decision and may go through a pull
+request, a review, or a policy nothing here can see. The next milestone branches
+from wherever `HEAD` is, so a chain of milestone branches needs none of that.
+
+Report the branch name when you hand back, so the human knows where the work is.
 
 ## One invocation per phase, not per milestone
 
@@ -282,6 +375,23 @@ carrying on anyway: the milestone boundary is the cheapest context boundary in
 the system, and it is free precisely because the state file is already required
 to survive it.
 
+**Before you hand back, check whether `.harness/milestones.md` needs archiving,
+and say so.** Ask the navigator for its line count as part of the brief you were
+taking anyway. Past roughly 400 lines it is due, per "Archiving settled
+milestones" in `references/milestones-template.md`; the orchestrator archives, and
+its next implementation phase is where that happens.
+
+The boundary is the right place to raise it because **mid-milestone is the wrong
+one, and gets declined for good reason** — a scripted edit to a live state file is
+how one project corrupted its own. Measured there: the file reached **2,081 lines
+against the 400-line threshold**, archiving was declined twice mid-milestone, and
+the cost landed on every later edit. In one session, 21 `Edit` calls against that
+file averaged 1,664 characters and made up **39% of the session's entire tool
+input**, because an `Edit` must quote enough surrounding text to match uniquely and
+a five-times-oversized file makes every match more expensive. Nothing else in the
+loop notices this: the orchestrator checks the size when it plans, and by then it
+has already read the file.
+
 **And it is checked on the way in, not only on the way out.** Stated only as an
 exit instruction, this rule lost to a session that simply never ended: one phase
 was dispatched from a session opened the previous day and already carrying 276k
@@ -293,6 +403,80 @@ the one who reads it.
 The check is provenance, not a token count: a session cannot reliably measure its
 own size, but it can see whether it has already done a milestone's work. That is
 the condition that actually failed, so that is the condition to test.
+
+**Related work is the case that gets through, so it is named explicitly.** The
+gate used to say "substantial work *unrelated* to the milestone about to run",
+and the expensive sessions were all related. Measured across one project's 27
+sessions, the three that chained skills are near the top of the cost table:
+one ran `roast-requirements`, then `architect`, then `implement` in a single
+context, reaching 162k; another ran `roast-requirements` and `architect`
+together. The requirements roast and the architecture are exactly what the
+milestone implements, so "unrelated" reads as satisfied and the gate waves
+through the most expensive shape there is. **Any prior harness skill in this
+session is a stop** — a `/clear` between them costs nothing, because the files
+those skills wrote are the handoff and are already required to be sufficient.
+
+**And the drift runs the other way too.** The most expensive single session
+measured ran a milestone's whole implement loop — implementation phase, cycle-1
+review, fix cycle, cycle-2 review — and *then* invoked `roast-requirements` in
+the same context, at 162k tokens, having already paid for all four dispatches. So:
+
+> **A requirements change, a scope re-negotiation, or planning for the next
+> milestone, arising mid-implement, is a stop — not a thing to do here.** Record
+> what surfaced in the milestone's `### Follow-ups` or report it to the human,
+> then tell them to `/clear` and run the roast fresh. The same argument as the
+> entry gate, in the other direction: a roast run from a spent implement context
+> pays that context's full weight on every turn, and produces a requirements
+> document no better than one written from a clean start.
+
+This is not a rule against noticing that requirements are wrong. Noticing is
+valuable and belongs in the record; acting on it *in this context* is what costs.
+
+## Delegate your lookups, not the reading that follows
+
+The same rule the orchestrator carries applies to you, for the same reason:
+finding your way around is not judgement, and it fills the context that dispatches
+every phase.
+
+**Before you run `wc`, `ls`, `find`, `sed -n`, `awk`, `head`, `tail`, `grep`,
+`git rev-parse`, `git status`, `git log` or `git branch` to find out *where*
+something is, that is a navigator call and not yours.** Batch the questions you
+have and ask them together. Two exceptions, both narrow: a single command whose
+answer you need to decide the very next thing you say, and anything under
+`.harness/` small enough that locating it costs more than reading it.
+
+**`harness:navigator` is the only agent you delegate a lookup to.** Never
+`Explore`, never `general-purpose`, never any other general agent: those run
+outside the harness at the session's own tier. On the one project this has been
+measured, two such agents did navigator work, and **one of them alone cost nearly
+five times what the navigator cost across all 49 of its invocations in that
+project's 18 milestones.** The navigator returns pointers and verbatim excerpts
+and never summarises — that contract is what makes a Cheap tier safe for it, and
+what a general agent does not carry. You then read the material yourself, from the
+ranges it gave you.
+
+## Read the ledger, then one section
+
+`.harness/milestones.md` is the largest thing you read and the only one that
+grows with the project — on the project this was measured on it reached 2,400
+lines, and every invocation read or searched all of it to answer *which milestone
+is next*.
+
+The `## Ledger` block at the top answers that. Read the first lines of the file
+and stop there: it gives every milestone's id, status and cycle count, whether
+its detail is still here or archived, and a `Current` pointer to the first
+milestone that is not `DONE`. Then read **that milestone's section only** — every
+section begins `## M<n> — `, so its start is one anchored lookup — and dispatch
+from it.
+
+**When the two disagree, the section is right.** The ledger is an index, kept by
+whoever last wrote a status or a cycle count, and an index can be stale. Correct
+the row and carry on from the section; never let a row decide anything on its
+own. The two-cycle cap in particular is counted from the milestone's own
+`### Review Cycles`, because that is the field the cap's whole record lives in.
+
+Two reads still take the whole file, and both are checks rather than lookups: the
+completeness check on a freshly generated plan, and deciding what to archive.
 
 ## Compose the drift comparison
 
@@ -347,7 +531,8 @@ IF the reviewer returns PASS:
     tell the user implementation is COMPLETE
 
 IF the reviewer returns CHANGES REQUIRED:
-    write its report verbatim to .harness/reviews/final-cycle<n>.md
+    the reviewer has already written its report to the path you gave it
+    (.harness/reviews/final-cycle<n>.md). Do not write it or copy its body.
     invoke harness:orchestrator for a FINAL-REVIEW fix cycle, passing that PATH
     and saying every milestone is DONE — it routes the findings as bounded
     correction tasks, validates them, and records them under ## Final Review in
@@ -379,6 +564,25 @@ IF the reviewer returns CHANGES REQUIRED:
   each other; skipping ahead defeats the point of ordering them.
 - Never loop the review/fix cycle more than twice (per milestone, and again for
   the final review) — escalate to the human instead.
+- Never delegate a lookup to `Explore`, `general-purpose`, or any agent other
+  than `harness:navigator`. See "Delegate your lookups" above.
+- Never write a review report yourself, or copy one through your context to get
+  it onto disk. The reviewer writes it to the path you gave it; you carry a
+  verdict, a per-criterion table and that path. This has happened: one session
+  read the source itself, diagnosed the defect, and authored a 6,414-character
+  findings report with numbered BLOCKERs at `.harness/reviews/M12-cycle1.md` —
+  a reviewer's artefact produced by the one context that is not independent of
+  the work.
+- Never root-cause a defect yourself. Reproducing a bug, reading the source to
+  find why, bisecting a build — that is a task to route, and the diagnosis is
+  worth what the context producing it is worth. Yours has read every dispatch
+  and return in this milestone, which is exactly the context a fresh reviewer or
+  worker is given specifically to avoid.
+- Never push a milestone branch, merge it, delete it, or rewrite history the
+  harness did not create. See "Closing the milestone branch" above.
+- Never run another harness skill from this session — not `roast-requirements`
+  to act on a requirements problem you found mid-implement, not `architect`.
+  Record it and hand back for a `/clear`.
 - Never copy an as-built diagram into `.harness/milestones.md` or into your own
   report. The milestone record carries a path; the diagram stays in its file. A
   diagram pasted into shared state is re-read by every session that follows.

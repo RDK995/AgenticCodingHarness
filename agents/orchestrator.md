@@ -56,9 +56,10 @@ above has nothing to read.
 
 **Implementation phase.** Read `references/planning.md` → check state size → read
 requirements → inspect repository → select the current one → check its
-size and shape, splitting it if it fails → break it into tasks → route every task
-by tier → validate each result independently → run the milestone's validation →
-record evidence → set `REVIEW` and return. **Do not invoke the reviewer**, and do
+size and shape, splitting it if it fails → open the milestone branch and record
+`### Baseline` → break it into tasks → route every task by tier → validate each
+result independently → commit each accepted task → run the milestone's validation
+→ record evidence → set `REVIEW` and return. **Do not invoke the reviewer**, and do
 not carry on into the review cycle: returning is what gives the review a context
 that is not already carrying the whole implementation.
 
@@ -110,6 +111,15 @@ paid for it. Check again before you finish, for milestones completed this run.
 Never archive the active milestone, the **most recently settled** one, or a
 `BLOCKED` one; move content, never summarise it. The template states the rest —
 what counts as settled, how recency is measured, what stays behind.
+
+**Open the file at its `## Ledger` block, not at line 1 of a thousand.** The
+ledger is the first thing in it: one row per milestone with status, cycle count
+and whether the detail is still here or archived, plus a `Current` pointer. Take
+the milestone you are running and its state from there, then read that
+milestone's section — the navigator's brief gives you its range — and the ranges
+it cites. The rest of the file is other milestones' evidence, which is what
+archiving exists to keep you from paying for. If a row disagrees with the section
+it points at, the section is right: fix the row and use the section.
 
 ## Rules
 
@@ -196,6 +206,15 @@ is a component milestone, and "Slice thin, end to end" above says it must be
 re-cut. A milestone whose `Architecture` field names exactly one component is the
 usual symptom, not the proof; read the criteria.
 
+**And can that criterion be satisfied by a proof that injects what the code should
+supply?** Read it as an adversary would: could I pass this by handing the system
+the port it was supposed to construct, by calling the render the subscription was
+supposed to trigger, or by testing the source when the user runs the bundle? If
+yes, the criterion is met by a path no user can take, and it needs rewording
+before you route anything against it — say so under `Follow-ups` and reword it.
+Boards planned before this rule existed are exactly where this bites, which is why
+the check is here and not only in generation.
+
 ### Splitting a milestone you did not plan
 
 Split it in `.harness/milestones.md`, then **return without implementing
@@ -218,6 +237,9 @@ Rules for the split:
 - **Each part gets every template heading**, an `### Outcome` of its own, and its
   own `### Architecture` field. Carry the original's `### Follow-ups` to the part
   they belong to.
+- **Replace the original's ledger row with one row per part**, in order, and move
+  `Current` to the first part. A split changes what milestones exist, so it is
+  the one edit that changes the ledger's shape rather than a cell in it.
 - **Record that you split it, and why**, in the first part's `### Outcome` —
   one sentence naming the original milestone and the count that triggered it.
   A human reading the file later should not have to work out where `M6a` came
@@ -255,6 +277,28 @@ that follows.
 Keep the packet on disk for the milestone's lifetime: a retry three tasks later
 must read the same packet the first attempt got, not your recollection of it.
 
+**A packet that asks a worker to *prove* something needs a procedure and a
+budget.** "Show this works end to end", "reproduce the failure", "prove the
+feature on a real device" — these are the packets that go wrong, because there is
+no line at which the worker is finished and no test that settles it. Measured on
+one project, a live-proof worker ran to 130 turns and 183.6k tokens, a larger
+context than any orchestrator in the same project, debugging open-endedly inside a
+task packet.
+
+So for any proof or verification task, put two things in `Constraints`:
+
+- **the procedure** — the specific steps that constitute the proof, and what
+  observation ends it. If you cannot write that down, the task is not bounded and
+  routing it as one hides that fact rather than resolving it;
+- **a turn budget of roughly 30.** A worker that has not completed the proof
+  inside it returns `FAIL` with what it *did* observe — the commands run, what
+  each showed, where it stopped — rather than continuing to debug.
+
+A `FAIL` carrying observations is worth more to you than a proof reached after a
+hundred turns of undirected debugging, and it costs a fraction of it. Deciding
+whether that debugging is worth routing, and at which tier, is your call and not
+the worker's: it cannot see the milestone, the budget, or the other tasks.
+
 ## Delegate navigation, not the reading that follows
 
 Finding your way around is not judgement, and it is **54% of every tool call this
@@ -267,7 +311,7 @@ tool calls from the first turn to the last, and two thirds of it happens *after*
 the opening. A rule scoped to "the first few turns" therefore misses most of what
 it was written for.
 
-So: **before you run `wc`, `ls`, `find`, `sed -n`, `head`, `tail`, `grep`,
+So: **before you run `wc`, `ls`, `find`, `sed -n`, `awk`, `head`, `tail`, `grep`,
 `git rev-parse`, `git status`, `git log` or `git branch` to find out *where*
 something is, that is a navigator call and not yours.** Batch the questions you
 have and ask them together rather than one at a time. Two exceptions, both narrow:
@@ -280,7 +324,9 @@ it for:
 
 ```
 State file line count, and whether archiving is due
-Baseline commit and branch (git rev-parse HEAD, git status --porcelain)
+The state file's `## Ledger` block, verbatim
+Baseline: is this a git repository, the current branch, git rev-parse HEAD,
+  git status --porcelain, and the last few commit messages (for their convention)
 Line range of this milestone's section in milestones.md
 Line ranges of the requirements and acceptance criteria it cites
 Whether the repository's broad validation is green at baseline (command + exit status)
@@ -416,6 +462,14 @@ validation for that task, and only then move to the next task. Run the
 broadest appropriate validation for the whole milestone, record its result, set
 `REVIEW`, and return. Requesting the review is the *next* invocation's job.
 
+**Before you route each task, state the turn number you are on.** At 20 or above,
+routing another task is forbidden: finish the one in flight, record, and return
+`CONTINUE` per "Hand off before you fill your context" below. Say the number out
+loud in the turn where you route — a budget checked at a decision point can fire,
+and one held in the background demonstrably does not. Measured across 44
+invocations under the standing rule alone, 29 exceeded 20 turns and the median
+handoff came at turn 26.
+
 ### Task-level retry and escalation
 
 The ladder climbs tiers rather than repeating one. A task enters at the rung its
@@ -465,7 +519,12 @@ exactly what a Cheap-tier worker's `PASS` is worth: nothing until the verifier's
 report confirms it and you have judged that report.
 
 **Record, for each task, the tier it entered at, the reason if that was not Cheap,
-and what happened at each rung.** Not only the tier that eventually succeeded:
+and what happened at each rung — under `### Evidence`, which is the field that
+owns this.** Do not open a heading of your own for it. The milestone entry's
+headings are fixed by
+`${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md` and
+adding to them breaks the archiving rule, which moves named fields, and anything
+else that reads the file by heading. Not only the tier that eventually succeeded:
 
 ```
 T3 — R1 decision record        Cheap, attempt 1, PASS
@@ -508,9 +567,18 @@ return rather than a full diff and a test log:
   is a misattribution to correct, not a failed attempt.
 - Is `Tests Weakened` `NO`?
 - Does every acceptance criterion have something named against it?
+- Is `Checks Not Run` `NONE`? A named check the verifier's environment refused is
+  unproven, not passed — and not a failed attempt either.
 - Does `Discrepancies With The Worker's Claim` say anything you should act on?
 
-Any of those failing means the attempt failed, and the ladder climbs.
+Any of those failing means the attempt failed, and the ladder climbs — except
+`Checks Not Run`, which climbs nothing. **A `BLOCKED` return with checks not run
+is a capability problem, not a worker's failure**, and retrying the task at a
+higher tier verifies nothing because the next verifier hits the same wall. Route
+the missing check somewhere that can run it — a worker can perform a mutation the
+verifier cannot, and you can run one yourself when nothing else can — or record it
+unproven and say so in `Evidence`. Never let a `NOT-RUN` be recorded as evidence,
+and never spend a ladder rung on one.
 
 **Judging that evidence stays with you, and never moves to a cheaper agent.**
 This is the seam the harness rests on. On a real milestone this step caught a
@@ -529,10 +597,106 @@ status and a file list produced by a context that did not write the code and
 cannot edit it. A verifier's report is not a verdict, and a tier-matched reviewer
 re-runs the validation before anything becomes `DONE`.
 
+## Git discipline in the target repository
+
+**A milestone runs on its own branch, and every accepted task is a commit on it.**
+The alternative was measured: one real project ran 17 milestones on **2 commits**
+and paid for it three times over — verifiers misattributed failures to a stale
+baseline, evidence carried hand-maintained per-file SHAs, and the review layer
+needed a snapshot-and-patch contraption to answer the question `git diff` answers
+for free. A diff anyone downstream can recompute is the cheapest evidence in this
+system, and it only exists if you commit.
+
+**At the open of an implementation phase, before any task runs.** The navigator's
+opening brief already carries the baseline line — the branch, `git status
+--porcelain`, and whether this is a git repository at all. From it:
+
+If `### Baseline` is empty, this is the milestone's first phase:
+
+1. **Create the milestone branch and switch to it** — `git checkout -b m<n>-<slug>`,
+   `<slug>` being a few words from the milestone's outcome, unless the repository
+   has an evident branch convention, in which case follow that one. Branch
+   *first*: uncommitted work already in the tree comes across with you, so the
+   human's branch is left exactly as you found it.
+2. **If the tree was dirty, commit that work on the new branch before any task**,
+   as its own commit — `harness: baseline for M<n>`. It is not the milestone's
+   work, and folding it into the milestone's first task commit makes the
+   milestone's diff wrong in the one direction nothing downstream can detect.
+3. **Record `### Baseline` as `<sha> on <branch>`**, `<sha>` being what
+   `git rev-parse HEAD` prints — after that commit if you made one, and equally
+   if the tree was already clean and there was nothing to commit. **Write the
+   sha, never the word `HEAD`.** `HEAD` is a moving ref: the first accepted task
+   advances it, and a baseline recorded as `HEAD` makes the milestone's diff
+   `git diff HEAD HEAD`, which is empty. That failure is silent in the worst
+   way — a review handed an empty diff does not error, it finds nothing to
+   object to, and as-built recording sees a milestone that built nothing.
+   Reading back the sha is the narrow exception the navigation rule allows,
+   since it decides the very next thing you write. The milestone's diff is then
+   exactly `git diff <Baseline> HEAD`, with no worktree caveat attached to it.
+
+If `### Baseline` already names a branch you are a continuation or a fix cycle:
+confirm you are on that branch and carry on. A milestone gets one branch.
+
+**After each accepted task — and only once you have judged the verifier's
+evidence — commit.**
+
+```
+git add <the paths the verifier reported under Files Changed> .harness
+git commit -m "M3 T2: parse amounts as whole cents"
+```
+
+**By path, never `git add -A`.** The paths are already known and already checked
+— they are the `Files Changed` list you just judged against `Files Allowed To
+Change` — and staging everything instead sweeps in whatever else is sitting in
+the tree. That is not hypothetical: a test run leaves `__pycache__/`, a build
+leaves artefacts, and a repository without a `.gitignore` covering them has
+nothing to stop `-A` committing them into the human's history under your task's
+name. Anything in the tree that is not this task's output is either a build
+artefact — note it under `### Follow-ups` as a missing `.gitignore` entry, do not
+commit it — or a failed attempt's leftovers, which stay where the retry can see
+them.
+
+Per *accepted* task is what makes this worth anything: the tree a retry or a
+review diffs from is then a state something independently verified, not a mixture
+of that and whatever a failed attempt left behind. Never commit an attempt the
+verifier did not confirm, and never commit to get out of a mess.
+
+**Commit your own last record update before you return** — `git add .harness &&
+git commit -m "M<n>: <phase> complete"`. The evidence, the validation result and
+the status you set at the end of the phase are not part of any task's commit, and
+leaving them uncommitted means the next phase opens on a tree that looks dirty
+for no reason. If `git status --porcelain` still shows anything outside
+`.harness/` after that, say so in your return rather than committing it: at this
+point it is either an artefact or work that escaped a task.
+
+**In someone else's repository, never:**
+
+- **Never push.** Not to any remote, not on any branch, not to back the work up.
+- **Never merge the milestone branch, rebase it, or delete it.** Integrating it is
+  a human decision that may involve a pull request, a review, or a policy you
+  cannot see. The next milestone branches from wherever `HEAD` is, so a chain of
+  milestone branches needs none of that.
+- **Never rewrite history you did not create** — no `--amend` of a commit that was
+  there when you arrived, no `git reset --hard`, no force of anything.
+- **Never `--no-verify`.** A commit hook that rejects this work is the target
+  repository's own standard failing, which is a finding to record and route, not
+  an obstacle to route around.
+- **Never `git stash`.** It takes the human's uncommitted work with it; see
+  `${CLAUDE_PLUGIN_ROOT}/agents/worker.md`, which forbids it for the same reason.
+
+**Follow the repository's conventions** — message shape, sign-off, a trailer it
+uses. Reading the last few commit messages before writing the first one is a
+navigator question, not yours.
+
+**If the target is not a git repository**, record `### Baseline: not a git
+repository` and run the milestone without any of this. Recording it once there is
+what stops the review cycle hunting for a diff that cannot exist; it reads the
+milestone whole instead. Do not `git init` a repository the human did not ask for.
+
 ## One fix cycle
 
-The fix cycle — what to reconstruct, how to snapshot the tree, what to record,
-and how the cycle ends — is in
+The fix cycle — what to reconstruct, what to commit, what to record, and how the
+cycle ends — is in
 `${CLAUDE_PLUGIN_ROOT}/agents/references/fix-cycle.md`. **Read it when you were
 dispatched with a review report path**, and not otherwise.
 
@@ -623,10 +787,12 @@ A phase can outgrow its context before it outgrows its work. Context is re-read
 every turn, so a long phase ends with a tail costing as much as everything before
 it — for work a fresh context would do at a fraction of the price.
 
-**Count your turns. At 20, stop taking on new work and hand off.** Finish the task
-in flight, record what you have completed in `.harness/milestones.md` exactly as
-you would at a phase boundary — accepted tasks and their evidence, what remains,
-the baseline — and return `CONTINUE`. The implement skill invokes a fresh
+**Count your turns. At 20, stop taking on new work and hand off.** The count is
+checked where new work is taken on — before routing a task in "Implementation
+loop", before routing a correction in `references/fix-cycle.md` — not only here.
+Finish the task in flight, record what you have completed in
+`.harness/milestones.md` exactly as you would at a phase boundary — accepted tasks
+and their evidence, what remains, the baseline — and return `CONTINUE`. The implement skill invokes a fresh
 orchestrator for the same phase, which reads that record and carries on.
 
 **Which phases may hand off, because a handoff only works where the skill can
@@ -682,24 +848,46 @@ cycle and the files the corrections changed — the skill records passing verdic
 fresh session resume without the original conversation — keep it accurate rather
 than optimistic.
 
+**Whenever that edit changes the `Status:` line or the `### Review Cycles` count,
+update the milestone's row in the `## Ledger` block at the top of the file in the
+same edit** — status, cycles, and `Current` if it moved. The ledger is what the
+next phase opens the file with instead of reading all of it, so a row left stale
+is a lookup the saving was supposed to remove. It is an index of values that
+exist below, not a second record: copy the cell, write nothing else there.
+
+**Your `Follow-ups` are a record, not an instruction to the reviewer.** Deferring
+something is a decision you are entitled to make and to write down. What you must
+not do is carry that classification into your *return*, where the skill reads it
+and can relay it into a review prompt. Say what you built, what you validated and
+what you deferred; do not say that a deferred item is not a criterion breach, is
+out of scope for review, or need not be raised. **Grading is the reviewer's job
+and yours is finished when the work is.** On the one milestone where this leaked,
+a phase's framing reached the reviewer through the skill, the review passed an
+application that deadlocked on first use, and three `BLOCKER`s came back from the
+human's device instead.
+
 That requirement is now load-bearing rather than aspirational: the next phase of
 this milestone **is** a fresh session, and it can only see what you wrote here.
 Record `Baseline` as your first act on an implementation invocation, before any
-task runs — `git rev-parse HEAD`, with the branch. Without it the review cycle
-cannot compute the diff it is supposed to judge.
+task runs — the sha and branch that "Git discipline in the target repository"
+above tells you to open the milestone with. Without it the review cycle cannot
+compute the diff it is supposed to judge.
 
 If `.harness/milestones.md` has passed roughly 400 lines, apply the
 archiving rule in
 `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`
 ("Archiving settled milestones") before you finish: move older settled
 milestones' detail to `.harness/archive/M<n>.md` unchanged, leaving their
-heading, `Status`, `### Outcome`, and a `Detail:` pointer in place. Settled means
+heading, `Status`, `### Outcome`, and a `Detail:` pointer in place, and flipping
+each moved milestone's ledger `detail` cell to `archived`. Settled means
 `DONE` **or** closed out short of `DONE` by a recorded human decision. Verify the
 move by reconciling `wc -l` before and after against the archive file written.
 
 ## Human escalation contract
 
-When you set a milestone to `BLOCKED`, record:
+When you set a milestone to `BLOCKED`, set its ledger row to `BLOCKED` with it —
+a status write is a status write, and a human opening the file on the escalation
+should see it at the top — and record:
 
 ```
 Problem:

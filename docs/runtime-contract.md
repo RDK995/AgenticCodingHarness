@@ -110,7 +110,7 @@ difference is not about size of output.
 | `verifier` | **Cheap** | Re-runs one task's stated validation and reports the command, exit status, output and changed files. Deliberately not the gate, which is what makes a cheap tier safe here: its output is a command and an exit status rather than a judgement, and a tier-matched reviewer re-runs the validation independently before anything becomes `DONE` (§48). It cannot edit what it checks. |
 | `navigator` | **Cheap** | Answers *where things are* — line ranges, commit SHAs, file sizes, one command's exit status — so the orchestrator does not spend its opening turns finding out. Cheap for the same structural reason as the verifier and `as-built`: its contract forbids summarising, so it issues no verdict and there is no judgement for a weak tier to get wrong. A brief that characterises a requirement instead of quoting it is a contract violation, not a stylistic one — it would move risk to a cheap tier invisibly. It writes nothing. |
 | `as-built` | **Cheap** | Draws what a milestone actually built and, at the end, lays the union against the agreed architecture (§50). Cheap for the same structural reason as the verifier: it issues no verdict, names no severity and suggests no correction, so there is no judgement for a weak tier to get wrong. Its only write is one file under `.harness/as-built/`; the reviewer grades what it recorded. |
-| `reviewer` | **Derived — never below the work** | The thing that verifies everything else. Nothing verifies it except a human. Its tier is not fixed: it runs at no less than the highest tier that produced the work under review (§47), with `sonnet` as the floor and the final holistic review at the top tier. A reviewer weaker than the work it judges emits a confident `PASS` and the gate opens on nothing. |
+| `reviewer` | **Derived — never below the work** | The thing that verifies everything else. Nothing verifies it except a human. Its tier is not fixed: it runs at no less than the highest tier that produced the work under review (§47), with `sonnet` as the floor and the final holistic review at the top tier. A reviewer weaker than the work it judges emits a confident `PASS` and the gate opens on nothing. Its only write is its own report, to a path it is given, and only when the verdict is `CHANGES REQUIRED` — returning a full report for the caller to re-emit onto disk paid for it three times. |
 | `roast-requirements`, `architect`, `scope-mvp` | **High** | Their entire value is asking the question nobody had considered — the capability weaker models lack most. `scope-mvp` sits with them because deciding which single outcome is worth shipping first, and what a product can ship without, is the same judgement applied to scope. |
 
 A weak reviewer does not fail loudly; it emits a confident, well-formatted,
@@ -205,11 +205,22 @@ unprompted.
 
 **What that establishes, and what it does not.** It establishes that the Cheap pin
 does not rubber-stamp: a passing command is not being read as a verdict. It does
-not establish that a Cheap verifier will not *fabricate* — every run so far
-reported commands it actually ran, but no fixture tries to induce otherwise, and
-fabrication rather than laziness was the original worry. A verifier report that a
-reviewer's independent re-run later contradicts remains the signal to raise the
-pin.
+not establish that a Cheap verifier will not *fabricate*, and no fixture tries to
+induce otherwise — fabrication rather than laziness was the original worry. A
+verifier report that a reviewer's independent re-run later contradicts remains the
+signal to raise the pin.
+
+**And on a real project one did report what it had not observed.** Under a sandbox
+that refused file writes, `/tmp`, `chmod` and subprocesses, a verifier returned a
+partial result for a mutation step it had never performed, and reported three test
+failures that did not exist — the suite was green. Both symptoms were
+environmental, and neither is evidence about the tier: nothing in `verifier.md`
+told it what to do when a check could not run, so an honest report had no shape to
+take. That gap is closed — the return contract now carries `Checks Not Run`,
+`PASS` requires it to be `NONE`, and a check that could not run is explicitly
+never a `FAIL`. Whether a Cheap verifier fabricates *without* that excuse remains
+unmeasured, and the pin's justification still rests on the reviewer's independent
+re-run rather than on the verifier's fidelity.
 
 ## Verifying a substitution
 

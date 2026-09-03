@@ -117,7 +117,8 @@ LOOP:
 
         invoke a FRESH harness:reviewer at the tier derived below, scoped
         per "What a second review sees" — you invoke it, not the
-        orchestrator
+        orchestrator. Give it `.harness/reviews/M<n>-cycle<c>.md` as the report
+        path. It writes there only when changes are required.
 
         IF it returns PASS:
             apply the completion gate yourself — it is mechanical:
@@ -146,7 +147,8 @@ LOOP:
             invocations on the one project this was measured on.
 
         IF it returns CHANGES REQUIRED:
-            write its report verbatim to .harness/reviews/M<n>-cycle<c>.md
+            confirm its compact envelope names the report path and that the file
+            exists. Do NOT write, read, quote or reproduce the report yourself.
             invoke a FRESH harness:orchestrator for ONE fix cycle, passing
             the PATH and not the report body (findings re-emitted into a
             prompt are the same defect task packets had before M4b)
@@ -198,6 +200,12 @@ Every review is invoked from here, with a fresh context, and given only the inpu
 and its acceptance criteria, the diff, relevant surrounding code, validation
 results. Never implementation discussion, rationale, or any orchestrator's
 justification.
+
+Give it the exact report path under `.harness/reviews/` that a
+`CHANGES REQUIRED` verdict should create. The reviewer writes the full artifact
+and returns only its verdict, path, per-criterion statuses and finding counts.
+On `PASS` it writes no file. Never ask for the findings inline and never relay
+their body through this context.
 
 **At no less than the highest tier that produced the work.** Read the tier
 recorded against each task in the milestone entry, take the highest, and override

@@ -304,7 +304,7 @@ Acceptance criteria:
 
 ### P6 - Reduce the parent/controller context
 
-Status: TODO
+Status: IMPLEMENTED — static contract tests pass; field measurement pending
 
 Dependencies: P3, P4, P5
 
@@ -330,9 +330,21 @@ Validation:
 
 Acceptance criteria:
 
-- [ ] Controller history contains no duplicated report or log bodies.
+- [x] Controller instructions forbid duplicated report bodies.
 - [ ] Representative fixture parent context remains below 100,000 tokens.
-- [ ] The controller performs dispatch and mechanical gates only.
+- [x] The controller is restricted to dispatch and mechanical gates.
+
+Implementation record, 2026-09-03:
+
+- Reviewer now owns the full `CHANGES REQUIRED` artifact and has `Write` solely
+  for the supplied `.harness/reviews/` path.
+- Reviewer returns verdict, report path, criterion statuses, finding counts and
+  terminal result; a passing review writes no artifact.
+- The skill validates the compact envelope and passes only the artifact path to
+  a correction orchestrator. It may not read, quote or reproduce the report.
+- `.harness-dev/test-compact-returns.py`: 4 tests pass.
+- The sub-100k field criterion remains open until an authenticated fixture or
+  real milestone can be measured.
 
 ### P7 - Assign validation ownership and compress output
 

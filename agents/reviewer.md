@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Performs an independent, fresh-context, evidence-based review of a milestone's diff (or, for the final review, the whole implementation) against requirements and acceptance criteria. Never trusts implementation claims without evidence. Invoke with only the inputs listed below — never the implementation conversation.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 maxTurns: 50
 background: false
@@ -36,6 +36,8 @@ Only:
 - Validation results (commands run and their output)
 - For a final review: the drift comparison (`.harness/as-built/drift.md`), when
   the project has an architecture
+- The exact path under `.harness/reviews/` where you must write a
+  `CHANGES REQUIRED` report
 
 ## What must not be passed to you
 
@@ -233,10 +235,28 @@ IMPORTANT
 
 ## Your report
 
-Report:
-1. The acceptance-criterion-by-criterion table above.
-2. Every finding using the finding output contract, most severe first.
-3. An overall verdict: `PASS` if there are no BLOCKER or IMPORTANT findings and
-   every acceptance criterion is PASS; otherwise `CHANGES REQUIRED`.
+Build the acceptance-criterion table and every finding using the contracts above.
+The overall verdict is `PASS` only when there are no BLOCKER or IMPORTANT
+findings and every acceptance criterion is PASS; otherwise it is
+`CHANGES REQUIRED`.
 
 `OPTIONAL` findings never block a `PASS` verdict.
+
+### Where the report goes
+
+On `CHANGES REQUIRED`, write the complete table and findings yourself to the
+exact `.harness/reviews/` path the caller supplied. `Write` exists only for this
+artifact: never use it outside that directory and never edit a report after
+returning it. Return exactly this compact envelope, not the report body:
+
+```
+Verdict: CHANGES REQUIRED
+Report: .harness/reviews/<milestone>-cycle<n>.md
+Per-Criterion: <criterion id>=PASS|FAIL; ...
+Findings: <count BLOCKER>, <count IMPORTANT>, <count OPTIONAL>
+Result: CHANGES REQUIRED
+```
+
+On `PASS`, write no report. Return the same envelope with `Report: NONE`, zero
+blocking findings and `Result: PASS`. The per-criterion statuses remain inline
+because the caller's completion gate consumes them directly.

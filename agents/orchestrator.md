@@ -622,12 +622,17 @@ If `### Baseline` is empty, this is the milestone's first phase:
    as its own commit — `harness: baseline for M<n>`. It is not the milestone's
    work, and folding it into the milestone's first task commit makes the
    milestone's diff wrong in the one direction nothing downstream can detect.
-3. **Record `### Baseline` as `<sha> on <branch>`**, `<sha>` being `git rev-parse
-   HEAD` *after* that commit — or simply `HEAD`, if the tree was already clean
-   and there was nothing to commit. Reading back the sha of a commit you made is
-   the narrow exception the navigation rule allows, since it decides the very
-   next thing you write. The milestone's diff is then exactly
-   `git diff <Baseline> HEAD`, with no worktree caveat attached to it.
+3. **Record `### Baseline` as `<sha> on <branch>`**, `<sha>` being what
+   `git rev-parse HEAD` prints — after that commit if you made one, and equally
+   if the tree was already clean and there was nothing to commit. **Write the
+   sha, never the word `HEAD`.** `HEAD` is a moving ref: the first accepted task
+   advances it, and a baseline recorded as `HEAD` makes the milestone's diff
+   `git diff HEAD HEAD`, which is empty. That failure is silent in the worst
+   way — a review handed an empty diff does not error, it finds nothing to
+   object to, and as-built recording sees a milestone that built nothing.
+   Reading back the sha is the narrow exception the navigation rule allows,
+   since it decides the very next thing you write. The milestone's diff is then
+   exactly `git diff <Baseline> HEAD`, with no worktree caveat attached to it.
 
 If `### Baseline` already names a branch you are a continuation or a fix cycle:
 confirm you are on that branch and carry on. A milestone gets one branch.

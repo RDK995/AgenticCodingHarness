@@ -3430,6 +3430,73 @@ record*; it must not arrive as a fact in the prompt). And it **fault-injected
 the new test** to confirm it fails on the cycle-2 defect rather than crediting a
 green suite.
 
+### Four defects from automated review of PR #22 — all valid, all fixed
+
+Two `P1`s and two `P2`s, and every one reproduced before being accepted. Three
+are in B31's completion path rather than B32's ledger, which is what a review of
+a five-milestone PR is for: the fixtures had exercised each of those paths
+exactly once, on the happy branch.
+
+1. **`### Baseline` was allowed to be the literal `HEAD`** (`orchestrator.md`).
+   The rule said `git rev-parse HEAD` after the baseline commit *"— or simply
+   `HEAD`, if the tree was already clean and there was nothing to commit"*.
+   `HEAD` is a moving ref: the first accepted task advances it, and the
+   milestone's diff — specified one line later as `git diff <Baseline> HEAD` —
+   becomes `git diff HEAD HEAD`. Reproduced: 0 bytes against 101 for the same
+   diff addressed by sha. **The failure is silent in the worst direction** — an
+   empty diff does not error, it gives the reviewer nothing to object to and
+   as-built a milestone that built nothing. Fixed: write the sha, never the
+   word, clean tree or not.
+2. **A non-git target hit `git add` at the last step of a complete milestone**
+   (`implement/SKILL.md`). `orchestrator.md` supports the mode properly —
+   records `not a git repository` in `### Baseline` and runs without any git —
+   but "Closing the milestone branch" was unconditional, so a successfully
+   reviewed milestone would end in `fatal: not a git repository`. Reproduced
+   directly. Fixed by gating the whole section on that same record: the
+   producer wrote it, and now the consumer reads it.
+3. **The branch was closed before as-built recording, not after**
+   (`implement/SKILL.md`). The PASS path committed `.harness` and closed the
+   branch; the `as-built` invocation eight lines later then wrote
+   `.harness/as-built/M<n>.md` and the `### As-Built` field into a tree the
+   skill had just declared clean. The next milestone's baseline commit adopts
+   that paperwork as its own pre-existing work — the exact misattribution B31
+   exists to remove — and the last milestone of a project simply leaves it
+   uncommitted. Fixed by moving the close after as-built, where the commit
+   carries it, with the reason written next to it.
+4. **`check-ledger.py` printed `FAIL` and exited 0.** The ledger-placement
+   check ran before `ok` was defined, so it could not clear it. A caller
+   trusting the documented exit status would have read a misplaced ledger as
+   valid — a checker that reports failure and returns success is worse than no
+   checker. Fixed by hoisting `ok`/`fail()` above both checks; **the
+   column-count check had the identical bug** and is fixed with it. Verified
+   after: a ledger pushed below the top of the file exits 1, a three-column row
+   exits 1, and a good file still exits 0.
+
+**`05` re-run from a clean copy after all four fixes — PASS.** Fix 1 checked in
+behaviour rather than in text: `### Baseline` records
+`9e0e7f69dcb7455eabc3d49f5951a0059c03097c on m1-divide-by-zero-raises`, a full
+sha, and `git diff <that sha> HEAD` returns **10,589 bytes across 4 files** —
+the real milestone diff a reviewer needs, where the old wording would have
+permitted 0. Fix 3 checked structurally: the restructured completion path still
+closes the branch, and the tree is clean at `DONE` with `main` still at
+`baseline` alone. Ledger `OK`, `Status: DONE`, four criteria `[x]`, 10 tests
+green on an independent re-run, `divide(1, 0)` raising.
+
+Fix 2 has no behavioural test and this is worth being explicit about: **no
+fixture uses a non-git target**, so the gate is reasoned from the reproduction
+(`git add .harness` in a non-git directory → `fatal: not a git repository`) and
+from the record `orchestrator.md` already writes. A fixture for it would be
+cheap — a copy of `05` with no `git init` — and is the obvious next one to add.
+
+The pattern in 1–3 is worth naming: each is a **producer/consumer split** where
+one side of a contract was updated and the other was not. B31 taught the
+orchestrator to record a non-git target and to write a sha; the skill's
+completion path was written against neither. This file already records the same
+shape three times — the `CONTINUE` the skill did not handle, the reviewer
+invocation that moved in front of the cap check, the ticking half of "check them
+off" that did not survive a move. It is the failure mode of a multi-file
+instruction set, and no fixture that runs only the happy path will find it.
+
 ### Decisions
 
 - **Line numbers stay out of the ledger.** The obvious index entry is a line

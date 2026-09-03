@@ -143,9 +143,8 @@ LOOP:
                 ## Ledger block in the same edit — status, cycles, and
                 Current moved to the next milestone that is not DONE, or
                 "none — all DONE" if this was the last one
-              - close the milestone branch — see "Closing the milestone
-                branch" below. Keep its commits, or squash them if that is
-                plainly the repository's convention. Never push, never merge.
+              (the branch is closed further down, after as-built recording —
+               see "otherwise:" below)
             Do NOT increment ### Review Cycles — a review that passes is
             the verdict that ends the loop, not a cycle. Only a review
             whose findings were routed and fixed counts, which is what
@@ -195,6 +194,18 @@ LOOP:
 
             IF it returns BLOCKED: record that in ### As-Built and carry on.
             The record is evidence, not a gate.
+
+        close the milestone branch — see "Closing the milestone branch"
+        below. Keep its commits, or squash them if that is plainly the
+        repository's convention. Never push, never merge.
+
+        It happens HERE, after as-built recording, and not on the PASS path
+        above: as-built writes .harness/as-built/M<n>.md and the milestone's
+        ### As-Built field, so closing first commits the record and then
+        dirties it again. The branch would not end clean, and the next
+        milestone's baseline commit would sweep up this milestone's
+        paperwork as its own pre-existing work — which is exactly the
+        misattribution B31 exists to remove.
 
         the milestone is DONE — STOP HERE, in this invocation.
         Report its outcome and tell the user to /clear and re-invoke this
@@ -296,8 +307,16 @@ skipping it is not.
 
 ## Closing the milestone branch
 
-A milestone runs on the branch the implementation phase opened, with every
-accepted task and correction committed to it. When the milestone reaches `DONE`:
+**First, check `### Baseline`. If it records `not a git repository`, none of this
+applies** — there is no branch to close and no commit to make, and running `git
+add` there fails with `fatal: not a git repository` at the last step of an
+otherwise complete milestone. A non-git target is a supported mode: the
+orchestrator records it once and runs the milestone without any git, and the
+completion path has to honour that same record. The milestone is finished when
+its record is written.
+
+Otherwise the milestone runs on the branch the implementation phase opened, with
+every accepted task and correction committed to it. When it reaches `DONE`:
 
 **Commit the milestone record you just updated** — `git add .harness && git
 commit -m "M<n> DONE: <outcome>"`. By path, not `git add -A`: a review run leaves

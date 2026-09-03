@@ -35,6 +35,15 @@ for ln in lines:
     elif in_cycles and ln.strip().isdigit() and body[cur]["cycles"] is None:
         body[cur]["cycles"] = ln.strip()
 
+ok = True
+
+
+def fail(msg):
+    global ok
+    ok = False
+    print("FAIL: " + msg)
+
+
 # --- ledger ---
 try:
     start = lines.index("## Ledger")
@@ -42,7 +51,7 @@ except ValueError:
     print("FAIL: no '## Ledger' block")
     sys.exit(1)
 if start > 3:
-    print(f"FAIL: ledger is at line {start+1}, not the top of the file")
+    fail(f"ledger is at line {start+1}, not the top of the file")
 
 end = next((i for i in range(start + 1, len(lines))
             if lines[i].startswith("## ") and i != start), len(lines))
@@ -58,19 +67,10 @@ for l in block:
     if cells[0] in ("id", ""):
         continue
     if len(cells) != 4:
-        print(f"FAIL: row has {len(cells)} columns, expected 4: {l}")
+        fail(f"row has {len(cells)} columns, expected 4: {l}")
         continue
     rows[cells[0]] = {"status": cells[1], "cycles": cells[2], "detail": cells[3]}
     row_order.append(cells[0])
-
-ok = True
-
-
-def fail(msg):
-    global ok
-    ok = False
-    print("FAIL: " + msg)
-
 
 if row_order != order:
     fail(f"ledger rows {row_order} do not match body sections {order}")

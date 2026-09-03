@@ -257,7 +257,7 @@ Acceptance criteria:
 
 ### P5 - Remove the overall project-level review
 
-Status: TODO
+Status: IMPLEMENTED — static workflow tests pass; golden-path live run pending authentication
 
 Dependencies: P3, P4
 
@@ -293,12 +293,25 @@ Validation:
 
 Acceptance criteria:
 
-- [ ] All-DONE state terminates the workflow immediately after reporting.
-- [ ] No project-wide reviewer, fix cycle, drift review or validation rerun is
+- [x] All-DONE state terminates the workflow immediately after reporting.
+- [x] No project-wide reviewer, fix cycle, drift review or validation rerun is
   invoked.
-- [ ] The workflow cannot finish while the last milestone's own gate is open.
-- [ ] Cross-milestone integration affected by a diff remains in that
+- [x] The workflow cannot finish while the last milestone's own gate is open.
+- [x] Cross-milestone integration affected by a diff remains in that
   milestone's review scope.
+
+Implementation record, 2026-09-03:
+
+- Removed final-review mode, the project-level correction loop, automatic
+  as-built compose mode and the `drift.md` artifact.
+- All-DONE now performs a deterministic ownership/status/finding check, reports
+  milestone artifacts and stops without another reviewer or broad test run.
+- Milestone review inputs now include existing consumers and focused integration
+  checks for interfaces changed by the current diff.
+- Updated README, runtime documentation, MVP expansion instructions and fixtures
+  `05` and `10` to the milestone-terminal workflow.
+- `.harness-dev/test-no-project-review.py`: 4 tests pass. Live golden-path proof
+  remains pending an authenticated Claude CLI.
 
 ## Batch 4 - Context reduction
 

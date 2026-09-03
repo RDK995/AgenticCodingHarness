@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Primary workflow entry point — reads agreed requirements, plans milestones, drives each milestone through implementation, testing, and fresh review until acceptance criteria are proven, then runs a final holistic review. Use when the user asks to implement, build, or continue work on agreed requirements via the harness.
+description: Primary workflow entry point — reads agreed requirements, plans milestones, and drives each milestone through implementation, testing, and fresh milestone review until its acceptance criteria are proven. Use when the user asks to implement, build, or continue work on agreed requirements via the harness.
 ---
 
 Drive `.harness/requirements.md` to a fully implemented, reviewed, evidence-backed
@@ -72,7 +72,11 @@ LOOP:
     stop and report the interrupted role rather than guessing what it changed.
 
     IF none exists (all DONE):
-        break out of LOOP
+        run the deterministic completion check: every in-scope requirement is
+        owned by a milestone, every milestone is DONE, and no blocking finding
+        remains. Report the completed milestone ids, their review/validation
+        artifact paths, unresolved follow-ups, branch and commits; then STOP.
+        Do not invoke another reviewer or rerun project-wide validation.
 
     IF it is BLOCKED:
         STOP — report the milestone's escalation contract to the human, do not
@@ -336,91 +340,17 @@ The check is provenance, not a token count: a session cannot reliably measure it
 own size, but it can see whether it has already done a milestone's work. That is
 the condition that actually failed, so that is the condition to test.
 
-## Compose the drift comparison
-
-Once every milestone is DONE and the project has an `.harness/architecture.md`,
-invoke `harness:as-built` once more in **COMPOSE** mode. It unions every
-`.harness/as-built/M<n>.md` into the system as actually built, lays it against the
-agreed `## Diagram` and `## Components`, and writes `.harness/as-built/drift.md`.
-
-Pass its path to the final review below. Do not read it yourself — the reviewer
-is the context that needs it, and routing a full comparison through this one buys
-nothing.
-
-Skip this entirely when the project has no architecture. There is nothing to
-compare against, and the harness's V1 behaviour is unchanged in that case.
-
-## Final fresh review
-
-Once every milestone is DONE, invoke harness:reviewer in **final review mode**
-(see "Final review" in ${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md), **overridden to
-the top tier** — it covers work from every tier, so it runs at the highest one —
-with:
-
-- the original requirements
-- the agreed architecture (.harness/architecture.md), if the project has one
-- the drift comparison (.harness/as-built/drift.md), if one was composed
-- all milestone outcomes (from .harness/milestones.md, and from
-  `.harness/archive/M<n>.md` for any milestone whose detail has been archived)
-- final validation output (the broadest appropriate validation command for
-  this repository), which it re-runs itself rather than crediting
-
-**It is scoped to what no milestone review could see** — requirement coverage
-across milestones, integration between them, and architectural drift — because
-every milestone's own diff has already been reviewed at the tier that produced it,
-and most of them twice. Its reading is bounded accordingly: the milestone records,
-`drift.md`, the validation it runs, and whatever code a specific question sends it
-to. **Do not hand it the complete project diff.** A whole-project diff at the top
-tier is the largest single invocation this harness can make, and it re-reads work
-that already carries a fresh reviewer's verdict.
-
-Hand it the full diff only when a human asks for it — a release gate, a handover,
-an audit. That is a deliberate, priced decision rather than the default.
-
-> **This review has never run.** Across seven milestones of the one real project
-> the harness has been measured on, no project has yet reached all-DONE, so the
-> final review has no evidence behind it at all — neither for its cost nor for
-> what it catches. The scope above is what the rest of the evidence supports, not
-> a measured result. The first project that reaches this point should record what
-> it cost and what it found.
-
-```
-IF the reviewer returns PASS:
-    tell the user implementation is COMPLETE
-
-IF the reviewer returns CHANGES REQUIRED:
-    write its report verbatim to .harness/reviews/final-cycle<n>.md
-    invoke harness:orchestrator for a FINAL-REVIEW fix cycle, passing that PATH
-    and saying every milestone is DONE — it routes the findings as bounded
-    correction tasks, validates them, and records them under ## Final Review in
-    milestones.md
-
-    IF it returns CONTINUE: it hit its turn budget with corrections still
-    outstanding. Invoke a FRESH orchestrator for the SAME final-review fix
-    cycle with the SAME report path, capped at 4 continuations, and do not
-    request a review between them — a half-corrected final review is the same
-    defect as a half-corrected milestone one.
-
-    then request another fresh final review
-
-    cap this at 2 cycles total, same as the per-milestone review/fix loop
-
-    IF still CHANGES REQUIRED after 2 cycles:
-        STOP — set overall status to BLOCKED and report the escalation
-        contract to the human
-```
-
 ## Never
 
-- Never mark a milestone or the overall implementation complete because an
+- Never mark a milestone or the implementation complete because an
   agent (worker, orchestrator, or yourself) merely claims it's done. Completion
   requires the reviewer's evidence-based sign-off recorded in `.harness/milestones.md`.
 - Never skip the requirements gate to "save time" — an unresolved material
   question left unblocked here becomes wasted or wrong implementation later.
 - Never continue past a `BLOCKED` milestone to a later one. Milestones build on
   each other; skipping ahead defeats the point of ordering them.
-- Never loop the review/fix cycle more than twice (per milestone, and again for
-  the final review) — escalate to the human instead.
+- Never loop a milestone review/fix cycle more than twice — escalate to the
+  human instead.
 - Never delegate a lookup to `Explore`, `general-purpose`, or any agent other
   than `harness:navigator`. See "Delegate your lookups" above.
 - Never write a review report yourself, or copy one through your context to get

@@ -36,9 +36,8 @@ Status REVIEW + "the cap is spent"
                              →  escalate, and do nothing else
 Status REVIEW + neither      →  not yours. The skill invokes the reviewer;
                                 say so and stop
-All milestones DONE + a final-review report path
-                             →  one fix cycle against the final review
-                                                        → read references/fix-cycle.md
+All milestones DONE          →  not yours. The skill performs its mechanical
+                                completion report and stops
 ```
 
 **Read the one reference your phase names, and only that one.** Both live under
@@ -69,16 +68,6 @@ that is not already carrying the whole implementation.
 given, and the diff from its `Baseline` → route each finding as a correction task
 → validate → record the cycle and the files the corrections changed → return at
 `REVIEW`. One cycle per invocation, and you never return `DONE`.
-
-**Final-review fix cycle.** Every milestone is `DONE` and the final review
-returned findings, so there is no milestone at `REVIEW` and none should be
-reopened. Route the findings from the report at the path you were given exactly
-as you would a milestone's, and record what you did under a `## Final Review`
-heading at the end of `.harness/milestones.md`, creating it if it is not there:
-the findings resolved, the pre-correction ref, the files the corrections changed,
-and a cycle count. That count carries the same 2-cycle cap, and it is separate
-from any milestone's `### Review Cycles`. Return when the corrections are
-validated; the skill invokes the fresh final review that judges them.
 
 **Escalation.** The skill checks the review/fix cap before it invokes a reviewer,
 so a milestone arrives here with the cap spent and findings still open. Read the
@@ -676,8 +665,8 @@ A milestone is a unit of context as well as a unit of work. Keep yours bounded:
   context delegation removed. Verify a claim against the repository — the diff,
   the code, the tests — never against the claimant's account of it. That is the
   core invariant, not only a cost rule.
-- **Never read an as-built record.** `.harness/as-built/M<n>.md` and
-  `drift.md` are written for the reviewer and for the human, not for you. The
+- **Never read an as-built record.** `.harness/as-built/M<n>.md` is written for
+  the milestone reviewer and for the human, not for you. The
   milestone's `### As-Built` field carries a path and a one-line result, and that
   is the whole of what you need from it. Reading the diagram costs its size on
   every turn that follows, which is the same mistake as reading an `.output` file

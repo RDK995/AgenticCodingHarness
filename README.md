@@ -40,9 +40,9 @@ No database, MCP server, or other external runtime is required.
 6. The harness works through milestones on its own — planning them if
    `.harness/milestones.md` doesn't exist yet, then implementing, testing, and
    getting each one fresh-reviewed before moving to the next
-7. Review the final result — the harness runs one more fresh, holistic review
-   once every milestone is `DONE` and reports `COMPLETE` or asks you to resolve
-   a `BLOCKED` state
+7. When every milestone is `DONE`, the harness mechanically confirms requirement
+   ownership and reports the completed milestones, evidence and follow-ups. It
+   does not run an additional project-wide review.
 
 If you carved an MVP, put it in front of someone before going further — that is
 what building the small version first was for. Then re-invoke
@@ -54,12 +54,9 @@ version of it.
 
 When the project has an agreed architecture, each completed milestone also gets
 drawn: what it *actually* built, derived from its own diff, into
-`.harness/as-built/M<n>.md`. Before the final review those are composed into
-`.harness/as-built/drift.md`, which lays the built system against the agreed one
-and sorts every component and boundary into *planned and built*, *built but not
-planned*, and *planned but never built* — each reconciled against the deviations
-you recorded. Divergence with a recorded reason is a decision; divergence
-without one is what the comparison exists to surface.
+`.harness/as-built/M<n>.md`. Its milestone reviewer grades undeclared divergence
+and any existing interfaces touched by that diff. The records are not composed
+into a separate project-wide review.
 
 If the harness ever stops with `BLOCKED`, that's deliberate: it hit an
 unresolved ambiguity or two failed review cycles, and it needs a decision only
@@ -94,7 +91,7 @@ target project:
 .harness/milestones.md
 .harness/mvp.md            (only if you carved an MVP)
 .harness/full/             (only if you carved an MVP — the unedited full scope)
-.harness/as-built/         (new projects only — one file per milestone, plus drift.md)
+.harness/as-built/         (new projects only — one file per milestone)
 .harness/tasks/            (task packets for a milestone in flight — scratch, not status)
 .harness/reviews/          (review reports a fix cycle is answering — scratch, not status)
 ```
@@ -104,9 +101,8 @@ target project:
 boundaries and technology choices, plus a log of any deviation made while
 building. Milestones say which components they realise, so progress against the
 architecture is visible without a second status field to fall out of date.
-`as-built/` is the record of what each milestone actually constructed, drawn
-from its diff rather than from what it claimed, and the comparison composed from
-those records at the end. `milestones.md` tracks each milestone's status,
+`as-built/` records what each milestone actually constructed, drawn from its
+diff rather than from what it claimed. `milestones.md` tracks each milestone's status,
 acceptance criteria, evidence, validation results, and review outcome.
 `mvp.md` and `full/` exist only on a project that was carved down to a first
 useful version: `requirements.md` and `architecture.md` then hold the MVP, so

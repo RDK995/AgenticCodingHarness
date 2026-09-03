@@ -114,6 +114,4 @@ memory of the count, so increment it before you return or the cap silently
 resets. If BLOCKER or IMPORTANT findings remain after 2 cycles, set the milestone
 to `BLOCKED` and escalate — the Human Escalation Contract is in
 `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md` — instead of trying a third time. This same
-2-cycle cap and escalation applies when you're handling a correction after a
-failed **final** review (Final Reviewer → you → bounded correction task →
-implement → validate → fresh final review).
+2-cycle cap applies independently to each milestone.

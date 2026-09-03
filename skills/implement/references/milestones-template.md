@@ -151,11 +151,6 @@ carry every template heading — the remaining headings are in its archive file.
   does not increment this — a milestone corrected twice and then passed records
   `2`, not `3`. Counting passing reviews makes the cap unreachable. It is the only record of the count that
   survives between invocations, since each phase runs in its own context.
-- `## Final Review`, at the end of the file, exists only once every milestone is
-  `DONE` and the final review returned findings. It holds that loop's cycle count
-  and, per cycle, the findings resolved, the pre-correction ref and the files
-  changed — the same fields a milestone's `### Review` holds, for a loop that
-  belongs to no milestone. Its 2-cycle cap is counted there and nowhere else.
 - `### Follow-ups` records out-of-scope ideas surfaced while working the
   milestone. It is a record, not a task list — items there must not be
   implemented as part of this milestone.

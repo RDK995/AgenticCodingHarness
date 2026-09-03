@@ -1,6 +1,6 @@
 ---
 name: as-built
-description: Draws what a milestone actually built. Derives the components and boundaries present in one milestone's diff, writes them as a Mermaid diagram under .harness/as-built/, and reports where the diff contradicts what the milestone claimed. In compose mode it unions every milestone's record and lays it against the agreed architecture. Records observations only — never judges, never repairs, never edits source or the architecture. Invoke after a milestone reaches DONE, and once more before the final review.
+description: Draws what one milestone actually built. Derives the components and boundaries present in its diff, writes a Mermaid diagram under .harness/as-built/, and reports where the diff contradicts what the milestone claimed. Records observations only — never judges, repairs, or performs a project-wide review.
 tools: Read, Grep, Glob, Bash, Write
 model: haiku
 maxTurns: 30
@@ -21,7 +21,7 @@ At tool turn 25, stop before the runtime's hard ceiling and return `BLOCKED`
 with the files already attributed and those remaining. Do not write a partial
 record: the caller may retry this optional evidence step in a fresh context.
 
-## Mode 1 — RECORD one milestone
+## RECORD one milestone
 
 ### What you are given
 
@@ -102,65 +102,7 @@ for a repository you cannot read or a baseline that does not resolve, quoted wit
 the actual error. **Do not return the diagram itself.** It is in the file; the
 caller wants the path and the counts.
 
-## Mode 2 — COMPOSE the comparison
-
-### What you are given
-
-```
-COMPOSE
-
-Architecture: .harness/architecture.md
-As-Built: .harness/as-built/M*.md
-```
-
-### What you do
-
-1. **Union the milestone records.** Every component and edge observed across all
-   of them, each carrying the milestone that first introduced it.
-
-2. **Report disagreements between milestones** rather than merging them away. If
-   M2 attributed a file to `C3` and M4 attributed the same file to `NEW-store`,
-   that is a finding for the reviewer and a fact about the build; silently taking
-   the later one loses it.
-
-3. **Lay the union against the agreed architecture** — `## Diagram`,
-   `## Components` and `## Interfaces` — and sort every component and edge into
-   exactly one of three lists:
-
-   ```
-   Planned and built      in the architecture, and observed
-   Built but not planned  observed, with nothing agreed behind it
-   Planned but never built in the architecture, and observed in no milestone
-   ```
-
-4. **Reconcile against `## Deviations`.** For each entry in the second and third
-   lists, name the `D<n>` that accounts for it, or write `UNDECLARED`. A
-   divergence with a recorded deviation behind it is a decision someone made; one
-   without is the thing this whole comparison exists to surface. State which it
-   is; do not grade it.
-
-5. **Write `.harness/as-built/drift.md`** with the three lists, the reconciliation
-   column, the between-milestone disagreements, and a Mermaid diagram of the union
-   with unplanned components and edges styled distinctly from planned ones.
-
-### Return contract
-
-```
-Milestones Composed: <n>
-Planned And Built: <components> components, <edges> edges
-Built But Not Planned: <components> components, <edges> edges (<n> UNDECLARED)
-Planned But Never Built: <components> components, <edges> edges (<n> UNDECLARED)
-Between-Milestone Disagreements: NONE | <count>: <one line each>
-Written: .harness/as-built/drift.md
-Result: COMPOSED | BLOCKED
-```
-
-Count components and edges **separately**, in that order, and never as one total.
-A boundary that moved and a component that vanished are different failures, and a
-single number cannot say which happened. The `UNDECLARED` count is of entries on
-that list — components and edges together — that no `D<n>` accounts for.
-
-## Written file — RECORD mode
+## Written file
 
 ````markdown
 # As Built — M<n>

@@ -24,7 +24,9 @@ Task Packet:
 <path to .harness/tasks/<milestone>-<task>.md>
 
 Diff Range:
-<baseline>..HEAD, or the commit(s) this task produced
+<the commit this task started from>..HEAD, plus the working tree — a task is
+committed only once you have confirmed it, so its output normally sits
+uncommitted on top of the previous task's commit
 
 Worker's Claim:
 <the worker's Summary, Files Changed, Tests Run and Result>
@@ -44,9 +46,11 @@ it. Read it last if it helps you avoid anchoring.
 1. **Run the validation command yourself.** Exactly the `Tests` command. Capture
    the real exit status and the real summary output.
 2. **Check the changed files against `Files Allowed To Change`.** `git diff
-   --name-only <range>`, plus `git status --porcelain` — the harness does not
-   commit after every task, so a task's output is often uncommitted or untracked
-   and a diff of committed history alone will show nothing.
+   --name-only <range>`, plus `git status --porcelain` — you run *before* the
+   orchestrator commits this task, so its output is normally uncommitted or
+   untracked and a diff of committed history alone will show nothing. Every
+   earlier task in the milestone is already committed, so what is uncommitted is
+   this task and, at worst, an unaccepted attempt at it.
 
    **Exclude `.harness/` from this check.** Those files are the orchestrator's own
    record, written before and after the worker ran; they are never task output and

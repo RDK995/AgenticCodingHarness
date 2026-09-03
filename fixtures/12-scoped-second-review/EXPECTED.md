@@ -35,9 +35,9 @@ amount is an error rather than a zero or a skip.
 The correction is correct and confined. It validates the fractional part, and
 brings two tests with it — `"1.2.3"` and `"1.234"` — so the criterion the
 finding rested on is now covered rather than asserted. `### Review` records both
-changed files, both named by the finding, a `Pre-correction:` ref — the
-`M1 implementation` commit, which the setup substitutes — and the path of the
-correction patch. **The patch is what a scoped review is scoped to**; without one
+changed files, both named by the finding, and a `Pre-correction:` ref — the
+`M1 implementation` commit, which the setup substitutes. **`git diff
+<Pre-correction> HEAD` is what a scoped review is scoped to**; without the ref
 there is no correction diff and the review must read the whole milestone.
 
 **The rest of the repository is genuinely correct**, and that is load-bearing:
@@ -48,31 +48,38 @@ widened review makes is its bill.
 - `python3 -m receipt receipt.txt` → `$19.99`, `$0.07`, `$5.00`,
   `TOTAL $25.06` — matching the criterion exactly.
 
-**Three commits**, as in `11`: the correction diff has to be identifiable as its
-own range, so `pre-correction/` holds the two files as cycle 1 reviewed them.
+**Three commits on a milestone branch**, as in `11` — the shape B31's git
+discipline produces, so `git diff <Pre-correction> HEAD` is the correction diff.
+`pre-correction/` holds the two files as cycle 1 reviewed them.
 
 ```bash
 git init -q
 git add .gitignore .harness receipt.txt && git commit -qm baseline
+BASE=$(git rev-parse HEAD)
+git checkout -qb m1-receipt          # the milestone branch the harness opens
 
-C=$(mktemp -d)                      # outside the repo: it must not be committed
+C=$(mktemp -d)                       # outside the repo: it must not be committed
 cp receipt/parse.py tests/test_parse.py "$C"/
 cp pre-correction/parse.py      receipt/parse.py
 cp pre-correction/test_parse.py tests/test_parse.py
 rm -rf pre-correction
 git add -A && git commit -qm "M1 implementation"
 PRE=$(git rev-parse HEAD)
-sed "s/PRE_CORRECTION_SHA/$PRE/" .harness/milestones.md > .harness/m.tmp
+
+sed -e "s/BASELINE_SHA/$BASE/" -e "s/PRE_CORRECTION_SHA/$PRE/" \
+  .harness/milestones.md > .harness/m.tmp
 mv .harness/m.tmp .harness/milestones.md      # portable: sed -i differs on BSD and GNU
 
 cp "$C"/parse.py      receipt/parse.py
 cp "$C"/test_parse.py tests/test_parse.py
 rm -rf "$C"
 git add -A && git commit -qm "M1 cycle 1 correction (T4)"
-
-mkdir -p .harness/reviews                     # the patch the fix cycle would have written
-git diff $PRE HEAD -- receipt tests > .harness/reviews/M1-cycle1.patch
 ```
+
+**No patch file is seeded.** Under B31 the fix cycle no longer snapshots the tree
+into `.harness/reviews/<milestone>-cycle<n>.patch`; the ref is the scope. So
+`.harness/reviews/` does not exist when the run starts, which sharpens the
+expectation below: a passing review must leave it that way.
 
 ## Command
 
@@ -99,10 +106,21 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
   nothing to route, and instantiating a coordinator to record a `PASS` is the
   cost this path exists to remove. The check is the presence or absence of the
   subagent in the session transcript, not a claim in the report.
-- No **report** was written under `.harness/reviews/`. The directory already
-  holds `M1-cycle1.patch`, seeded by the setup as the patch the cycle-1 fix
-  would have written; what must not appear is an `M1-cycle2.md`, because a `PASS`
-  has no findings to hand on.
+- **`.harness/reviews/` does not exist.** Nothing is seeded there any more, a
+  `PASS` writes no report, and the fix-cycle patch that used to live there is
+  gone with the snapshot mechanism. A created directory or an `M1-cycle2.md` is
+  the failure.
+
+**Mechanically checkable, in git:**
+
+- **One commit**, and it is the `DONE` record: the review passed, so there were
+  no corrections to make, and the only thing to commit is
+  `.harness/milestones.md`. `git status --porcelain` is empty at the end. The
+  branch is still `m1-receipt`, unmerged and unpushed. (A run that squashes
+  instead is conformant if this repository's convention plainly called for it —
+  a three-commit `git init` fixture does not, so keeping is expected here.)
+- The review's scope came from the `Pre-correction:` ref, not from a patch file
+  — there is none to fall back on.
 
 **Requires reading the report:**
 

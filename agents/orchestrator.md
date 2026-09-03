@@ -56,9 +56,10 @@ above has nothing to read.
 
 **Implementation phase.** Read `references/planning.md` → check state size → read
 requirements → inspect repository → select the current one → check its
-size and shape, splitting it if it fails → break it into tasks → route every task
-by tier → validate each result independently → run the milestone's validation →
-record evidence → set `REVIEW` and return. **Do not invoke the reviewer**, and do
+size and shape, splitting it if it fails → open the milestone branch and record
+`### Baseline` → break it into tasks → route every task by tier → validate each
+result independently → commit each accepted task → run the milestone's validation
+→ record evidence → set `REVIEW` and return. **Do not invoke the reviewer**, and do
 not carry on into the review cycle: returning is what gives the review a context
 that is not already carrying the whole implementation.
 
@@ -311,7 +312,8 @@ it for:
 
 ```
 State file line count, and whether archiving is due
-Baseline commit and branch (git rev-parse HEAD, git status --porcelain)
+Baseline: is this a git repository, the current branch, git rev-parse HEAD,
+  git status --porcelain, and the last few commit messages (for their convention)
 Line range of this milestone's section in milestones.md
 Line ranges of the requirements and acceptance criteria it cites
 Whether the repository's broad validation is green at baseline (command + exit status)
@@ -582,10 +584,101 @@ status and a file list produced by a context that did not write the code and
 cannot edit it. A verifier's report is not a verdict, and a tier-matched reviewer
 re-runs the validation before anything becomes `DONE`.
 
+## Git discipline in the target repository
+
+**A milestone runs on its own branch, and every accepted task is a commit on it.**
+The alternative was measured: one real project ran 17 milestones on **2 commits**
+and paid for it three times over — verifiers misattributed failures to a stale
+baseline, evidence carried hand-maintained per-file SHAs, and the review layer
+needed a snapshot-and-patch contraption to answer the question `git diff` answers
+for free. A diff anyone downstream can recompute is the cheapest evidence in this
+system, and it only exists if you commit.
+
+**At the open of an implementation phase, before any task runs.** The navigator's
+opening brief already carries the baseline line — the branch, `git status
+--porcelain`, and whether this is a git repository at all. From it:
+
+If `### Baseline` is empty, this is the milestone's first phase:
+
+1. **Create the milestone branch and switch to it** — `git checkout -b m<n>-<slug>`,
+   `<slug>` being a few words from the milestone's outcome, unless the repository
+   has an evident branch convention, in which case follow that one. Branch
+   *first*: uncommitted work already in the tree comes across with you, so the
+   human's branch is left exactly as you found it.
+2. **If the tree was dirty, commit that work on the new branch before any task**,
+   as its own commit — `harness: baseline for M<n>`. It is not the milestone's
+   work, and folding it into the milestone's first task commit makes the
+   milestone's diff wrong in the one direction nothing downstream can detect.
+3. **Record `### Baseline` as `<sha> on <branch>`**, `<sha>` being `git rev-parse
+   HEAD` *after* that commit — or simply `HEAD`, if the tree was already clean
+   and there was nothing to commit. Reading back the sha of a commit you made is
+   the narrow exception the navigation rule allows, since it decides the very
+   next thing you write. The milestone's diff is then exactly
+   `git diff <Baseline> HEAD`, with no worktree caveat attached to it.
+
+If `### Baseline` already names a branch you are a continuation or a fix cycle:
+confirm you are on that branch and carry on. A milestone gets one branch.
+
+**After each accepted task — and only once you have judged the verifier's
+evidence — commit.**
+
+```
+git add <the paths the verifier reported under Files Changed> .harness
+git commit -m "M3 T2: parse amounts as whole cents"
+```
+
+**By path, never `git add -A`.** The paths are already known and already checked
+— they are the `Files Changed` list you just judged against `Files Allowed To
+Change` — and staging everything instead sweeps in whatever else is sitting in
+the tree. That is not hypothetical: a test run leaves `__pycache__/`, a build
+leaves artefacts, and a repository without a `.gitignore` covering them has
+nothing to stop `-A` committing them into the human's history under your task's
+name. Anything in the tree that is not this task's output is either a build
+artefact — note it under `### Follow-ups` as a missing `.gitignore` entry, do not
+commit it — or a failed attempt's leftovers, which stay where the retry can see
+them.
+
+Per *accepted* task is what makes this worth anything: the tree a retry or a
+review diffs from is then a state something independently verified, not a mixture
+of that and whatever a failed attempt left behind. Never commit an attempt the
+verifier did not confirm, and never commit to get out of a mess.
+
+**Commit your own last record update before you return** — `git add .harness &&
+git commit -m "M<n>: <phase> complete"`. The evidence, the validation result and
+the status you set at the end of the phase are not part of any task's commit, and
+leaving them uncommitted means the next phase opens on a tree that looks dirty
+for no reason. If `git status --porcelain` still shows anything outside
+`.harness/` after that, say so in your return rather than committing it: at this
+point it is either an artefact or work that escaped a task.
+
+**In someone else's repository, never:**
+
+- **Never push.** Not to any remote, not on any branch, not to back the work up.
+- **Never merge the milestone branch, rebase it, or delete it.** Integrating it is
+  a human decision that may involve a pull request, a review, or a policy you
+  cannot see. The next milestone branches from wherever `HEAD` is, so a chain of
+  milestone branches needs none of that.
+- **Never rewrite history you did not create** — no `--amend` of a commit that was
+  there when you arrived, no `git reset --hard`, no force of anything.
+- **Never `--no-verify`.** A commit hook that rejects this work is the target
+  repository's own standard failing, which is a finding to record and route, not
+  an obstacle to route around.
+- **Never `git stash`.** It takes the human's uncommitted work with it; see
+  `${CLAUDE_PLUGIN_ROOT}/agents/worker.md`, which forbids it for the same reason.
+
+**Follow the repository's conventions** — message shape, sign-off, a trailer it
+uses. Reading the last few commit messages before writing the first one is a
+navigator question, not yours.
+
+**If the target is not a git repository**, record `### Baseline: not a git
+repository` and run the milestone without any of this. Recording it once there is
+what stops the review cycle hunting for a diff that cannot exist; it reads the
+milestone whole instead. Do not `git init` a repository the human did not ask for.
+
 ## One fix cycle
 
-The fix cycle — what to reconstruct, how to snapshot the tree, what to record,
-and how the cycle ends — is in
+The fix cycle — what to reconstruct, what to commit, what to record, and how the
+cycle ends — is in
 `${CLAUDE_PLUGIN_ROOT}/agents/references/fix-cycle.md`. **Read it when you were
 dispatched with a review report path**, and not otherwise.
 
@@ -751,8 +844,9 @@ human's device instead.
 That requirement is now load-bearing rather than aspirational: the next phase of
 this milestone **is** a fresh session, and it can only see what you wrote here.
 Record `Baseline` as your first act on an implementation invocation, before any
-task runs — `git rev-parse HEAD`, with the branch. Without it the review cycle
-cannot compute the diff it is supposed to judge.
+task runs — the sha and branch that "Git discipline in the target repository"
+above tells you to open the milestone with. Without it the review cycle cannot
+compute the diff it is supposed to judge.
 
 If `.harness/milestones.md` has passed roughly 400 lines, apply the
 archiving rule in

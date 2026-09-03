@@ -129,6 +129,9 @@ LOOP:
                 own record, and the boxes are what a human reads first.
               - record the verdict and the review tier under ### Review
               - set Status: DONE
+              - close the milestone branch — see "Closing the milestone
+                branch" below. Keep its commits, or squash them if that is
+                plainly the repository's convention. Never push, never merge.
             Do NOT increment ### Review Cycles — a review that passes is
             the verdict that ends the loop, not a cycle. Only a review
             whose findings were routed and fixed counts, which is what
@@ -247,23 +250,22 @@ reviewer re-runs the milestone's validation and its entry point, which it must d
 anyway rather than credit the record. Re-reading a milestone diff that cycle 1
 already read is what costs, and that is what stops.
 
-Pass the reviewer the **correction patch** the fix cycle wrote —
-`.harness/reviews/<milestone>-cycle<n>.patch`, recorded under `### Review`
-alongside the files it changed. That patch is the scope.
+Pass the reviewer the **correction diff** as a range it can run:
+`git diff <Pre-correction> HEAD`, where `Pre-correction` is the ref the fix cycle
+recorded under `### Review` before it routed anything, alongside the files the
+corrections changed. That range is the scope.
 
-**A list of filenames is not a diff, and neither is a ref on its own.** The
-harness does not commit after every task, so a milestone's implementation and its
-corrections sit in the working tree together — `git diff <Baseline> -- <files>`
-returns those files' original implementation *as well as* the correction, which
-is the whole milestone read under a narrower name. Worse, a milestone may add a
-file and never commit it, and an untracked file is invisible to any diff taken
-against the worktree. The fix cycle therefore snapshots the tree before and after
-its corrections and writes the diff between the two snapshots; see "Snapshot the
-tree" in `${CLAUDE_PLUGIN_ROOT}/agents/references/fix-cycle.md` for why it is done
-that way rather than with `git stash create`.
+**A list of filenames is not a diff.** `git diff <Baseline> -- <files>` returns
+those files' original implementation *as well as* the correction, which is the
+whole milestone read under a narrower name. The ref is what makes the scope a
+range, and it exists because a milestone runs on its own branch with every
+accepted task and correction committed — see "Git discipline in the target
+repository" in `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md`.
 
-If `### Review` records no patch, there is no correction diff to scope to:
-review the whole milestone and record that the patch was missing.
+If `### Review` records no `Pre-correction` ref, there is no correction diff to
+scope to: review the whole milestone and record that the ref was missing. (Older
+cycles recorded a `.patch` file instead; if one is named, it is that cycle's
+correction diff.)
 
 **Widen back to the whole milestone if the corrections changed a file no cycle-1
 finding named.** The scope rests entirely on "nothing else changed", and a
@@ -277,6 +279,39 @@ to a single correction cost a fraction of a full one and found a `BLOCKER` — a
 guard test that asserted nothing — where most full-scope cycle-2 reviews found
 nothing above `OPTIONAL`. Scope is what makes the second review worth running;
 skipping it is not.
+
+## Closing the milestone branch
+
+A milestone runs on the branch the implementation phase opened, with every
+accepted task and correction committed to it. When the milestone reaches `DONE`:
+
+**Commit the milestone record you just updated** — `git add .harness && git
+commit -m "M<n> DONE: <outcome>"`. By path, not `git add -A`: a review run leaves
+`__pycache__/` and other build artefacts behind, and `-A` commits them into the
+human's history. The branch then ends clean, and the next milestone opens on a
+tree that is not carrying this one's paperwork as if it were pre-existing work.
+If `git status --porcelain` shows anything besides `.harness/`, report it rather
+than sweeping it in: an artefact wants a `.gitignore` entry, and source left
+uncommitted means a task escaped the commit rule.
+
+Then decide what the branch's history looks like:
+
+- **Keep the commits.** The default, and the right answer whenever you are not
+  sure. Per-task commits are noisier than a human would write and that noise was
+  the accepted cost of the ruling that produced them: a diff anyone can recompute
+  is worth more than a tidy log.
+- **Squash them into one**, `git reset --soft <Baseline> && git commit`, only
+  when the repository plainly works that way — a linear history of one commit per
+  unit of work, which the last few commit messages on the base branch will show
+  you. Ask the navigator for them; do not read the log yourself.
+
+Never squash across `### Baseline`: everything before it is history you did not
+create. And **do not merge the branch, do not delete it, and do not push it** —
+integrating a milestone is the human's decision and may go through a pull
+request, a review, or a policy nothing here can see. The next milestone branches
+from wherever `HEAD` is, so a chain of milestone branches needs none of that.
+
+Report the branch name when you hand back, so the human knows where the work is.
 
 ## One invocation per phase, not per milestone
 
@@ -487,6 +522,8 @@ IF the reviewer returns CHANGES REQUIRED:
   worth what the context producing it is worth. Yours has read every dispatch
   and return in this milestone, which is exactly the context a fresh reviewer or
   worker is given specifically to avoid.
+- Never push a milestone branch, merge it, delete it, or rewrite history the
+  harness did not create. See "Closing the milestone branch" above.
 - Never run another harness skill from this session — not `roast-requirements`
   to act on a requirements problem you found mid-implement, not `architect`.
   Record it and hand back for a `/clear`.

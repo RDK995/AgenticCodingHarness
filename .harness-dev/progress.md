@@ -2,16 +2,17 @@
 
 ## Current
 
-Milestone: B31 — Git discipline in target projects (post-V1)
-Task: not yet started. B31's section is below, with the human ruling already
-recorded in it.
+Milestone: B32 — Navigation extras: state ledger and symbol map (post-V1)
+Task: not yet started. B32's section is at the bottom of this file.
 Status: TODO.
 
-Four milestones sit at REVIEW, each held there by one remaining acceptance
+Five milestones sit at REVIEW, each held there by one remaining acceptance
 criterion that is a field measurement no fixture can produce. **They are not
-blocked and they do not block B31** — each needs the next real project to run,
+blocked and they do not block B32** — each needs the next real project to run,
 and they should be closed together when it does:
 
+- **B31** — 6 of 6 tasks done, 4 of 5 criteria proven, four fixture
+  invocations passing (`05` twice, `11`, `12`).
 - **B30** — 6 of 6 tasks done, 3 of 4 criteria proven, all fixtures passing.
 - **B29** — 4 of 4 tasks done, 3 of 4 criteria proven, all fixtures passing.
 - **B28** — 7 of 7 tasks done, 6 of 7 criteria proven.
@@ -42,11 +43,17 @@ verifier re-read rule were all exercised and measured. B26's Cheap-share
 criterion still needs its tier count read off that project's `milestones.md`
 tier tables (task in B28 below).
 
-**Queued for implementation: B28 → B29 → B30 → B31 → B32**, the improvement plan
-from the 2026-09-02 measurement. Their sections are at the bottom of this file
-and are written to be implemented by a fresh session from this file plus the
-named repository files alone. B27 remains at REVIEW; its three unproven criteria
-wait on a real run and do not block B28.
+**Queued for implementation: B32**, the last of the improvement plan from the
+2026-09-02 measurement — B28 through B31 are implemented and fixture-validated.
+Its section is at the bottom of this file and is written to be implemented by a
+fresh session from this file plus the named repository files alone.
+
+**One thing B31 changes for every later milestone:** the harness now commits in
+target repositories. A milestone opens `m<n>-<slug>`, commits each accepted
+task by path, and never pushes, merges or deletes. The snapshot/patch mechanism
+is deleted — a correction diff is `git diff <Pre-correction> HEAD`. Any future
+work that reasons about "the harness does not commit after every task" is
+reasoning about a harness that no longer exists.
 
 ## Out-of-milestone measurement — the phoneToLocalModel project, 18 milestones on the current harness (2026-09-02)
 
@@ -1170,7 +1177,7 @@ orchestrator reads the range itself.
 28. B28 — Close the defects the 2026-09-02 measurement found (post-V1) — REVIEW
 29. B29 — Skill session diet (post-V1) — REVIEW
 30. B30 — Close the three accuracy holes (post-V1) — REVIEW
-31. B31 — Git discipline in target projects (post-V1) — TODO, ruling recorded
+31. B31 — Git discipline in target projects (post-V1) — REVIEW
 32. B32 — Navigation extras: state ledger and symbol map (post-V1) — TODO
 
 ## Reading this file
@@ -2964,7 +2971,10 @@ None.
 
 ## B31 — Git discipline in target projects (post-V1)
 
-Status: TODO
+Status: REVIEW — 6 of 6 tasks done, 4 of 5 acceptance criteria proven, four
+fixture invocations passing. The remaining criterion is the same field
+measurement B28–B30 wait on: it names the next real milestone, and no fixture
+can produce it.
 
 phoneToLocalModel ran 17 milestones on **2 commits**. Self-flagged twice in its
 own records ("this milestone paid the tax again"), it caused verifier
@@ -2983,26 +2993,169 @@ DONE, snapshot mechanism retained — was declined.
 
 ### Tasks
 
-1. `orchestrator.md` / `SKILL.md`: a milestone branch is created at milestone
-   open (baseline commit if the tree is dirty), each accepted task is
-   committed, and DONE squashes or keeps per target-repo convention. Respect
-   target-repo conventions; never push.
-2. Delete the snapshot mechanics from `references/fix-cycle.md` and scope
-   second reviews to real commit diffs. The patch path is named in
-   `skills/implement/references/milestones-template.md` (the `### Review` /
-   archiving rules, ~lines 139–155), in `SKILL.md` §"What a second review
-   sees", and in `fix-cycle.md` itself — update all three together; grep for
-   `-cycle` and `.patch` to catch stragglers (`docs/runtime-contract.md` has
-   no patch reference; verify rather than assume).
-3. Re-run fixtures `11`/`12` (their setups assume the three-commit shape —
-   their expectations may legitimately simplify; record any expectation change
-   the way `11`'s was recorded before).
+1. `orchestrator.md`: a milestone branch is created at milestone open
+   (baseline commit if the tree is dirty), each accepted task is committed,
+   and the never-do list (push, merge, rebase, `--no-verify`, rewriting
+   history it did not create) is stated. Respect target-repo conventions.
+2. Delete the snapshot mechanics from `references/fix-cycle.md`; the
+   pre-correction ref is `git rev-parse HEAD` before routing, corrections are
+   committed, and the correction diff is `git diff <pre> HEAD`.
+3. `SKILL.md`: §"What a second review sees" scopes to the commit range, and
+   the PASS path squashes or keeps per target-repo convention.
+4. Downstream consumers of "the harness does not commit after every task":
+   `milestones-template.md` (`### Baseline`, `### Review`, `## Final Review`),
+   `verifier.md`, `as-built.md`, `reviewer.md`. Grep for `-cycle`, `.patch`,
+   `porcelain`, `uncommitted` to catch stragglers (`docs/runtime-contract.md`
+   has no patch reference; verify rather than assume).
+5. Fixtures `11`/`12`: their setups fabricate a `.patch` the harness no longer
+   writes. Drop it, seed a real milestone branch and baseline SHA, and record
+   the expectation changes the way `11`'s was recorded before.
+6. Run fixtures `05` (the implementation phase, where branching and per-task
+   commits live), `11` and `12`.
 
 ### Acceptance criteria
 
 - [x] Ruling recorded here (2026-09-02, above).
+- [x] A milestone opens its own branch, commits every accepted task to it, and
+      records `### Baseline` as `<sha> on <branch>` — proven by `05`, which is
+      the only fixture that starts from nothing and therefore the only one that
+      opens a branch.
+- [x] The snapshot/patch mechanism is deleted, and a second review scopes
+      itself to `git diff <Pre-correction> HEAD` — proven by `12` (scoped) and
+      `11` (widened, then scoped on cycle 3), neither of which has a `.patch`
+      file to fall back on.
+- [x] The harness does not push, merge, delete a branch, or touch the default
+      branch — checked in all three runs.
 - [ ] Next real milestone's diff is computable from git alone; verifier
       baselines come from commits, not hand-maintained SHAs.
+
+### What was changed
+
+**`agents/orchestrator.md` — a new `## Git discipline in the target
+repository`.** At the open of an implementation phase with an empty
+`### Baseline`: create `m<n>-<slug>` and switch to it *first*, so uncommitted
+work already in the tree comes across rather than being committed under the
+human's name on their branch; commit that work as its own
+`harness: baseline for M<n>`; record `### Baseline` as `<sha> on <branch>`.
+Then a commit per **accepted** task, staged **by path** (the verifier's
+`Files Changed`, plus `.harness/`), and a commit of the phase's own record
+before returning. Plus the never-list: no push, no merge, no rebase, no delete,
+no `--amend` of history it did not create, no `--no-verify`, no `git stash`.
+A non-git target records that in `### Baseline` and runs without any of it.
+
+**`agents/references/fix-cycle.md` — the contraption is gone.** The
+throwaway-index double snapshot, the `git stash create` warning, and
+`.harness/reviews/<milestone>-cycle<n>.patch` are deleted outright. In their
+place: `Pre-correction: <sha>` is `git rev-parse HEAD` taken *before* routing,
+corrections are committed like any other accepted task, and the correction diff
+is `git diff <Pre-correction> HEAD`. This is the B12-style deletion win the
+ruling predicted — 33 lines of plumbing replaced by a ref.
+
+**`skills/implement/SKILL.md`** — §"What a second review sees" scopes to the
+commit range; a new `## Closing the milestone branch` commits the `DONE` record
+by path, keeps the commits by default and squashes only on an evident
+convention, and forbids merge/push/delete. Downstream: `milestones-template.md`
+(`### Baseline`, `### Review`, `## Final Review`), `verifier.md` (it runs
+*before* the commit, so uncommitted output is expected — but everything earlier
+in the milestone is committed), `as-built.md`, `reviewer.md`, the example, and
+a new README section telling the human what the harness now does to their
+repository.
+
+### Validation
+
+Fixtures `05`, `11` and `12`, run against this working tree. `.patch` and
+`stash create` appear nowhere in the shipped set except as deliberate
+back-references.
+
+**A defect in the first draft, found by `05` and fixed before the recorded
+runs.** The task-commit rule said `git add -A`. `05`'s repository has no
+`.gitignore`, so the reviewer's test run left an untracked `__pycache__/`, and
+`-A` would have committed Python bytecode into the human's history under a
+task's name. The run *deviated from the instruction to avoid it* — "I committed
+`.harness/` specifically rather than `-A`, then removed the directory" — which
+is the tell that the instruction was wrong rather than the run. Changed to
+staging by path, on the argument that the paths are already known and already
+checked: they are the `Files Changed` list the orchestrator has just judged
+against `Files Allowed To Change`. All three fixtures were then re-run against
+the corrected text, and those re-runs are what the evidence below is from.
+
+**`05` — PASS.** Branch `m1-divide-by-zero-raises` created from nothing;
+`### Baseline` `365c3f4 on m1-divide-by-zero-raises`; four commits, each
+carrying only what belongs in it:
+
+```
+0b91e71 M1 DONE: ...                         .harness/milestones.md
+1c49171 M1: implementation phase complete    .harness/milestones.md
+261e4ab M1 T1: divide two numbers ...        calculator.py, test_calculator.py,
+                                             .harness/tasks/M1-T1.md, milestones.md
+365c3f4 harness: baseline for M1             .harness/milestones.md
+```
+
+`main` still holds only `baseline`. Nothing pushed, merged or deleted. Status
+`DONE`, 10 headings in template order, four criteria `[x]`, suite green on an
+independent re-run (3 tests), `divide(1, 0)` raises. `__pycache__/` is still
+untracked, and the missing `.gitignore` is recorded under `### Follow-ups`
+rather than fixed — out of scope, correctly.
+
+**That last point falsified a line of `05`'s own answer key**, and the key was
+corrected rather than the harness. It required `git status --porcelain` to be
+empty at the end. In a repository with no `.gitignore` that is not achievable
+without either committing bytecode or deleting files the milestone did not
+create, and both are worse than leaving it. A non-empty `git status` is the
+pass here; `__pycache__/` in the history is the failure.
+
+**`11` — PASS.** Cycle 2 widened to the whole milestone, with the dispatch
+carrying the reason ("Scope is the WHOLE milestone, not a narrowed correction
+diff"), graded AC3 **FAIL** at `BLOCKER` on fresh evidence, and named
+`receipt/report.py` formatting cents with `"$%.2f"` — tying it to cycle 1's
+change of representation rather than blaming the correction. Cycle 3 then
+scoped to `git diff 9cc450c HEAD` with reading narrowed and grading not.
+`Review Cycles: 2`, three criteria `[x]`, entry point `TOTAL $25.06`, 6 tests
+green. The commit shape is the point:
+
+```
+6f7db60 M1 DONE                    .harness/milestones.md
+935c85b M1: cycle-2 fix cycle      .harness/{milestones.md,reviews/M1-cycle2.md,tasks/M1-T5.md}
+309e7c9 M1 T5: format cents ...    receipt/report.py, tests/test_report.py
+```
+
+Product and record separated without being asked to, and no patch file written
+anywhere. The `.harness/reviews/` directory holds exactly one thing —
+`M1-cycle2.md`, the findings report.
+
+**`12` — PASS.** Scoped to `git diff 60ce92e HEAD` from the ref, not widened,
+`PASS` at `sonnet`, `Review Cycles: 1`, three criteria `[x]`, `Status: DONE`.
+**Exactly one commit, touching only `.harness/milestones.md`** — the `git add
+.harness` rule visible in the artefact. Two subagents: the scoped reviewer and
+a navigator asked for "Branch close facts", which is the keep-vs-squash rule
+firing through the navigator as written. **No orchestrator on the passing
+path**, which is still the only isolated test of that. `.harness/reviews/` does
+not exist — and now that nothing is seeded there, that check is sharper than it
+was: previously the directory existed with a seeded patch in it.
+
+Both runs kept their commits rather than squashing, and both said why: the base
+branch carries one commit, so there is no one-commit-per-unit convention to
+match, and keeping is the default when unsure.
+
+**`05` second invocation — PASS.** The final holistic review ran at `opus`,
+scoped to requirement coverage and the entry point rather than a project diff,
+re-ran validation itself, and additionally mutation-probed a throwaway copy of
+the tree (`a // b`, a `None` sentinel, `math.inf`) to confirm the suite detects
+the failure modes the requirements name. 12 graded rows, all PASS, no report
+file. It committed its own record — `ff8ce73 Final review PASS`, touching only
+`.harness/milestones.md` — so the phase-record commit rule extends to the
+final-review path without being told to. M1's block still carries **exactly the
+10 template headings in order**; the only other `###` in the file is
+`### Final Review Follow-ups` under `## Final Review`, which belongs to no
+milestone and so is outside the archiving rule the B30 heading defect was about.
+Noted rather than fixed: the template does not name that subheading either way.
+
+### Follow-ups
+
+- `examples/milestones.example.md` records `### Review Cycles: 1` against a
+  milestone whose only review passed. Under the current rule a passing review
+  is not a cycle, so it should read `0`. Noticed while updating that file's
+  `### Baseline` for B31; not fixed, because it is unrelated to this milestone.
 
 ### Blockers
 

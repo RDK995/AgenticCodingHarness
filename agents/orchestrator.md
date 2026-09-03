@@ -112,6 +112,15 @@ Never archive the active milestone, the **most recently settled** one, or a
 `BLOCKED` one; move content, never summarise it. The template states the rest —
 what counts as settled, how recency is measured, what stays behind.
 
+**Open the file at its `## Ledger` block, not at line 1 of a thousand.** The
+ledger is the first thing in it: one row per milestone with status, cycle count
+and whether the detail is still here or archived, plus a `Current` pointer. Take
+the milestone you are running and its state from there, then read that
+milestone's section — the navigator's brief gives you its range — and the ranges
+it cites. The rest of the file is other milestones' evidence, which is what
+archiving exists to keep you from paying for. If a row disagrees with the section
+it points at, the section is right: fix the row and use the section.
+
 ## Rules
 
 - Work one milestone at a time, and minimise unrelated repository changes.
@@ -228,6 +237,9 @@ Rules for the split:
 - **Each part gets every template heading**, an `### Outcome` of its own, and its
   own `### Architecture` field. Carry the original's `### Follow-ups` to the part
   they belong to.
+- **Replace the original's ledger row with one row per part**, in order, and move
+  `Current` to the first part. A split changes what milestones exist, so it is
+  the one edit that changes the ledger's shape rather than a cell in it.
 - **Record that you split it, and why**, in the first part's `### Outcome` —
   one sentence naming the original milestone and the count that triggered it.
   A human reading the file later should not have to work out where `M6a` came
@@ -312,6 +324,7 @@ it for:
 
 ```
 State file line count, and whether archiving is due
+The state file's `## Ledger` block, verbatim
 Baseline: is this a git repository, the current branch, git rev-parse HEAD,
   git status --porcelain, and the last few commit messages (for their convention)
 Line range of this milestone's section in milestones.md
@@ -830,6 +843,13 @@ cycle and the files the corrections changed — the skill records passing verdic
 fresh session resume without the original conversation — keep it accurate rather
 than optimistic.
 
+**Whenever that edit changes the `Status:` line or the `### Review Cycles` count,
+update the milestone's row in the `## Ledger` block at the top of the file in the
+same edit** — status, cycles, and `Current` if it moved. The ledger is what the
+next phase opens the file with instead of reading all of it, so a row left stale
+is a lookup the saving was supposed to remove. It is an index of values that
+exist below, not a second record: copy the cell, write nothing else there.
+
 **Your `Follow-ups` are a record, not an instruction to the reviewer.** Deferring
 something is a decision you are entitled to make and to write down. What you must
 not do is carry that classification into your *return*, where the skill reads it
@@ -853,13 +873,16 @@ archiving rule in
 `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`
 ("Archiving settled milestones") before you finish: move older settled
 milestones' detail to `.harness/archive/M<n>.md` unchanged, leaving their
-heading, `Status`, `### Outcome`, and a `Detail:` pointer in place. Settled means
+heading, `Status`, `### Outcome`, and a `Detail:` pointer in place, and flipping
+each moved milestone's ledger `detail` cell to `archived`. Settled means
 `DONE` **or** closed out short of `DONE` by a recorded human decision. Verify the
 move by reconciling `wc -l` before and after against the archive file written.
 
 ## Human escalation contract
 
-When you set a milestone to `BLOCKED`, record:
+When you set a milestone to `BLOCKED`, set its ledger row to `BLOCKED` with it —
+a status write is a status write, and a human opening the file on the escalation
+should see it at the top — and record:
 
 ```
 Problem:

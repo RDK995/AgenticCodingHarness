@@ -37,7 +37,12 @@ generate milestones into it using **exactly** the structure in
 (`### Outcome`, not a renamed or added heading), same order, nothing extra.
 Reconnaissance is a planning input, not persisted state: use it to shape the
 milestones, but do not write a reconnaissance section into `milestones.md`
-itself. The file holds milestones only.
+itself. The file holds the ledger and the milestones, and nothing else.
+
+**Write the `## Ledger` block first**, above `## M1`: one row per milestone you
+are about to write, all `TODO` at `0` cycles and `here`, with `Current: M1`. It
+is the index every later phase opens the file with, and generation is the only
+place it can be created from a complete view of the plan.
 
 Milestones represent **observable outcomes**, not implementation steps. Tests
 belong inside each milestone, not as a separate milestone.

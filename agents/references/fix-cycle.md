@@ -47,7 +47,8 @@ Review found something → record Pre-correction: git rev-parse HEAD
                        → commit each accepted correction
                        → validate
                        → record which files the corrections changed
-                       → increment Review Cycles
+                       → increment Review Cycles, and the milestone's ledger
+                         row with it
                        → return at REVIEW for the scoped re-review
 ```
 

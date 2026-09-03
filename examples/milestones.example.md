@@ -1,5 +1,14 @@
 # Milestones
 
+## Ledger
+
+Current: none — all DONE
+1 milestone — 1 DONE
+
+| id | status | cycles | detail |
+| --- | --- | --- | --- |
+| M1 | DONE | 1 | here |
+
 ## M1 — Calculator division is available and safe against division by zero
 
 Status: DONE

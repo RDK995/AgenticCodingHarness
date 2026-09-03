@@ -30,6 +30,16 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
 - `.harness/milestones.md` exists, milestone reaches `Status: DONE`.
 - Its headings match `skills/implement/references/milestones-template.md` exactly
   and in order.
+- **The ledger (B32).** The file opens with a `## Ledger` block, and it matches
+  the body: one row per `## M<n> — ` section, each row's status equal to that
+  milestone's `Status:` line and its cycles equal to its `### Review Cycles`,
+  with `Current` naming the first milestone that is not `DONE` — `none — all
+  DONE` once the last one lands. This fixture is where the ledger is written
+  from nothing: generation creates it and the skill's PASS path moves it to
+  `DONE`, so a run that writes the block once and never updates it is caught
+  here and nowhere else. A ledger carrying anything beyond ids, statuses,
+  counts and `here`/`archived` — an outcome summary, a percentage, a line
+  number — is a failure, not extra helpfulness.
 - `### Architecture` is `N/A` — present, not omitted.
 - **Git discipline (B31).** The work is on a milestone branch — `git branch`
   shows one created by the run, and `git rev-parse --abbrev-ref HEAD` is it, not

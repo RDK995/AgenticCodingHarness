@@ -48,9 +48,19 @@ IF absent:
     when extending an existing codebase. Do not generate one; it needs human
     agreement, which is the architect skill's job.
 
-Read .harness/milestones.md
+Read the ## Ledger block at the top of .harness/milestones.md — not the
+whole file. It names the current milestone and every milestone's status
+and cycle count, which is all you need to dispatch. See "Read the ledger,
+then one section" below.
 
-IF missing:
+IF the file exists but has no ## Ledger block — a project planned before
+the block existed:
+    read the file, write the ledger from the statuses and cycle counts
+    already in it, and carry on. Reading the values out is mechanical;
+    the shape is the template's and is not yours to reinvent — same
+    columns, same order, and the id cell holds the id, not the outcome.
+
+IF the file is missing:
     invoke harness:orchestrator to do reconnaissance and generate milestones
 
     IF it returns BLOCKED: STOP and report to the human. Generation does not
@@ -64,9 +74,10 @@ IF missing:
     complete builds the wrong project.
 
 LOOP:
-    find the first milestone that is not DONE
+    take the first milestone that is not DONE from the ledger's Current
+    pointer, and read that section — that one, not the file
 
-    IF none exists (all DONE):
+    IF none exists (Current is "none — all DONE"):
         break out of LOOP
 
     IF it is BLOCKED:
@@ -128,7 +139,10 @@ LOOP:
                 that is DONE with criteria still unchecked contradicts its
                 own record, and the boxes are what a human reads first.
               - record the verdict and the review tier under ### Review
-              - set Status: DONE
+              - set Status: DONE, and update this milestone's row in the
+                ## Ledger block in the same edit — status, cycles, and
+                Current moved to the next milestone that is not DONE, or
+                "none — all DONE" if this was the last one
               - close the milestone branch — see "Closing the milestone
                 branch" below. Keep its commits, or squash them if that is
                 plainly the repository's convention. Never push, never merge.
@@ -421,6 +435,29 @@ project's 18 milestones.** The navigator returns pointers and verbatim excerpts
 and never summarises — that contract is what makes a Cheap tier safe for it, and
 what a general agent does not carry. You then read the material yourself, from the
 ranges it gave you.
+
+## Read the ledger, then one section
+
+`.harness/milestones.md` is the largest thing you read and the only one that
+grows with the project — on the project this was measured on it reached 2,400
+lines, and every invocation read or searched all of it to answer *which milestone
+is next*.
+
+The `## Ledger` block at the top answers that. Read the first lines of the file
+and stop there: it gives every milestone's id, status and cycle count, whether
+its detail is still here or archived, and a `Current` pointer to the first
+milestone that is not `DONE`. Then read **that milestone's section only** — every
+section begins `## M<n> — `, so its start is one anchored lookup — and dispatch
+from it.
+
+**When the two disagree, the section is right.** The ledger is an index, kept by
+whoever last wrote a status or a cycle count, and an index can be stale. Correct
+the row and carry on from the section; never let a row decide anything on its
+own. The two-cycle cap in particular is counted from the milestone's own
+`### Review Cycles`, because that is the field the cap's whole record lives in.
+
+Two reads still take the whole file, and both are checks rather than lookups: the
+completeness check on a freshly generated plan, and deciding what to archive.
 
 ## Compose the drift comparison
 

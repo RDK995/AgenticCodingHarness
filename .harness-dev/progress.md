@@ -2,15 +2,18 @@
 
 ## Current
 
-Milestone: B32 — Navigation extras: state ledger and symbol map (post-V1)
-Task: not yet started. B32's section is at the bottom of this file.
-Status: TODO.
+Milestone: none in flight. **The improvement plan from the 2026-09-02
+measurement is implemented and fixture-validated end to end — B28 through B32.**
+Task: nothing queued. The next work is a real project, not a milestone.
 
-Five milestones sit at REVIEW, each held there by one remaining acceptance
-criterion that is a field measurement no fixture can produce. **They are not
-blocked and they do not block B32** — each needs the next real project to run,
-and they should be closed together when it does:
+Six milestones sit at REVIEW, each held there by one or more remaining
+acceptance criteria that are field measurements no fixture can produce. **None
+is blocked** — each needs the next real project to run, and they should be
+closed together when it does:
 
+- **B32** — 5 of 5 tasks done, 2 of 3 criteria proven, four fixture
+  invocations passing (`05` twice, `12`, `11` re-run). Needs: orchestrator +
+  skill locate-shaped calls ≤10%, and state-file lookups resolving in one read.
 - **B31** — 6 of 6 tasks done, 4 of 5 criteria proven, four fixture
   invocations passing (`05` twice, `11`, `12`).
 - **B30** — 6 of 6 tasks done, 3 of 4 criteria proven, all fixtures passing.
@@ -43,10 +46,23 @@ verifier re-read rule were all exercised and measured. B26's Cheap-share
 criterion still needs its tier count read off that project's `milestones.md`
 tier tables (task in B28 below).
 
-**Queued for implementation: B32**, the last of the improvement plan from the
-2026-09-02 measurement — B28 through B31 are implemented and fixture-validated.
-Its section is at the bottom of this file and is written to be implemented by a
-fresh session from this file plus the named repository files alone.
+**What the next session should do.** Not a milestone: run a real project on this
+harness. Six milestones are waiting on the same thing — numbers only field use
+produces — and running one project supplies most of them at once. B28's four
+(handoff turn, fix-cycle `CONTINUE`, sleeps, off-harness lookups), B30's
+accuracy criterion, B31's commit-shape criterion, B32's ≤10% locate-shaped
+calls, B27's three unexercised paths, and B26's Cheap share off the tier tables.
+Measure with `.harness-dev/measure-transcripts.py`, deduplicating by
+`message.id`.
+
+**One thing B32 changes for every later milestone:** `.harness/milestones.md`
+now opens with a `## Ledger` block, and the harness reads it instead of the
+whole file. Whoever writes a `Status:` line or a `### Review Cycles` count
+updates the row in the same edit; the milestone's own section stays the
+authority. `.harness-dev/check-ledger.py <milestones.md>` checks a file's ledger
+against its body and exits non-zero on any disagreement — worth running over a
+real project's state file after a milestone, since a stale row is the one
+failure mode this design has.
 
 **One thing B31 changes for every later milestone:** the harness now commits in
 target repositories. A milestone opens `m<n>-<slug>`, commits each accepted
@@ -1146,6 +1162,7 @@ orchestrator reads the range itself.
 ## Milestones
 
 `12 / 12 V1 build milestones DONE` · `24 / 32 including post-V1 additions DONE`
+· `6 at REVIEW, every one waiting on the same field measurement`
 
 1. B1 — Plugin scaffold loads — DONE
 2. B2 — Harness state templates exist — DONE
@@ -1178,7 +1195,7 @@ orchestrator reads the range itself.
 29. B29 — Skill session diet (post-V1) — REVIEW
 30. B30 — Close the three accuracy holes (post-V1) — REVIEW
 31. B31 — Git discipline in target projects (post-V1) — REVIEW
-32. B32 — Navigation extras: state ledger and symbol map (post-V1) — TODO
+32. B32 — Navigation extras: state ledger and symbol map (post-V1) — REVIEW
 
 ## Reading this file
 
@@ -3163,41 +3180,273 @@ None.
 
 ## B32 — Navigation extras: state ledger and symbol map (post-V1)
 
-Status: TODO — opportunistic; navigation already fell 61% → 18%, so these are
-the remainder, not the headline. Knowledge graphs, LSP servers, memory
+Status: REVIEW — 5 of 5 tasks done, 2 of 3 acceptance criteria proven, four
+fixture invocations passing (`05` twice, `12`, `11` on the corrected text). The
+third criterion is a field measurement no fixture can produce; it joins the five
+already waiting on the next real project.
+
+Opportunistic; navigation already fell 61% → 18%, so these
+are the remainder, not the headline. Knowledge graphs, LSP servers, memory
 products: considered and rejected — see the 2026-09-02 research summary. Both
 tasks are pointers-not-prose by design (LLM-generated context files measured
 −3% success at +20% cost).
 
 ### Tasks
 
-1. **Write-time ledger in the state file.**
+1. **Write-time ledger in the state file.** — DONE
    `skills/implement/references/milestones-template.md`: a front-loaded index
    block — one line per milestone (id, status, cycles), a current-pointer, and
    stable grep-anchors — maintained by whoever writes the file, as part of the
    write. No summaries, no prose. Writers already maintain `### Review Cycles`;
    this is the same obligation at the top of the file. The 2,400-line
    `milestones.md` navigated by search was the measured cause.
-2. **Symbol map for the navigator, not the orchestrator.**
+2. **Every writer of the state file maintains the ledger.** — DONE
+   The template defines it; `agents/orchestrator.md` (status, evidence,
+   archiving), `agents/references/planning.md` (generation), and
+   `skills/implement/SKILL.md` (the PASS path that sets `DONE`) are the three
+   writers, and each has to be told in the same breath it is told to write.
+3. **The readers use it.** — DONE
+   The skill's LOOP and the orchestrator's opening both currently resolve
+   "which milestone, and where is it" by reading or searching the whole file.
+   With a ledger that is one small read plus one anchored range.
+4. **Symbol map for the navigator, not the orchestrator.** — DONE
    `agents/navigator.md`: before grepping for symbols, generate/refresh a
    ctags or equivalent listing on demand (sub-second at these repo sizes; no
    persistent index, no staleness machinery — the Aider property) and answer
    from it with pointers + verbatim excerpts, contract unchanged. If
    `universal-ctags` is absent, fall back to grep as today; do not add a
    dependency to the plugin.
+5. **Fixture validation.** — DONE
+   `05` produces a `milestones.md` whose ledger matches its body. `11` and `12`
+   added, because neither seeds a ledger and both therefore exercise the
+   retrofit path `05` structurally cannot reach — which is where the one defect
+   turned up.
+
+### What was built
+
+**The ledger.** `## Ledger` is now the first block of `.harness/milestones.md`:
+a `Current` pointer, a one-line count, and one row per milestone — id, status,
+review-cycle count, and `here` or `archived`. Nothing else. It carries **no line
+numbers**: every milestone section begins `## M<n> — `, so `grep -n '^## M'`
+finds any of them and a stored line number would be stale after the next edit —
+a pointer that is confidently wrong costs more than no pointer.
+
+Defined in `skills/implement/references/milestones-template.md` §"The ledger",
+with four rules that are the whole design: whoever writes a `Status:` line or a
+`### Review Cycles` count updates the row **in the same edit**; a file planned
+before the block existed gets one on the next write; **the body is the
+authority** where the two disagree — the two-cycle cap in particular is counted
+from `### Review Cycles` and never from a row; and nothing but ids, statuses,
+counts and `here`/`archived` may appear in it.
+
+That last rule is the one carrying the research finding. LLM-generated repository
+context files measured **−3% success at +20% cost** (ETH, arXiv 2602.11988), and
+a summary that sits above the file it summarises is a second thing to keep true.
+Every cell here is a *copy of a value that exists below*, checkable against the
+body in one glance. That is what makes it safe to trust for locating, and it is
+why the ledger is an index rather than a status page.
+
+Wired into all five writers and both readers:
+
+| | |
+| --- | --- |
+| `references/planning.md` | generation writes the ledger first, all `TODO` |
+| `orchestrator.md` §Recording completion evidence | status/cycles writes update the row |
+| `orchestrator.md` §Splitting | a split replaces one row with one per part |
+| `orchestrator.md` §archiving, §escalation | `detail` → `archived`; `BLOCKED` reaches the row |
+| `references/fix-cycle.md` | increments the row with `### Review Cycles` |
+| `implement/SKILL.md` PASS path | `DONE`, and `Current` moves |
+| `implement/SKILL.md` LOOP + §"Read the ledger, then one section" | dispatch from the ledger, then read one section |
+| `orchestrator.md` §Before you plan | open the file at the ledger, not at line 1 |
+| `navigator.md` | new brief item: the `## Ledger` block, verbatim |
+
+**The symbol map.** `agents/navigator.md` §"Locating a symbol" — for *where is
+this defined*, a tags listing before a grep of the tree, because a
+definition-grep also returns every call site and the caller then pays to work
+out which hit was the definition.
+
+```bash
+ctags --version 2>/dev/null | grep -qiE 'universal ctags|exuberant ctags' \
+  && ctags -R -x <paths> | awk '$1 == "<symbol>"'
+```
+
+`-x` writes a cross-reference to **stdout** — name, kind, line, file, source
+line — so nothing lands on disk and the navigator's "modify nothing" rule still
+holds; one run answers a whole batch of symbol questions. Generated fresh and
+discarded every time: no tags file, no cache, no staleness machinery. A stale
+index answers confidently with the shape the code used to have, and that failure
+is invisible in a navigator's return, which is the one failure this role must
+not have.
+
+**The probe is the flavour, not the binary,** and that is not pedantry: this
+machine's `/usr/bin/ctags` is BSD, which has no `-R` and exits 1 on `--version`.
+`command -v ctags` succeeds there and the run then fails. Verified directly —
+the probe prints nothing on stdout and the `&&` short-circuits to grep. A
+missing `ctags` is not reported at all: the plugin does not depend on it,
+must not install it, and must not tell anyone to.
 
 ### Acceptance criteria
 
-- [ ] Template carries the ledger; a fixture run (`05`) produces a
-      `milestones.md` whose ledger matches its body.
-- [ ] Navigator instruction present with the no-dependency fallback.
+- [x] Template carries the ledger; a fixture run (`05`) produces a
+      `milestones.md` whose ledger matches its body. — `05` run end to end on a
+      clean copy, both invocations. Checked mechanically, see below.
+- [x] Navigator instruction present with the no-dependency fallback. —
+      `agents/navigator.md` §"Locating a symbol"; the fallback probe verified on
+      this machine's BSD `ctags`.
 - [ ] Measured, next real mature project: orchestrator + skill locate-shaped
-      calls ≤10%, and state-file lookups resolve in one read.
+      calls ≤10%, and state-file lookups resolve in one read. — field
+      measurement, no fixture can produce it. Joins the five criteria already
+      waiting on the next real project.
 
 ### Validation
 
-Fixtures `05`, `11`, `12`; the measured criterion waits on a real mature
-project.
+**`05` — PASS, both invocations, on a clean copy of the fixture.**
+
+The ledger was written and maintained by three different writers across two
+sessions, which is the thing worth having watched:
+
+```
+generation            → Current: M1        | M1 | TODO   | 0 | here |
+implementation phase  → Current: M1        | M1 | REVIEW | 0 | here |
+skill PASS path       → Current: none — all DONE
+                                           | M1 | DONE   | 0 | here |
+```
+
+Checked mechanically rather than by eye, with
+`.harness-dev/check-ledger.py <milestones.md>`: it parses every `## M<n> — `
+section's `Status:` and `### Review Cycles` out of the body, parses the rows out
+of the ledger, and fails on any disagreement in row order, status, cycles,
+`here`/`archived`, or the `Current` pointer. `OK: ledger matches body — 1
+milestone(s), Current: none — all DONE`, exit 0, after each invocation.
+
+**The checker was falsified before it was trusted**, since a checker that always
+prints OK proves nothing. Against a mutated copy (`| M1 | DONE | 2 | archived |`
+over a body reading `REVIEW`/`0`/here) it returns exit 1 and names all three
+mismatches; against a copy with `## Ledger` renamed it reports the block
+missing.
+
+Everything else `05` asks for still holds, unchanged by this milestone: branch
+`m1-divide-with-zero-guard` opened from nothing, `### Baseline` `6114bf4 on
+m1-divide-with-zero-guard`, four commits each staged by path, `main` still at
+`baseline` alone, nothing pushed/merged/deleted, template headings in order,
+five criteria `[x]`, `__pycache__/` still untracked with the missing
+`.gitignore` under `### Follow-ups`, suite green on an independent re-run (4
+tests), `divide(1, 0)` raising. The second invocation reached the final review:
+Top tier, `PASS`, `## Final Review` written, per-criterion table over both
+project criteria, scoped to what no milestone review could see rather than to
+the project diff — and it mutation-tested the suite (`int(a)//int(b)`,
+`float('inf')`) to prove the tests bite, which was not asked for.
+
+**One contamination, mine, and it is a lesson about running fixtures rather than
+about the harness.** Invocation 1's log was redirected to `run1.log` *inside the
+run directory*; the run noticed the stray file and recorded it under
+`### Follow-ups`, and when I deleted it before invocation 2 the final reviewer
+correctly reported that the file "does not exist and never appears in history"
+and logged the record correction under `## Final Review`. Both agents behaved
+well on a file the fixture never had. Write fixture logs outside the run
+directory.
+
+**`11` and `12` — both PASS on their own discriminators, and together they found
+the one defect in this milestone's work.** Neither seeds a ledger, so both are
+the retrofit case `05` structurally cannot reach.
+
+`12` — PASS. Retrofitted the ledger onto a file that had none, **in the
+documented shape**, and reported doing so. Stayed scoped to `git diff dad3e37
+HEAD`, `Review Cycles: 1` (not incremented by the passing review), `DONE` with
+three criteria `[x]`, exactly one commit touching only `.harness/milestones.md`,
+clean tree, no `.harness/reviews/` file, entry point `TOTAL $25.06`.
+
+`11` — PASS on the harness behaviour it exists for. Cycle 2 **widened to the
+whole milestone**, graded AC3 `FAIL` at `BLOCKER`, named `receipt/report.py`
+formatting whole cents with `"$%.2f"` and tied it to cycle 1's change of
+representation rather than blaming the correction — and raised a second
+`IMPORTANT` that nothing tested `render` or the entry point, *"which is why the
+BLOCKER survived a whole cycle undetected"*. Both resolved; `Review Cycles: 2`,
+`DONE`, three criteria `[x]`, entry point `TOTAL $25.06`, 6 tests green. The
+ledger tracked the fix cycle correctly too: `REVIEW`/1 → `DONE`/2.
+
+**The defect: the retrofit rule pinned the values and not the shape.** `11` built
+its ledger as
+
+```
+| Milestone | Status | Cycles | Detail |
+| M1 — A file of amounts is totalled and printed as a receipt | DONE | 2 | here |
+
+Current: none — all DONE
+```
+
+— renamed headers, `Current` below the table, and **the milestone's outcome text
+in the id cell**. The first two are cosmetic. The third is the failure this
+block's one design rule exists to prevent: every cell is supposed to be a copy of
+a value checkable against the body in a glance, and prose in a row is precisely
+the summary-above-the-file that the ETH −3%/+20% result argues against.
+
+Same instruction, same milestone shape, two runs, two shapes: `12` matched the
+template exactly and `11` invented one. That is the signature of an
+under-specified instruction rather than a model failure, and it is the same
+signature this file already records for *"check them off"* — where `11` ticked
+the boxes and `12` did not, from the same half-written rule, with the halves the
+other way round.
+
+Fixed by saying what was meant: the block's shape is exact, the header row is
+literally `| id | status | cycles | detail |`, `Current` sits above the table,
+and the id cell holds the id and never the outcome. The retrofit rule and the
+skill's retrofit branch both now say the shape is not the writer's to reinvent —
+reading the values out is mechanical, choosing a shape is not.
+
+**`11` re-run from a fresh copy against the corrected text — PASS, and the
+retrofit came out in the documented shape**: `Current: M1` above the table,
+`| id | status | cycles | detail |`, `| M1 | REVIEW | 1 | here |`. It then
+tracked the fix cycle to `| M1 | DONE | 2 | here |` with
+`Current: none — all DONE`, and `check-ledger.py` returns `OK` against the
+finished file. The fixture's own discriminator held throughout: cycle 2 widened
+and **said why** — *"I widened the scope from the correction range to the whole
+milestone, because cycle 1's fix had touched `receipt/total.py` and
+`tests/test_total.py` — files no cycle-1 finding named"* — found the `BLOCKER`
+in `receipt/report.py` on a live entry-point run, raised a second `IMPORTANT`
+that the record was presenting a pre-correction transcript as current evidence,
+and cycle 3 widened again for its own stated reason (the correction added
+`tests/test_report.py`, which no finding named) before passing. `Review Cycles:
+2`, three criteria `[x]`, `TOTAL $25.06`, 5 tests green, corrections committed,
+tree clean, branch unmerged.
+
+Two things in that run were not asked for and are worth recording. The cycle-3
+reviewer **caught a leaked classification** — a `### Follow-ups` note reading
+*"Not raised as a criterion breach"* reached it through `milestones.md` — set it
+aside, re-derived the judgement from its own run of the entry point, and
+independently landed on `OPTIONAL`. That is B30's contamination rule working on
+a leak the harness permits (the reviewer may read a classification *in the
+record*; it must not arrive as a fact in the prompt). And it **fault-injected
+the new test** to confirm it fails on the cycle-2 defect rather than crediting a
+green suite.
+
+### Decisions
+
+- **Line numbers stay out of the ledger.** The obvious index entry is a line
+  range per milestone, and it is wrong: it is stale after the next edit, and
+  unlike a stale status it cannot be checked against the body without doing the
+  lookup it was meant to save. `## M<n> — ` is a stable anchor and one grep.
+- **The seeded fixtures were left without ledgers.** `01`-`04`, `06`, `08`,
+  `10`-`14` all seed a `milestones.md` written before this block existed, which
+  is exactly the state every real project is in right now — `phoneToLocalModel`
+  and `OpenCodeOpenWeightHarness` both have ledger-less state files. Leaving
+  them alone keeps the fixtures representative *and* makes `11` and `12` the
+  test of the retrofit rule, which `05` cannot exercise because it starts from
+  nothing.
+- **The `ctags` path is specified, not exercised — say so rather than imply
+  otherwise.** What was verified here is the half this machine can verify: the
+  flavour probe, against the BSD `ctags` at `/usr/bin/ctags`, where it prints
+  nothing and short-circuits to grep. `universal-ctags` is not installed and was
+  not installed to test a documentation line — that is a change to the human's
+  machine for the convenience of a claim. So the `-x` invocation rests on the
+  format being identical in Exuberant and Universal ctags, which is a reading of
+  the tools rather than a run of them. The first navigator invocation on a
+  machine that has one is the test, and the cost of being wrong is bounded: the
+  command fails, and the fallback beside it is the behaviour that exists today.
+- **The ledger holds no row for `## Final Review`.** Rows are milestones. A
+  reader wanting to know whether the final review ran greps one heading, and
+  giving the block a second kind of row would start it down the road to being a
+  status page.
 
 ### Blockers
 

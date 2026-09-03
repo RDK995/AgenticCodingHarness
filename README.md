@@ -108,7 +108,13 @@ architecture is visible without a second status field to fall out of date.
 `as-built/` is the record of what each milestone actually constructed, drawn
 from its diff rather than from what it claimed, and the comparison composed from
 those records at the end. `milestones.md` tracks each milestone's status,
-acceptance criteria, evidence, validation results, and review outcome.
+acceptance criteria, evidence, validation results, and review outcome, and opens
+with a `## Ledger` block — one row per milestone giving its status, review-cycle
+count and whether its detail has been archived, plus a pointer to the current
+one. That block is the index: a session reads it and then the one milestone it
+is working on, rather than a file that reaches thousands of lines. It is
+maintained by whoever writes a status or a cycle count, in the same edit, and
+the milestone's own section is the authority wherever the two disagree.
 `mvp.md` and `full/` exist only on a project that was carved down to a first
 useful version: `requirements.md` and `architecture.md` then hold the MVP, so
 everything downstream implements it without needing to know it is one, and the

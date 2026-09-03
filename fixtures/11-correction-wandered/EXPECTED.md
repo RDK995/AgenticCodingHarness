@@ -51,26 +51,24 @@ The state a run walks into:
 - Nothing in the test output hints that anything is wrong.
 
 `### Review` records a `Pre-correction:` ref — the `M1 implementation` commit,
-which the setup substitutes — and the four files the correction changed. It does
-**not** flag `receipt/total.py` as being outside the findings. That omission is
-deliberate:
+which the setup substitutes — the path of the correction patch, and the four
+files the correction changed. It does **not** flag `receipt/total.py` as being
+outside the findings. That omission is deliberate:
 the record is written by an agent, the harness requires the call-out, and the
 rule for a record that does not say either way is to treat the scope as widened
 rather than assume it is narrow. This fixture is the case that rule is for.
 
-**Three commits on a milestone branch.** The baseline, the implementation, and
-the correction — the shape B31's git discipline produces, and the reason a scoped
-review has a range to be scoped to at all. `pre-correction/` holds the four files
-as cycle 1 reviewed them; the setup swaps them in for the implementation commit
-and the real ones back for the correction commit, then deletes the directory.
+**Three commits.** The baseline, the implementation, and the correction — the
+correction diff has to be identifiable as its own range, because that is what a
+scoped review is scoped to. `pre-correction/` holds the four files as cycle 1
+reviewed them; the setup swaps them in for the implementation commit and the real
+ones back for the correction commit, then deletes the directory.
 
 ```bash
 git init -q
 git add .gitignore .harness receipt.txt && git commit -qm baseline
-BASE=$(git rev-parse HEAD)
-git checkout -qb m1-receipt          # the milestone branch the harness opens
 
-C=$(mktemp -d)                       # outside the repo: it must not be committed
+C=$(mktemp -d)                      # outside the repo: it must not be committed
 cp receipt/parse.py receipt/total.py tests/test_parse.py tests/test_total.py "$C"/
 cp pre-correction/parse.py      receipt/parse.py
 cp pre-correction/total.py      receipt/total.py
@@ -79,9 +77,7 @@ cp pre-correction/test_total.py tests/test_total.py
 rm -rf pre-correction
 git add -A && git commit -qm "M1 implementation"
 PRE=$(git rev-parse HEAD)
-
-sed -e "s/BASELINE_SHA/$BASE/" -e "s/PRE_CORRECTION_SHA/$PRE/" \
-  .harness/milestones.md > .harness/m.tmp
+sed "s/PRE_CORRECTION_SHA/$PRE/" .harness/milestones.md > .harness/m.tmp
 mv .harness/m.tmp .harness/milestones.md      # portable: sed -i differs on BSD and GNU
 
 cp "$C"/parse.py      receipt/parse.py
@@ -90,18 +86,14 @@ cp "$C"/test_parse.py tests/test_parse.py
 cp "$C"/test_total.py tests/test_total.py
 rm -rf "$C"
 git add -A && git commit -qm "M1 cycle 1 correction (T4)"
+
+mkdir -p .harness/reviews                     # the patch the fix cycle would have written
+git diff $PRE HEAD -- receipt tests > .harness/reviews/M1-cycle1.patch
 ```
 
-`### Baseline` records the first of these and the branch. An empty third commit
-is the defect to avoid: with no correction diff, a scoped review has nothing to
-be scoped to and the fixture tests the wrong thing.
-
-**No `.harness/reviews/M1-cycle1.patch` is seeded, and that is the B31 change.**
-The fix cycle used to snapshot the tree twice and write the correction out as a
-patch file, because a milestone's implementation and its corrections shared one
-uncommitted tree. Now that every accepted task is committed to the milestone
-branch, `git diff <Pre-correction> HEAD` *is* the correction diff, and the run
-must scope itself from the ref rather than from a file that no longer exists.
+`### Baseline` refers to the first of these. An empty third commit is the defect
+to avoid: with no correction diff, a scoped review has nothing to be scoped to
+and the fixture tests the wrong thing.
 
 ## Command
 
@@ -129,19 +121,6 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
   being tested, not stopping at it — the loop routes the finding, fixes it, and
   re-reviews, and a `DONE` reached that way is correct. `DONE` reached *without*
   a cycle-2 `FAIL` on AC3 is the failure.
-
-**Mechanically checkable, in git:**
-
-- Cycle 2's `### Review` entry records a `Pre-correction:` ref that resolves
-  (`git cat-file -e <sha>`), and no `.patch` path. The snapshot mechanism is
-  gone; the ref is the whole scope.
-- The cycle-2 corrections are **committed** on `m1-receipt` — commits after the
-  seeded `M1 cycle 1 correction (T4)`, and `git status --porcelain` empty at
-  `DONE`. A milestone that finishes with its corrections sitting uncommitted has
-  left the next review nothing to compute a diff from, which is the failure B31
-  exists to remove.
-- The branch is still `m1-receipt`, unmerged and unpushed, and `git log` on the
-  default branch is untouched.
 
 **Mechanically checkable, in the run's subagents:**
 

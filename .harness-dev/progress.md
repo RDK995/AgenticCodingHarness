@@ -51,9 +51,19 @@ harness. Six milestones are waiting on the same thing — numbers only field use
 produces — and running one project supplies most of them at once. B28's four
 (handoff turn, fix-cycle `CONTINUE`, sleeps, off-harness lookups), B30's
 accuracy criterion, B31's commit-shape criterion, B32's ≤10% locate-shaped
-calls, B27's three unexercised paths, and B26's Cheap share off the tier tables.
+calls, B27's three unexercised paths, and B25's orchestrator-share target.
 Measure with `.harness-dev/measure-transcripts.py`, deduplicating by
 `message.id`.
+
+**Two stale lines in this file, found while asking what comes next.** B25's
+`Status:` still reads *"specification written, no implementation"* when 8 of its
+9 tasks are `[x]` and only task 7 — the same real-project measurement — is open.
+And B26's Cheap-share criterion is **met**: B28 task 6 counted 76 of 104
+delegated tasks entering at Cheap (73.1%) across 17 milestones, so B26's status
+line saying *"nothing validated"* and the 2026-09-02 section's *"B26
+Cheap-share: not yet"* are both out of date. Neither changes what to do next;
+both would mislead a session that reads only the top of this file, which is what
+the ledger work of B32 was about.
 
 **One thing B32 changes for every later milestone:** `.harness/milestones.md`
 now opens with a `## Ledger` block, and the harness reads it instead of the

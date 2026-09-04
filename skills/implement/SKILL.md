@@ -233,23 +233,24 @@ and returns only its verdict, path, per-criterion statuses and finding counts.
 On `PASS` it writes no file. Never ask for the findings inline and never relay
 their body through this context.
 
-**At no less than the highest tier that produced the work.** Read the tier
-recorded against each task in the milestone entry, take the highest, and override
-the reviewer's model to it:
+Derive review tier from the substantive material in this review's diff, not from
+the highest tier ever used in the milestone. For cycle 1, inspect task routing
+records for the implementation diff. For later cycles, inspect only correction
+tasks since the recorded `Pre-correction` ref. A record-only correction dispatches
+no reviewer and inherits no tier.
 
 ```
-highest tier used      reviewer runs at
-Cheap  (haiku)    →    sonnet   (the reviewer's pinned floor)
-Mid    (sonnet)   →    sonnet
-Top    (opus)     →    opus
+highest current substantive tier      reviewer runs at
+Cheap  (haiku)                     →  sonnet (review floor)
+Mid    (sonnet)                    →  sonnet
+Top    (opus)                      →  opus
 ```
 
-Never override the reviewer *downwards*: `sonnet` is the floor even for a
-milestone that was entirely Cheap-tier work. A reviewer weaker than the work it
-judges is the worst failure available to this system — it does not fail loudly, it
-emits a confident, well-formatted per-criterion `PASS`, and the completion gate
-then opens on nothing. Record the tier in `### Review` beside the verdict, so the
-pairing is auditable rather than assumed.
+`sonnet` remains the semantic-review floor. Use Opus only when the current diff
+contains an Opus-routed task, architecture/security work, or difficult
+concurrency. Record `tier`, `model`, `reason_code`, diff range and cycle in the
+structured review entry. An older Opus task outside the correction diff cannot
+elevate a narrow Sonnet correction review.
 
 ## What a second review sees
 

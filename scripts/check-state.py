@@ -14,6 +14,7 @@ import sys
 STATUSES = {"TODO", "IN_PROGRESS", "REVIEW", "DONE", "BLOCKED", "DEFERRED"}
 CRITERION_STATUSES = {"PENDING", "PASS", "FAIL", "DEFERRED"}
 BLOCKING_SEVERITIES = {"BLOCKER", "IMPORTANT"}
+TIERS = {"Cheap", "Mid", "Top"}
 
 
 def load(path: Path) -> dict:
@@ -107,6 +108,33 @@ def validate(
                 artifact = entry.get("artifact") if isinstance(entry, dict) else None
                 if artifact and not (state_path.parent.parent / artifact).exists():
                     errors.append(f"{prefix}.{field} names missing artifact {artifact}")
+
+        for task in milestone.get("tasks", []):
+            if not isinstance(task, dict):
+                errors.append(f"{prefix}.tasks entries must be objects")
+                continue
+            routing = task.get("routing")
+            if not isinstance(routing, dict):
+                errors.append(f"{prefix}.tasks entry lacks structured routing")
+                continue
+            tier = routing.get("tier")
+            if tier not in TIERS:
+                errors.append(f"{prefix}.tasks entry has invalid routing tier {tier!r}")
+            if not routing.get("model") or not routing.get("reason_code"):
+                errors.append(f"{prefix}.tasks entry lacks model or reason_code")
+            if tier == "Top" and not routing.get("detail"):
+                errors.append(f"{prefix}.tasks Top routing requires a named detail")
+
+        for review in milestone.get("reviews", []):
+            if not isinstance(review, dict):
+                errors.append(f"{prefix}.reviews entries must be objects")
+                continue
+            if review.get("scope") == "RECORD_ONLY":
+                errors.append(f"{prefix}.reviews must not contain a record-only semantic review")
+            if review.get("tier") not in {"Mid", "Top"}:
+                errors.append(f"{prefix}.reviews entry must record Mid or Top tier")
+            if not review.get("diff_range") or not review.get("reason_code"):
+                errors.append(f"{prefix}.reviews entry lacks diff_range or reason_code")
 
     requirements = state.get("requirements", {})
     if not isinstance(requirements, dict):

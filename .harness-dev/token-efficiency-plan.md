@@ -473,7 +473,7 @@ Implementation record, 2026-09-04:
 
 ### P9 - Route models by current task and review scope
 
-Status: TODO
+Status: IMPLEMENTED — current-diff routing and structured reasons enforced
 
 Dependencies: P4, P7, P8
 
@@ -498,9 +498,21 @@ Validation:
 
 Acceptance criteria:
 
-- [ ] Every elevated routing has a machine-readable reason.
-- [ ] One historical high-risk task cannot permanently elevate a milestone.
+- [x] Every elevated routing has a machine-readable reason.
+- [x] One historical high-risk task cannot permanently elevate a milestone.
 - [ ] Existing accuracy fixtures pass at the revised routing levels.
+
+Implementation record, 2026-09-04:
+
+- Haiku handles navigation, mechanical edits and bounded low-risk tasks; ordinary
+  implementation starts at Sonnet; structural, security and difficult
+  concurrency work starts at Opus.
+- Task state records tier, model, reason code and detail; the state checker
+  rejects malformed routing and unnamed Top-tier elevation.
+- Review tier is derived from substantive work in the current diff. Cycle-2
+  corrections cannot inherit an older cycle's Opus tier, and record-only changes
+  dispatch no semantic reviewer.
+- Static routing tests pass. Authenticated accuracy fixtures remain pending.
 
 ## Batch 6 - Prompt and release optimisation
 

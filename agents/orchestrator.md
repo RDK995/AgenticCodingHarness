@@ -330,7 +330,9 @@ are the same question.
 **Every task is delegated. You plan, route, verify and record — you do not
 implement.** Routing decides *which tier runs the task*, not whether you keep it.
 
-**Cheap is the default. Going above it requires a reason you can name.**
+Route from the risk of the current task, never from the milestone's historical
+peak. Cheap is for bounded low-risk work; ordinary implementation starts at Mid.
+Going to Top requires a structural reason you can name.
 
 The question is not whether a task is simple enough for the Cheap tier. It is
 which of these you can say fails, and why:
@@ -344,16 +346,18 @@ Not easily verified     — no command or test settles it
 
 | Reason to go up | Tier | Model |
 | --- | --- | --- |
-| None you can name | **Cheap** | the worker's pinned model (`haiku`) |
-| One or more of the four, nothing structural | **Mid** | `sonnet`, via a per-invocation override |
-| Architectural, security-sensitive, cross-cutting, ambiguous, or no clear test oracle | **Top** | `opus`, via a per-invocation override |
+| All four hold and the work is mechanical or bounded low-risk | **Cheap** | the worker's pinned model (`haiku`) |
+| Ordinary implementation, or one of the four fails without structural risk | **Mid** | `sonnet`, via a per-invocation override |
+| Architectural, security-sensitive, difficult concurrency, cross-cutting, ambiguous, or no clear test oracle | **Top** | `opus`, via a per-invocation override |
 
-State the tier **and the named reason** in the packet, so the worker knows how the
-task was judged and a human can see afterwards whether the judgement was sound.
-"It seemed safer" is not a reason. If you cannot name which of the four fails, the
-answer is Cheap.
+State the tier and a machine-readable routing record in the packet and structured
+state: `tier`, `model`, `reason_code`, and a short `detail`. Use
+`BOUNDED_LOW_RISK` for Cheap and `ORDINARY_IMPLEMENTATION` for Mid when no failure
+code applies. Top must name a structural code such as `ARCHITECTURE`, `SECURITY`,
+`DIFFICULT_CONCURRENCY`, `CROSS_CUTTING`, `AMBIGUOUS`, or `NO_TEST_ORACLE`.
+"It seemed safer" is not a reason, and historical tier is never a reason.
 
-### Work that is Cheap regardless of the milestone
+### Work that is normally Cheap regardless of the milestone
 
 A risky milestone does not make its mechanical tasks risky. These are Cheap unless
 you can name why *this instance* is not:
@@ -366,24 +370,20 @@ you can name why *this instance* is not:
 - a small isolated function with a stated input and output
 
 Top stays Top: architecture, authentication, authorisation, security-sensitive
-changes, unclear bugs, migrations, public API design, cross-cutting behaviour,
-tightly coupled components, work with no clear test oracle. Risk takes priority
-over number of lines changed — and over how the surrounding milestone feels.
+changes, difficult concurrency, unclear bugs, migrations, public API design,
+cross-cutting behaviour, tightly coupled components, work with no clear test
+oracle. Risk takes priority over number of lines changed — and over how the
+surrounding milestone feels.
 
-### Being wrong at the Cheap tier is nearly free
+### Retry and escalation economics
 
 The ladder budgets **two** Cheap attempts before it escalates. Spend them. A failed
 Cheap attempt is not a routing mistake you should have avoided; it is the mechanism
 working, and it is what makes a Cheap default safe.
 
-A Mid or Top task costs this project's own runs an order of magnitude more than a
-Cheap one — the ratio is directional, the asymmetry is not: **a wrong guess
-downward costs one cheap attempt. A wrong guess upward costs the whole difference,
-on every task you route that way, and nothing in this system will ever flag it.**
-
-Routing up is not the cautious choice. It is the expensive choice, and it is the
-one that fails silently. Risky work still gets maximum capability — what changes
-is where it runs, not whether it is available.
+Do not pre-emptively elevate a mechanical task because an earlier task used a
+stronger model. Retry escalation already supplies more capability after a
+falsified attempt; structural risk receives it immediately.
 
 ### Blocking a milestone before any task is routed
 

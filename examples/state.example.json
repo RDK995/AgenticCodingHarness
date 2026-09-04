@@ -22,7 +22,18 @@
           "evidence": []
         }
       ],
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "M1-T1",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Mid",
+            "model": "sonnet",
+            "reason_code": "ORDINARY_IMPLEMENTATION",
+            "detail": "Adds normal production behaviour behind an existing API"
+          }
+        }
+      ],
       "reviews": [],
       "findings": [],
       "validation": [],

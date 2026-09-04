@@ -429,7 +429,7 @@ Implementation record, 2026-09-03:
 
 ### P8 - Split milestones using operational complexity
 
-Status: TODO
+Status: IMPLEMENTED — operational split rules and M16-shaped fixture added
 
 Dependencies: P3, P7
 
@@ -456,9 +456,20 @@ Validation:
 
 Acceptance criteria:
 
-- [ ] The M16-shaped fixture cannot enter implementation as one milestone.
-- [ ] Each child milestone has its own observable outcome and review boundary.
-- [ ] Criterion count is not the sole sizing signal.
+- [x] The M16-shaped fixture cannot enter implementation as one milestone.
+- [x] Each child milestone has its own observable outcome and review boundary.
+- [x] Criterion count is not the sole sizing signal.
+
+Implementation record, 2026-09-04:
+
+- Added six named operational-complexity signals alongside criterion count and
+  vertical-slice shape.
+- Two signals, or concurrency/lifecycle work combined with live proof, force a
+  split before task packets or implementation; one signal forces an explicit
+  seam check.
+- Split reasons are persisted in structured state and the human milestone view.
+- Fixture `13-operationally-oversized` represents the M16 failure shape, while
+  static tests protect coherent small cross-file changes from needless splits.
 
 ### P9 - Route models by current task and review scope
 

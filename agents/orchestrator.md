@@ -171,7 +171,8 @@ during a review/fix cycle — the diff, the review and the criteria would no lon
 describe the same thing. An oversized milestone discovered mid-flight is a
 `Follow-ups` note, not a split.
 
-Two checks, against the milestone you are about to run:
+Three checks, against the milestone you are about to run, before acceptance work
+or task packets are created:
 
 **Size.** Count its acceptance criteria.
 
@@ -188,10 +189,27 @@ is a component milestone, and "Slice thin, end to end" above says it must be
 re-cut. A milestone whose `Architecture` field names exactly one component is the
 usual symptom, not the proof; read the criteria.
 
+**Operational complexity.** From lightweight reconnaissance, count these named
+signals:
+
+- `SUBSYSTEMS_GT_3`: more than three affected subsystems;
+- `CONCURRENCY_LIFECYCLE`: concurrency or lifecycle ownership changes;
+- `IMPLEMENTATION_PLUS_LIVE_PROOF`: implementation and live-environment proof;
+- `PRODUCTION_FILES_GT_8`: more than roughly eight expected production files;
+- `WORKER_TASKS_GT_6`: more than six anticipated worker tasks;
+- `MULTIPLE_OUTCOMES`: multiple independently demonstrable outcomes.
+
+One signal requires an explicit seam check. Two or more require a split, as does
+the combination of `CONCURRENCY_LIFECYCLE` and
+`IMPLEMENTATION_PLUS_LIVE_PROOF`. A small coherent cross-file change with no
+signal is not split merely because it touches several files. Record the signal
+names in structured state and in the first child milestone's outcome.
+
 ### Splitting a milestone you did not plan
 
-Split it in `.harness/milestones.md`, then **return without implementing
-anything**. The skill re-enters its loop and a fresh context runs the first part.
+Split it in `.harness/state.json` and `.harness/milestones.md`, validate that the
+two agree, then **return without implementing anything**. The skill re-enters its
+loop and a fresh context runs the first part.
 Splitting is cheap and implementing is not; do not spend the context you just
 saved by carrying on into the work.
 
@@ -210,8 +228,9 @@ Rules for the split:
 - **Each part gets every template heading**, an `### Outcome` of its own, and its
   own `### Architecture` field. Carry the original's `### Follow-ups` to the part
   they belong to.
-- **Record that you split it, and why**, in the first part's `### Outcome` —
-  one sentence naming the original milestone and the count that triggered it.
+- **Record that you split it, and why**, in the first part's `### Outcome` and
+  structured state — one sentence naming the original milestone and every named
+  criterion-count or operational-complexity signal that triggered it.
   A human reading the file later should not have to work out where `M6a` came
   from.
 - Say in your return that you split rather than implemented, and what the parts

@@ -113,15 +113,28 @@ M4 — Write tests
 
 ### How big is a milestone
 
-Size a milestone by its **acceptance criteria**: target **3-5**, and past **7**
-it is two milestones. Decide that here, during generation — a milestone that is
-too large is not discovered until it has already cost a long context to run.
+Size a milestone by its **acceptance criteria and operational complexity**.
+Target **3-5** criteria, and past **7** it is two milestones. Also split when
+reconnaissance shows any of these independent pressure signals:
 
-Criteria are the measure because they are fixed here, visible in
+- more than three affected subsystems;
+- concurrency or lifecycle ownership changes;
+- implementation combined with live-environment proof;
+- more than roughly eight expected production files;
+- more than six anticipated worker tasks; or
+- multiple independently demonstrable outcomes.
+
+One signal is a prompt to find a smaller seam; two signals require a split. A
+concurrency/lifecycle change combined with live-environment proof also requires a
+split even if it is the same outward outcome. Record the signal names in the
+first child milestone's outcome. Decide this during generation, before writing
+acceptance work or task packets — a milestone that is too large is otherwise not
+discovered until it has already cost a long context to run.
+
+Criteria are one reproducible measure because they are fixed here, visible in
 `milestones.md` afterwards, and checkable by a human without watching the run.
-Each one needs an implementation, a test, and recorded evidence, so ten criteria
-is not a large milestone — it is two or three milestones that were written as
-one.
+They are not the sole measure: a short checklist can still hide several runtime
+owners, failure modes and proof environments.
 
 Split on the outcome, not the checklist: two milestones each of which is
 independently implementable, testable and reviewable, not one outcome with its

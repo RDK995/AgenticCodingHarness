@@ -115,13 +115,12 @@ carry every template heading — the remaining headings are in its archive file.
 
 ## Rules
 
-- No JSON state store, no hidden state — this file plus `requirements.md` (plus
-  `.harness/archive/` once milestones have been archived, read on demand) must
-  be enough for a new session to understand project status. `.harness/tasks/`
-  and `.harness/reviews/` do not change that: task packets and review reports are
-  scratch for a milestone in flight, written so neither is re-sent to every
-  worker, verifier, retry or fix cycle that needs it. Nothing reads them to learn
-  project status, and they carry no evidence — that lives here.
+- `.harness/state.json` is authoritative workflow state; this file is its compact
+  human view. Every writer updates both in one change and runs
+  `${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py`. Task, review and validation
+  detail lives in structured artifacts under `.harness/`; this file carries
+  stable ids and paths, not duplicated report bodies. If the two views disagree,
+  stop and repair the record mechanically before dispatching another agent.
 - A milestone may only become `DONE` once its `Evidence` and `Validation`
   sections contain real implementation/test evidence, not a claim.
 - `### Evidence` records, per task, the tier it entered at, the named reason if

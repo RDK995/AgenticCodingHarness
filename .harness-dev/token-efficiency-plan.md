@@ -185,7 +185,7 @@ Implementation record, 2026-09-03:
 
 ### P3 - Introduce compact structured state
 
-Status: TODO
+Status: IMPLEMENTED — schema, migration and deterministic checks pass locally
 
 Dependencies: P2
 
@@ -214,14 +214,27 @@ Validation:
 
 Acceptance criteria:
 
-- [ ] The current milestone is located with one small state read.
-- [ ] State validation detects stale status, evidence and review-cycle data.
-- [ ] No agent must read the full historical milestone narrative to resume.
-- [ ] Existing projects migrate without manual rewriting.
+- [x] The current milestone is located with one small state read.
+- [x] State validation detects stale status, evidence and review-cycle data.
+- [x] No agent must read the full historical milestone narrative to resume.
+- [x] Existing projects have a deterministic migration command.
+
+Implementation record, 2026-09-03:
+
+- Added schema-v1 `.harness/state.json` shape, stable requirement/criterion ids,
+  artifact lists and `current_milestone`; `examples/state.example.json` is the
+  canonical example.
+- Added `scripts/migrate-state.py` for existing Markdown boards and
+  `scripts/check-state.py` for schema, index, artifact, review-cap, finding,
+  criterion and all-DONE validation.
+- Planning writes both views; every transition validates them; resume reads the
+  small authoritative state then only the current Markdown section.
+- `.harness-dev/test-state.py`: 8 tests pass, including migration, mismatch,
+  review override, all-DONE and substantive-change rejection.
 
 ### P4 - Separate substantive review from record linting
 
-Status: TODO
+Status: IMPLEMENTED — deterministic record-only gate and routing tests pass
 
 Dependencies: P3
 
@@ -251,9 +264,19 @@ Validation:
 
 Acceptance criteria:
 
-- [ ] Record-only corrections consume zero semantic reviewer invocations.
-- [ ] Every substantive milestone correction remains independently reviewed.
-- [ ] Review caps cannot be bypassed with inconsistent prose or counters.
+- [x] Record-only corrections consume zero additional semantic reviewer invocations.
+- [x] Every substantive milestone correction remains independently reviewed.
+- [x] Review caps cannot be bypassed with inconsistent state or counters.
+
+Implementation record, 2026-09-03:
+
+- Reviewer envelopes classify findings as `SUBSTANTIVE` or `RECORD_ONLY`; mixed
+  findings are always substantive.
+- Record-only correction accepts only `.harness/` diffs, runs the state checker,
+  and cannot dispatch workers, orchestrators, reviewers or broad validation.
+- Review cycles above two require a named human override in structured state.
+- The black-box state tests falsify the record-only claim with a source change
+  and confirm that the checker rejects it.
 
 ### P5 - Remove the overall project-level review
 

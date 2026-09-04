@@ -189,9 +189,14 @@ Verdict: CHANGES REQUIRED
 Report: .harness/reviews/<milestone>-cycle<n>.md
 Per-Criterion: <criterion id>=PASS|FAIL; ...
 Findings: <count BLOCKER>, <count IMPORTANT>, <count OPTIONAL>
+Scope: SUBSTANTIVE | RECORD_ONLY
 Result: CHANGES REQUIRED
 ```
 
 On `PASS`, write no report. Return the same envelope with `Report: NONE`, zero
 blocking findings and `Result: PASS`. The per-criterion statuses remain inline
 because the caller's completion gate consumes them directly.
+
+`RECORD_ONLY` is allowed only when every blocking finding concerns files under
+`.harness/` and no production code, test, requirement or architecture correction
+is requested. Any mixed report is `SUBSTANTIVE`.

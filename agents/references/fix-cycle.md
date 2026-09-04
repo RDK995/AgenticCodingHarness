@@ -108,10 +108,10 @@ End the invocation in one of three states, and say which in your return:
 the skill records that directly from the reviewer's verdict. There is no path to
 `DONE` through this invocation.
 
-Allow at most **2 review/fix cycles per milestone**, counted in
-`### Review Cycles` and carried across invocations by that field — it is the only
-memory of the count, so increment it before you return or the cap silently
-resets. If BLOCKER or IMPORTANT findings remain after 2 cycles, set the milestone
+Allow at most **2 review/fix cycles per milestone**, counted in authoritative
+`.harness/state.json` and mirrored under `### Review Cycles`. Update both in the
+same change and run `check-state.py`; a mismatch blocks the transition. If
+BLOCKER or IMPORTANT findings remain after 2 cycles, set the milestone
 to `BLOCKED` and escalate — the Human Escalation Contract is in
 `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md` — instead of trying a third time. This same
 2-cycle cap applies independently to each milestone.

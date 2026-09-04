@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "current_milestone": "M1",
+  "requirements": {
+    "FR1": "M1"
+  },
+  "milestones": {
+    "M1": {
+      "outcome": "Calculator division is available and safe against division by zero",
+      "status": "TODO",
+      "review_cycles": 0,
+      "review_override": null,
+      "baseline": {
+        "commit": "",
+        "branch": ""
+      },
+      "criteria": [
+        {
+          "id": "M1-AC1",
+          "status": "PENDING",
+          "text": "Division returns the expected quotient",
+          "evidence": []
+        }
+      ],
+      "tasks": [],
+      "reviews": [],
+      "findings": [],
+      "validation": [],
+      "follow_ups": []
+    }
+  }
+}

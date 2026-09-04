@@ -766,14 +766,18 @@ a planning finding to record, not a ceiling to keep bouncing off.
 
 ## Recording completion evidence
 
-Update the milestone entry in `.harness/milestones.md` in place — status,
+Update authoritative `.harness/state.json` and the milestone entry in
+`.harness/milestones.md` together — status,
 checked acceptance criteria, `Architecture` (component ids realised, or `N/A`),
 `As-Built` (left for the implement skill to fill after `DONE`, or `N/A` when the
 project has no architecture),
 `Baseline` (the commit the milestone started from), `Evidence` (files),
 `Validation` (commands and results), `Review` (the findings you resolved this
 cycle and the files the corrections changed — the skill records passing verdicts),
-`Review Cycles` (count), and `Follow-ups` (anything deferred). This is what lets a
+`Review Cycles` (count), and `Follow-ups` (anything deferred). Store task,
+review and validation detail as structured entries or artifact paths rather than
+copying narrative into the index. Run `${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py
+.harness/state.json --milestones .harness/milestones.md` before returning. This is what lets a
 fresh session resume without the original conversation — keep it accurate rather
 than optimistic.
 

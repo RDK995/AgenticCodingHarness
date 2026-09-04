@@ -46,6 +46,15 @@ IF absent:
     when extending an existing codebase. Do not generate one; it needs human
     agreement, which is the architect skill's job.
 
+Read `.harness/state.json` first. It is the workflow authority and identifies the
+one current milestone. Then read only that milestone's section from
+`.harness/milestones.md`, which is the compact human view.
+
+IF `.harness/state.json` is missing but `.harness/milestones.md` exists:
+    run `${CLAUDE_PLUGIN_ROOT}/scripts/migrate-state.py` once
+    validate it with `${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py`
+    STOP on any migration or consistency error rather than guessing
+
 Read .harness/milestones.md
 
 IF missing:
@@ -57,9 +66,8 @@ IF missing:
     writes the plan in full or writes nothing. BLOCKED here means it could
     not, and the recon it recorded is what the next attempt starts from.
 
-    Before entering the LOOP, confirm the file exists and its last milestone
-    is complete — every template heading present. A truncated plan read as
-    complete builds the wrong project.
+    Before entering the LOOP, confirm both files exist, every template heading
+    is present, and `check-state.py --milestones .harness/milestones.md` passes.
 
 LOOP:
     find the first milestone that is not DONE
@@ -72,10 +80,11 @@ LOOP:
     stop and report the interrupted role rather than guessing what it changed.
 
     IF none exists (all DONE):
-        run the deterministic completion check: every in-scope requirement is
-        owned by a milestone, every milestone is DONE, and no blocking finding
-        remains. Report the completed milestone ids, their review/validation
-        artifact paths, unresolved follow-ups, branch and commits; then STOP.
+        run `${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
+        --milestones .harness/milestones.md --all-done`. This checks that every
+        in-scope requirement is owned, every milestone is DONE, every criterion
+        passed and no blocking finding remains. Report completed milestone ids,
+        review/validation artifact paths, follow-ups, branch and commits; then STOP.
         Do not invoke another reviewer or rerun project-wide validation.
 
     IF it is BLOCKED:
@@ -153,26 +162,39 @@ LOOP:
         IF it returns CHANGES REQUIRED:
             confirm its compact envelope names the report path and that the file
             exists. Do NOT write, read, quote or reproduce the report yourself.
-            invoke a FRESH harness:orchestrator for ONE fix cycle, passing
-            the PATH and not the report body (findings re-emitted into a
-            prompt are the same defect task packets had before M4b)
 
-            it returns the milestone at REVIEW, CONTINUE or BLOCKED —
-            never DONE
+            IF Scope is RECORD_ONLY:
+                record the pre-correction commit, apply only the mechanical state
+                corrections named by finding id, and commit their explicit
+                `.harness/` paths. Run `check-state.py --record-only <pre> HEAD`
+                plus the normal state/index check. If both pass and the original
+                per-criterion rows were all PASS, record the resolved finding ids,
+                set DONE and close the milestone branch. Do not invoke a worker,
+                orchestrator, reviewer, live proof or broad validation for a
+                record-only correction. If either check fails, treat the scope as
+                SUBSTANTIVE rather than arguing with the checker.
 
-            IF CONTINUE: the fix cycle hit its turn budget with corrections
-            still outstanding. It has NOT incremented Review Cycles, because
-            the cycle has not happened yet. Invoke a FRESH harness:orchestrator
-            for the SAME fix cycle, passing the SAME report path. Cap this at
-            4 continuations per cycle; past that, STOP and report that the
-            findings do not fit a cycle's budget and need splitting or a human
-            decision. Do NOT invoke the reviewer between continuations — that
-            is the half-corrected re-review this branch exists to prevent.
+            IF Scope is SUBSTANTIVE:
+                invoke a FRESH harness:orchestrator for ONE fix cycle, passing
+                the PATH and not the report body (findings re-emitted into a
+                prompt are the same defect task packets had before M4b)
 
-            IF it returns REVIEW without Review Cycles having increased,
-            or with Review Cycles above 2:
-                STOP — the cap is not being honoured and the loop would not
-                terminate. Report it to the human as a harness defect.
+                it returns the milestone at REVIEW, CONTINUE or BLOCKED —
+                never DONE
+
+                IF CONTINUE: the fix cycle hit its turn budget with corrections
+                still outstanding. It has NOT incremented Review Cycles, because
+                the cycle has not happened yet. Invoke a FRESH harness:orchestrator
+                for the SAME fix cycle, passing the SAME report path. Cap this at
+                4 continuations per cycle; past that, STOP and report that the
+                findings do not fit a cycle's budget and need splitting or a human
+                decision. Do NOT invoke the reviewer between continuations — that
+                is the half-corrected re-review this branch exists to prevent.
+
+                IF it returns REVIEW without Review Cycles having increased,
+                or with Review Cycles above 2:
+                    STOP — the cap is not being honoured and the loop would not
+                    terminate. Report it to the human as a harness defect.
 
     IF BLOCKED: STOP — report the escalation contract to the human
     (BLOCKED means it hit the 2-cycle review/fix cap with unresolved

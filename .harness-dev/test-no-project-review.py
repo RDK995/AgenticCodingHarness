@@ -33,7 +33,7 @@ class NoProjectReviewTests(unittest.TestCase):
         self.assertNotIn(".harness/as-built/drift.md", self.text)
 
     def test_all_done_is_mechanical_and_terminal(self):
-        self.assertIn("run the deterministic completion check", self.skill)
+        self.assertIn("scripts/check-state.py .harness/state.json", self.skill)
         self.assertIn("Do not invoke another reviewer", self.skill)
         self.assertIn("then STOP", self.skill)
 

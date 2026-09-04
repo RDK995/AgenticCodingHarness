@@ -20,7 +20,7 @@ class CompactReturnTests(unittest.TestCase):
         self.assertIn("never use it outside that directory", self.reviewer)
 
     def test_reviewer_returns_a_compact_envelope(self):
-        for field in ("Verdict:", "Report:", "Per-Criterion:", "Findings:", "Result:"):
+        for field in ("Verdict:", "Report:", "Per-Criterion:", "Findings:", "Scope:", "Result:"):
             self.assertIn(field, self.reviewer)
         self.assertIn("not the report body", self.reviewer)
 
@@ -32,6 +32,11 @@ class CompactReturnTests(unittest.TestCase):
         self.assertNotIn("write its report verbatim to .harness/reviews/M<n>", self.skill)
         self.assertIn("Do NOT write, read, quote or reproduce the report", self.skill)
         self.assertIn("Never write a review report yourself", self.skill)
+
+    def test_record_only_findings_bypass_semantic_review_loop(self):
+        self.assertIn("IF Scope is RECORD_ONLY", self.skill)
+        self.assertIn("check-state.py --record-only", self.skill)
+        self.assertIn("Do not invoke a worker", self.skill)
 
 
 if __name__ == "__main__":

@@ -81,19 +81,20 @@ running `git init` behind you.
 
 ## State
 
-Everything the harness needs to resume — even in a brand-new Claude session
-with no memory of this conversation — lives in two plain Markdown files in the
-target project:
+Everything the harness needs to resume lives in versioned structured state, with
+compact Markdown views for people:
 
 ```
 .harness/requirements.md
 .harness/architecture.md   (new projects only)
 .harness/milestones.md
+.harness/state.json        (authoritative workflow state)
 .harness/mvp.md            (only if you carved an MVP)
 .harness/full/             (only if you carved an MVP — the unedited full scope)
 .harness/as-built/         (new projects only — one file per milestone)
 .harness/tasks/            (task packets for a milestone in flight — scratch, not status)
 .harness/reviews/          (review reports a fix cycle is answering — scratch, not status)
+.harness/evidence/         (validation artifacts keyed by task/milestone and commit)
 ```
 
 `requirements.md` is the agreed, implementation-ready requirements.
@@ -102,8 +103,10 @@ boundaries and technology choices, plus a log of any deviation made while
 building. Milestones say which components they realise, so progress against the
 architecture is visible without a second status field to fall out of date.
 `as-built/` records what each milestone actually constructed, drawn from its
-diff rather than from what it claimed. `milestones.md` tracks each milestone's status,
-acceptance criteria, evidence, validation results, and review outcome.
+diff rather than from what it claimed. `state.json` carries statuses, stable ids,
+requirement ownership, review cycles and artifact paths. `milestones.md` is the
+compact human-readable view and is checked against that authority on every
+transition.
 `mvp.md` and `full/` exist only on a project that was carved down to a first
 useful version: `requirements.md` and `architecture.md` then hold the MVP, so
 everything downstream implements it without needing to know it is one, and the

@@ -51,8 +51,10 @@ one current milestone. Then read only that milestone's section from
 `.harness/milestones.md`, which is the compact human view.
 
 IF `.harness/state.json` is missing but `.harness/milestones.md` exists:
-    run `${CLAUDE_PLUGIN_ROOT}/scripts/migrate-state.py` once
-    validate it with `${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py`
+    run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/migrate-state.py
+    .harness/milestones.md .harness/state.json` once
+    validate it with `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py
+    .harness/state.json --milestones .harness/milestones.md`
     STOP on any migration or consistency error rather than guessing
 
 Read .harness/milestones.md
@@ -67,7 +69,8 @@ IF missing:
     not, and the recon it recorded is what the next attempt starts from.
 
     Before entering the LOOP, confirm both files exist, every template heading
-    is present, and `check-state.py --milestones .harness/milestones.md` passes.
+    is present, and `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py
+    .harness/state.json --milestones .harness/milestones.md` passes.
 
 LOOP:
     find the first milestone that is not DONE
@@ -80,7 +83,7 @@ LOOP:
     stop and report the interrupted role rather than guessing what it changed.
 
     IF none exists (all DONE):
-        run `${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
+        run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
         --milestones .harness/milestones.md --all-done`. This checks that every
         in-scope requirement is owned, every milestone is DONE, every criterion
         passed and no blocking finding remains. Report completed milestone ids,
@@ -166,8 +169,10 @@ LOOP:
             IF Scope is RECORD_ONLY:
                 record the pre-correction commit, apply only the mechanical state
                 corrections named by finding id, and commit their explicit
-                `.harness/` paths. Run `check-state.py --record-only <pre> HEAD`
-                plus the normal state/index check. If both pass and the original
+                `.harness/` paths. Run `python3
+                ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
+                --record-only <pre> HEAD` plus the normal state/index check. If
+                both pass and the original
                 per-criterion rows were all PASS, record the resolved finding ids,
                 set DONE and close the milestone branch. Do not invoke a worker,
                 orchestrator, reviewer, live proof or broad validation for a

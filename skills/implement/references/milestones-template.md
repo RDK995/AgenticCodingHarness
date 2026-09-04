@@ -117,7 +117,8 @@ carry every template heading — the remaining headings are in its archive file.
 
 - `.harness/state.json` is authoritative workflow state; this file is its compact
   human view. Every writer updates both in one change and runs
-  `${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py`. Task, review and validation
+  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
+  --milestones .harness/milestones.md`. Task, review and validation
   detail lives in structured artifacts under `.harness/`; this file carries
   stable ids and paths, not duplicated report bodies. If the two views disagree,
   stop and repair the record mechanically before dispatching another agent.

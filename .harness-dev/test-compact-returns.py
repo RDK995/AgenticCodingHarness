@@ -35,7 +35,7 @@ class CompactReturnTests(unittest.TestCase):
 
     def test_record_only_findings_bypass_semantic_review_loop(self):
         self.assertIn("IF Scope is RECORD_ONLY", self.skill)
-        self.assertIn("check-state.py --record-only", self.skill)
+        self.assertIn("--record-only <pre> HEAD", self.skill)
         self.assertIn("Do not invoke a worker", self.skill)
 
 

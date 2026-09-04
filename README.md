@@ -125,7 +125,7 @@ Agent confidence is not.
 
 ## Measuring a run
 
-Use `.harness-dev/measure-context.py <session-dir> [more...] --json report.json`
+Use `python3 .harness-dev/measure-context.py <session-dir> [more...] --json report.json`
 to produce deduplicated token traffic, estimated cost, role/milestone splits,
 peak contexts, polling, repeated commands, duplicate validation, review/diff
 counts, and the harness version and commit. Price assumptions are replaceable
@@ -133,5 +133,5 @@ with `--prices <json>`.
 
 After the behavioural fixtures and independent gates are confirmed, copy
 `examples/accuracy-evidence.example.json` and run
-`.harness-dev/check-efficiency.py report.json --accuracy-evidence <file>`.
+`python3 .harness-dev/check-efficiency.py report.json --accuracy-evidence <file>`.
 This fails if any release threshold in the token-efficiency plan is missed.

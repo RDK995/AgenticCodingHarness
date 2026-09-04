@@ -655,7 +655,7 @@ Update `.harness/state.json` and `.harness/milestones.md` together: status,
 criteria, architecture/as-built paths, baseline, evidence, validation, review,
 cycle count and follow-ups. Keep detail in structured entries or artifact paths,
 not duplicated narrative. Record `Baseline` before any task runs. Before
-returning, run `${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
+returning, run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
 --milestones .harness/milestones.md`.
 
 If `.harness/milestones.md` has passed roughly 400 lines, apply the

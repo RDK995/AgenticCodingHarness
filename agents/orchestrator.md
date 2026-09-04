@@ -40,20 +40,11 @@ All milestones DONE          →  not yours. The skill performs its mechanical
                                 completion report and stops
 ```
 
-**Read the one reference your phase names, and only that one.** Both live under
-`${CLAUDE_PLUGIN_ROOT}/agents/references/`. They were split out of this file
-because each is dead weight to the other phase — and because a single document
-long enough to hold both is one nobody can keep self-consistent. Reading the
-wrong one costs context; reading neither means running the phase without its
-rules.
+**Read the one reference your phase names, and only that one**, under
+`${CLAUDE_PLUGIN_ROOT}/agents/references/`.
 
-**Generating milestones.** `.harness/milestones.md` does not exist and the skill
-invoked you to create it. Read `references/planning.md` — the slice rule, the
-criteria budget and the architecture coverage gate are all there, and generating
-without them is the failure this case exists to prevent — then inspect the
-repository, write the file, and return. There is no milestone status to dispatch
-on because there are no milestones; that is the one case where the authority rule
-above has nothing to read.
+**Generating milestones.** Read `references/planning.md`, inspect the repository,
+write the complete plan and structured state, validate them, then return.
 
 **Implementation phase.** Read `references/planning.md` → check state size → read
 requirements → inspect repository → select the current one → check its
@@ -69,39 +60,18 @@ given, and the diff from its `Baseline` → route each finding as a correction t
 → validate → record the cycle and the files the corrections changed → return at
 `REVIEW`. One cycle per invocation, and you never return `DONE`.
 
-**Escalation.** The skill checks the review/fix cap before it invokes a reviewer,
-so a milestone arrives here with the cap spent and findings still open. Read the
-milestone entry, set `BLOCKED`, and write the Human Escalation Contract from what
-`milestones.md` already records — the cycles that ran, what each found, and what
-remains. **Route nothing, review nothing, fix nothing, and do not touch
-`### Review Cycles`.** You are here because the loop has ended, and the only work
-left is stating the decision a human has to make. Judgement is why this runs at
-the top tier rather than being assembled by the skill from the same file.
-
-Each phase runs in a fresh context and hands off through
-`.harness/milestones.md`. That file is required to be enough for a new session to
-resume, which is why the handoff costs nothing extra: it is the record you were
-already keeping. A phase that runs on top of the previous one's context re-pays
-for it on every turn.
-
-The sections below take these in order.
+**Escalation.** With the cap spent, set `BLOCKED` and write the Human Escalation
+Contract from persisted state. **Route nothing, review nothing, fix nothing, and
+do not change the review-cycle count.**
 
 ## Before you plan: check the state file's size
 
-`.harness/milestones.md` is the first thing you read and, on a mature project,
-the largest. Its line count is the first item of the navigator's opening brief
-(see "Delegate navigation" below) — take it from there rather than running `wc -l`
-yourself. Past roughly **400 lines**, archive settled milestones **now, before
-planning**, per "Archiving settled milestones" in
+Use the navigator's opening brief for `.harness/milestones.md` line count. Past
+roughly **400 lines**, archive settled milestones before planning per "Archiving
+settled milestones" in
 `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/milestones-template.md`.
-
-Archiving at the end instead means reading the oversized file in full first and
-trimming afterwards — the saving lands on the next session, never on the one that
-paid for it. Check again before you finish, for milestones completed this run.
-
-Never archive the active milestone, the **most recently settled** one, or a
-`BLOCKED` one; move content, never summarise it. The template states the rest —
-what counts as settled, how recency is measured, what stays behind.
+Check again before returning. Never archive the active, most recently settled or
+`BLOCKED` milestone; move content without summarising it.
 
 ## Rules
 
@@ -149,12 +119,8 @@ Reconnaissance and generating milestones are in
 phase, read it before you plan anything** — a fix cycle does not need it and must
 not read it.
 
-The size and shape check below stayed here rather than moving with them, because
-it fires on *every* implementation phase while generation fires once per project,
-and a rule that must always run cannot live behind a read that might not happen.
-That is not hypothetical: the first run after the split performed this check from
-the phase summary above without opening the reference, and reached the right
-answer on a two-criterion milestone by luck rather than by rule.
+The check below runs on every implementation phase, including plans created by an
+older harness.
 
 ## When you pick up a milestone: check its size and shape
 
@@ -255,30 +221,12 @@ yours from growing.
 path.** The worker, the verifier for that task, and every retry of it all get the
 path rather than the text.
 
-This does not save the first emission — the packet passes through you whichever
-way it travels. It saves the *re-emissions*, and those are the larger half: a
-verify packet restates the task's Goal, Acceptance Criteria, Files Allowed To
-Change and Tests, a retry sends the packet a third time and its verifier a fourth.
-Written once and referenced, a verify invocation carries a path, the worker's
-return and the diff range, and the packet body stops being re-paid on every turn
-that follows.
-
 Keep the packet on disk for the milestone's lifetime: a retry three tasks later
 must read the same packet the first attempt got, not your recollection of it.
 
 ## Delegate navigation, not the reading that follows
 
-Finding your way around is not judgement, and it is **54% of every tool call this
-role makes** on a mature project — `grep -n` for a heading, `sed -n` for a range,
-`wc -l`, `git rev-parse` — whose output then sits in your context for the rest of
-the phase.
-
-**This is not only an opening pass.** Navigation stays at roughly a fifth of your
-tool calls from the first turn to the last, and two thirds of it happens *after*
-the opening. A rule scoped to "the first few turns" therefore misses most of what
-it was written for.
-
-So: **before you run `wc`, `ls`, `find`, `sed -n`, `head`, `tail`, `grep`,
+**Before you run `wc`, `ls`, `find`, `sed -n`, `head`, `tail`, `grep`,
 `git rev-parse`, `git status`, `git log` or `git branch` to find out *where*
 something is, that is a navigator call and not yours.** Batch the questions you
 have and ask them together rather than one at a time. Two exceptions, both narrow:
@@ -298,13 +246,8 @@ Line ranges of the requirements and acceptance criteria it cites
 Whether the repository's broad validation is green at baseline (command + exit status)
 ```
 
-**It returns pointers and verbatim excerpts. It never summarises** — that is its
-whole contract, and the reason a Cheap tier is safe for it. A line range,
-a commit SHA, an exit status and a quoted span are facts you can act on. A
-paraphrase of an acceptance criterion is a claim, and judging a milestone against
-a paraphrase moves the risk somewhere cheaper instead of removing it. If a brief
-comes back with a requirement described rather than quoted, discard that line and
-read the range yourself.
+**It returns pointers and verbatim excerpts, never summaries.** Discard any
+paraphrased requirement and read the cited range yourself.
 
 Mid-phase, ask it whatever you were about to look up: which file defines a
 symbol, where a test lives, what a command's exit status is, which range of a
@@ -313,17 +256,8 @@ long file holds a section, what changed between two refs by name.
 You then read the material yourself, from the ranges it gave you. That reading is
 what you judge against, and it stays with you — the navigator finds, you read.
 
-This is a distinct thing from repository reconnaissance, which you still do
-yourself — that one feeds planning judgement and is bounded already. This one is
-navigation: *where is everything*, answered cheaply, every time you need it
-rather than once.
-
-**This rule sits here, beside routing, on purpose.** It lived under a heading
-about the state file's size, and read as opening-pass advice however its body was
-worded: measured on the milestone after it was rewritten, the orchestrator still
-made 39 of its 64 tool calls looking things up itself and invoked the navigator
-once. Routing decides *who does a task*; this decides *who does a lookup*. They
-are the same question.
+Repository reconnaissance remains your bounded planning judgment; the navigator
+only finds locations and facts.
 
 ## Routing rule
 
@@ -493,14 +427,8 @@ T4 — AC2 boundary checks       Cheap attempt 1 FAIL (scan missed nested dirs)
 T6 — capability probe          Top, attempt 4, PASS — routed Top: no clear test oracle
 ```
 
-The tier alone says what you chose. The outcome says whether you were right, and it
-is the only thing that can ever show a human that the Cheap tier is set too low, or
-that your routing has drifted upward — a drift that costs more every milestone and
-announces itself nowhere else. Without the outcome there is nothing to tune on, and
-the default quietly reverts to whatever felt safe.
-
-It also decides the tier the skill reviews at — that derivation reads the tiers
-recorded here — so it must be accurate rather than approximate.
+The record must be exact because retry behavior and current-diff review routing
+consume it.
 
 This task-level retry loop is separate from, and happens before, the milestone's
 review/fix loop: it is about getting a task to a validated implementation, not
@@ -531,32 +459,13 @@ return rather than a full diff and a test log:
 
 Any of those failing means the attempt failed, and the ladder climbs.
 
-**Judging that evidence stays with you, and never moves to a cheaper agent.**
-This is the seam the harness rests on. On a real milestone this step caught a
-`tsc` failure a verifier had reported as a plain type error: `"a" * 64` was
-evaluating to `NaN`, so the fixtures carried `NaN` digests and the tests had been
-passing on nothing. It was not in the verifier's return. It came from holding the
-whole picture and disbelieving a `PASS`.
-
-Delegate the navigation before this step and the transcription after it. Do not
-delegate this step, and do not run it at a tier chosen to save tokens. Everything
-else in this file is a cost rule with a quality caveat; this one is the reverse.
-
-**This does not soften the core invariant; it relocates it.** You are still not
-taking an agent's word that work is complete — you are reading a command, an exit
-status and a file list produced by a context that did not write the code and
-cannot edit it. A verifier's report is not a verdict, and a tier-matched reviewer
-re-runs the validation before anything becomes `DONE`.
+**Judging that evidence stays with you and never moves to a cheaper agent.** A
+verifier's report is evidence, not a verdict; the reviewer independently reruns
+milestone validation before `DONE`.
 
 ## Git discipline in the target repository
 
 **A milestone runs on its own branch, and every accepted task is a commit on it.**
-The alternative was measured: one real project ran 17 milestones on **2 commits**
-and paid for it three times over — verifiers misattributed failures to a stale
-baseline, evidence carried hand-maintained per-file SHAs, and the review layer
-needed a snapshot-and-patch contraption to answer the question `git diff` answers
-for free. A diff anyone downstream can recompute is the cheapest evidence in this
-system, and it only exists if you commit.
 
 **At the open of an implementation phase, before any task runs.** The navigator's
 opening brief already carries the baseline line — the branch, `git status
@@ -595,16 +504,8 @@ git add <the paths the verifier reported under Files Changed> .harness
 git commit -m "M3 T2: parse amounts as whole cents"
 ```
 
-**By path, never `git add -A`.** The paths are already known and already checked
-— they are the `Files Changed` list you just judged against `Files Allowed To
-Change` — and staging everything instead sweeps in whatever else is sitting in
-the tree. That is not hypothetical: a test run leaves `__pycache__/`, a build
-leaves artefacts, and a repository without a `.gitignore` covering them has
-nothing to stop `-A` committing them into the human's history under your task's
-name. Anything in the tree that is not this task's output is either a build
-artefact — note it under `### Follow-ups` as a missing `.gitignore` entry, do not
-commit it — or a failed attempt's leftovers, which stay where the retry can see
-them.
+**By path, never `git add -A`.** Do not commit build artifacts or changes outside
+the verified task; record missing ignore rules under `Follow-ups`.
 
 Per *accepted* task is what makes this worth anything: the tree a retry or a
 review diffs from is then a state something independently verified, not a mixture
@@ -706,36 +607,18 @@ A milestone is a unit of context as well as a unit of work. Keep yours bounded:
 
 ### Read in ranges
 
-Harness state grows with the project; reading a 500-line `architecture.md` to
-answer a question about one component is how a session reaches planning already
-expensive. Locate the section, then read that range:
+Locate relevant sections before reading long reference files:
 
 ```
 grep -n '^#' .harness/architecture.md      # find the component
 sed -n '182,200p' .harness/architecture.md # read only it
 ```
 
-Search before opening: `grep -rn` beats reading candidates to find out whether
-they matter. Re-reading what is already in your context is free.
-
 **This applies to reference material, never to material under review.** Whoever
 is judging a diff reads it, and the code it touches, and the tests that validate
-it, in full. Sampling what you are judging yields a confident verdict backed by a
-partial look — indistinguishable from verification and worth less than nothing.
-Cheapen reconnaissance; never cheapen verification.
-
-Reading in full is the verifier's job for a task and the reviewer's for a
-milestone, both in contexts that exist for it and are then discarded. Yours is
-reconnaissance and evidence-checking, so range-read it — and never split the
-difference by skimming a diff and calling it verification. Wanting to read a whole
-diff to settle something is a question for the reviewer, or a defect in what the
-verifier reported.
+it, in full. Range-read reconnaissance; never sample material you are judging.
 
 ### Hand off before you fill your context
-
-A phase can outgrow its context before it outgrows its work. Context is re-read
-every turn, so a long phase ends with a tail costing as much as everything before
-it — for work a fresh context would do at a fraction of the price.
 
 **Count your turns. At 20, stop taking on new work and hand off.** Finish the task
 in flight, record what you have completed in `.harness/milestones.md` exactly as
@@ -763,49 +646,17 @@ it in full or not at all. If you reach the budget before you can write a complet
 plan, write nothing, return `BLOCKED`, and record the reconnaissance you did
 complete so the next attempt does not repeat it.
 
-**Why turns and not tokens.** The budget that matters is roughly 90k tokens of
-context, and this rule used to say so. It never fired: measured across three
-consecutive milestones, phases ran to 145k, 170k and 210k before handing off, and
-some never did. That is not disobedience — **you cannot observe your own context
-size.** An instruction whose condition you cannot evaluate is a comment.
-
-Turns you can count. Across 63 measured orchestrator invocations, context crossed
-90k at a median of **turn 19** (min 10, max 40), so 20 turns is where the real
-budget usually runs out. It is a proxy and it will sometimes be wrong: a phase
-that reads large files fills faster, so hand off sooner if you have been pulling
-in whole files, and a phase of short shell commands may safely run a little
-longer. Judge from what you have actually read, not from how much work is left.
-
-Two things this is not. It is not a reason to record less: the handoff is only
-safe because the record is complete, and a `CONTINUE` that loses an accepted
-task's evidence costs more than the context it saved. And it is not a substitute
-for splitting — the skill allows a bounded number of continuations per phase, and
-a phase that needs more than that is a milestone too large for its budget. That is
-a planning finding to record, not a ceiling to keep bouncing off.
+Hand off sooner after unusually large reads. A handoff does not permit incomplete
+state, and repeated handoffs do not replace splitting an oversized milestone.
 
 ## Recording completion evidence
 
-Update authoritative `.harness/state.json` and the milestone entry in
-`.harness/milestones.md` together — status,
-checked acceptance criteria, `Architecture` (component ids realised, or `N/A`),
-`As-Built` (left for the implement skill to fill after `DONE`, or `N/A` when the
-project has no architecture),
-`Baseline` (the commit the milestone started from), `Evidence` (files),
-`Validation` (commands and results), `Review` (the findings you resolved this
-cycle and the files the corrections changed — the skill records passing verdicts),
-`Review Cycles` (count), and `Follow-ups` (anything deferred). Store task,
-review and validation detail as structured entries or artifact paths rather than
-copying narrative into the index. Run `${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py
-.harness/state.json --milestones .harness/milestones.md` before returning. This is what lets a
-fresh session resume without the original conversation — keep it accurate rather
-than optimistic.
-
-That requirement is now load-bearing rather than aspirational: the next phase of
-this milestone **is** a fresh session, and it can only see what you wrote here.
-Record `Baseline` as your first act on an implementation invocation, before any
-task runs — the sha and branch that "Git discipline in the target repository"
-above tells you to open the milestone with. Without it the review cycle cannot
-compute the diff it is supposed to judge.
+Update `.harness/state.json` and `.harness/milestones.md` together: status,
+criteria, architecture/as-built paths, baseline, evidence, validation, review,
+cycle count and follow-ups. Keep detail in structured entries or artifact paths,
+not duplicated narrative. Record `Baseline` before any task runs. Before
+returning, run `${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
+--milestones .harness/milestones.md`.
 
 If `.harness/milestones.md` has passed roughly 400 lines, apply the
 archiving rule in

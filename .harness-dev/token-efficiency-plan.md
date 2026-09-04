@@ -1,6 +1,6 @@
 # Token-Efficiency and Accuracy Improvement Plan
 
-Status: READY FOR IMPLEMENTATION
+Status: IMPLEMENTED ON BRANCH — authenticated regression and field release gates pending
 
 Baseline: restored stable harness on `main` (`956a71a`; functional content from
 `1f15d4d` / PR #21)
@@ -518,7 +518,7 @@ Implementation record, 2026-09-04:
 
 ### P10 - Trim prompts, stabilise caching and add regression gates
 
-Status: TODO
+Status: IMPLEMENTED — prompt and automated telemetry complete; field pilots pending
 
 Dependencies: P1-P9
 
@@ -553,12 +553,26 @@ Validation:
 
 Acceptance criteria:
 
-- [ ] Orchestrator core is no more than approximately 700 lines with no lost
+- [x] Orchestrator core is no more than approximately 700 lines with no lost
   behavioural rule.
-- [ ] All fixtures pass.
-- [ ] Automated reporting includes every named efficiency and accuracy metric.
+- [ ] All authenticated fixtures pass.
+- [x] Automated reporting includes every named efficiency and accuracy metric.
 - [ ] Field pilots meet the release gates or the change remains unmerged with
   the failed measurement recorded.
+
+Implementation record, 2026-09-04:
+
+- Reduced the always-loaded orchestrator from 841 to 692 lines by removing
+  historical measurements and duplicated rationale while retaining dispatch,
+  split, routing, retry, verification-judgment, commit and handoff rules.
+- Rebuilt `measure-context.py` around message-id deduplication and JSON output.
+  It reports token/cost by role and milestone, peak context/API turns, polling,
+  repeated commands, parent share, duplicate validation, semantic review/diff
+  counts, and harness version/commit.
+- Added `check-efficiency.py`, which fails the quantitative release thresholds
+  and requires explicit fixture, verification and milestone-review evidence.
+- Local static and synthetic transcript tests pass. Authenticated fixtures and
+  the two real field pilots remain required before merge.
 
 ## Regression suite
 

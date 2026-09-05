@@ -19,6 +19,9 @@ def migrate(text: str) -> dict:
         status_match = re.search(r"(?m)^Status:\s*([A-Z_]+)\s*$", section)
         cycles_match = re.search(r"(?ms)^### Review Cycles\s*\n+\s*(\d+)", section)
         baseline_match = re.search(r"(?ms)^### Baseline\s*\n+\s*([^\n]+)", section)
+        as_built_match = re.search(
+            r"(?ms)^### As-Built\s*\n(.*?)(?=^### |^## |\Z)", section
+        )
         criteria = []
         criteria_match = re.search(
             r"(?ms)^### Acceptance Criteria\s*\n(.*?)(?=^### |^## |\Z)", section
@@ -37,12 +40,18 @@ def migrate(text: str) -> dict:
                 )
         baseline = baseline_match.group(1).strip() if baseline_match else ""
         commit, _, branch = baseline.partition(" on ")
+        as_built_text = as_built_match.group(1).strip() if as_built_match else ""
+        as_built_artifact = re.search(r"\.harness/as-built/[^\s`)]+", as_built_text)
         milestones[milestone_id] = {
             "outcome": outcome,
             "status": status_match.group(1) if status_match else "TODO",
             "review_cycles": int(cycles_match.group(1)) if cycles_match else 0,
             "review_override": None,
             "baseline": {"commit": commit, "branch": branch},
+            "as_built": {
+                "artifact": as_built_artifact.group(0) if as_built_artifact else None,
+                "result": as_built_text or "PENDING",
+            },
             "criteria": criteria,
             "tasks": [],
             "reviews": [],

@@ -40,6 +40,15 @@ class CommitDisciplineTests(unittest.TestCase):
         self.assertIn("ownership or scope", self.orchestrator)
         self.assertIn("stop and ask the human", self.orchestrator)
 
+    def test_as_built_is_recorded_before_the_closing_commit(self):
+        finalise = self.skill.index("## Finalising a passing milestone")
+        close = self.skill.index("## Closing the milestone branch")
+        section = self.skill[finalise:close]
+        self.assertIn("harness:as-built", section)
+        self.assertIn("Set the milestone to `DONE`", section)
+        self.assertLess(section.index("harness:as-built"), section.index("Set the milestone to `DONE`"))
+        self.assertIn("There must be no `.harness/` write after this commit", section)
+
 
 if __name__ == "__main__":
     unittest.main()

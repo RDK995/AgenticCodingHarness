@@ -14,6 +14,10 @@
         "commit": "",
         "branch": ""
       },
+      "as_built": {
+        "artifact": null,
+        "result": "PENDING"
+      },
       "criteria": [
         {
           "id": "M1-AC1",

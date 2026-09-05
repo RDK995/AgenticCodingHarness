@@ -109,6 +109,14 @@ def validate(
                 if artifact and not (state_path.parent.parent / artifact).exists():
                     errors.append(f"{prefix}.{field} names missing artifact {artifact}")
 
+        as_built = milestone.get("as_built")
+        if as_built is not None and not isinstance(as_built, dict):
+            errors.append(f"{prefix}.as_built must be an object")
+        elif isinstance(as_built, dict):
+            artifact = as_built.get("artifact")
+            if artifact and not (state_path.parent.parent / artifact).exists():
+                errors.append(f"{prefix}.as_built names missing artifact {artifact}")
+
         for task in milestone.get("tasks", []):
             if not isinstance(task, dict):
                 errors.append(f"{prefix}.tasks entries must be objects")

@@ -120,6 +120,7 @@ class StateTests(unittest.TestCase):
         self.assertEqual(milestone["status"], "REVIEW")
         self.assertEqual(milestone["review_cycles"], 1)
         self.assertEqual(milestone["baseline"]["branch"], "m1-divide")
+        self.assertEqual(milestone["as_built"], {"artifact": None, "result": "PENDING"})
         self.assertEqual([item["status"] for item in milestone["criteria"]], ["PASS", "PENDING"])
 
 

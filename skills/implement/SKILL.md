@@ -150,10 +150,9 @@ LOOP:
                 that is DONE with criteria still unchecked contradicts its
                 own record, and the boxes are what a human reads first.
               - record the verdict and the review tier under ### Review
-              - set Status: DONE
-              - close the milestone branch — see "Closing the milestone
-                branch" below. Keep its independently verified commits. Never
-                push, merge, squash or rewrite them.
+              - finalise the passing milestone exactly as described under
+                "Finalising a passing milestone" below; that records any
+                as-built artifact before setting DONE and closing the branch
             Do NOT increment ### Review Cycles — a review that passes is
             the verdict that ends the loop, not a cycle. Only a review
             whose findings were routed and fixed counts, which is what
@@ -174,9 +173,10 @@ LOOP:
                 --record-only <pre> HEAD` plus the normal state/index check. If
                 both pass and the original
                 per-criterion rows were all PASS, record the resolved finding ids,
-                set DONE and close the milestone branch. Do not invoke a worker,
-                orchestrator, reviewer, live proof or broad validation for a
-                record-only correction. If either check fails, treat the scope as
+                then finalise the passing milestone exactly as described under
+                "Finalising a passing milestone" below. Do not invoke a worker,
+                orchestrator, reviewer, live proof or broad validation for the
+                correction itself. If either check fails, treat the scope as
                 SUBSTANTIVE rather than arguing with the checker.
 
             IF Scope is SUBSTANTIVE:
@@ -205,23 +205,10 @@ LOOP:
     (BLOCKED means it hit the 2-cycle review/fix cap with unresolved
     BLOCKER/IMPORTANT findings, or needs a human planning decision)
 
-    otherwise:
-        IF .harness/architecture.md exists:
-            invoke harness:as-built in RECORD mode for this milestone,
-            passing its number, its ### Baseline, and its ### Architecture
-            field — it writes .harness/as-built/M<n>.md itself
-
-            write its returned path and one-line result into the
-            milestone's ### As-Built field. Do not read the file.
-
-            IF it returns BLOCKED: record that in ### As-Built and carry on.
-            The record is evidence, not a gate.
-
-        the milestone is DONE — STOP HERE, in this invocation.
-        Report its outcome and tell the user to /clear and re-invoke this
-        skill for the next milestone. Do not continue the LOOP in this
-        context. The LOOP is re-entered from milestones.md on the next
-        invocation and picks up where this one stopped.
+    A successful finalisation stops this invocation. Report its outcome and tell
+    the user to /clear and re-invoke this skill for the next milestone. Do not
+    continue the LOOP in this context. The LOOP is re-entered from structured
+    state on the next invocation and picks up where this one stopped.
 ```
 
 ## Invoking the reviewer
@@ -301,6 +288,24 @@ to a single correction cost a fraction of a full one and found a `BLOCKER` — a
 guard test that asserted nothing — where most full-scope cycle-2 reviews found
 nothing above `OPTIONAL`. Scope is what makes the second review worth running;
 skipping it is not.
+
+## Finalising a passing milestone
+
+Run this only after the completion gate has passed, including after a valid
+record-only correction:
+
+1. If `.harness/architecture.md` exists, invoke `harness:as-built` in RECORD mode
+   with the milestone number, baseline and Architecture field. It writes
+   `.harness/as-built/M<n>.md`. Record its returned path and one-line result in
+   both `.harness/state.json` and the milestone's `### As-Built` field without
+   reading the artifact. If it returns `BLOCKED`, record that result and carry
+   on; this record is evidence, not another completion gate.
+2. Set the milestone to `DONE` in both state views and run the normal
+   `check-state.py` consistency check.
+3. Close the milestone branch as described below. The closing commit therefore
+   includes the as-built artifact, structured state and human milestone update
+   together. There must be no `.harness/` write after this commit.
+4. Stop this invocation.
 
 ## Closing the milestone branch
 

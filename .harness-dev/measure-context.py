@@ -268,6 +268,8 @@ def main():
     rows = []
     for directory in args.session_dirs:
         rows.extend(collect(directory, args.top_level_role, args.milestone, prices))
+    if not rows:
+        parser.error("no assistant contexts found in the supplied session directories")
     report = aggregate(rows, harness_identity(args.harness_repo))
     print_report(report)
     if args.json_path:

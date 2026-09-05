@@ -67,14 +67,39 @@ class MeasurementTests(unittest.TestCase):
         self.assertIn("M1", report["by_milestone"])
 
     def test_release_gate_requires_accuracy_and_efficiency(self):
-        report = {"summary": {"polling_violations": 0, "hard_limit_violations": [],
+        report = {"summary": {"contexts": 5, "api_turns": 25, "token_traffic": 1000,
+                  "polling_violations": 0, "hard_limit_violations": [],
                   "orchestrator_median_turns": 20, "workers_over_45_turns": 0,
-                  "record_only_semantic_reviews": 0, "parent_share": 0.1}}
+                  "record_only_semantic_reviews": 0, "parent_share": 0.1},
+                  "by_role": {role: {} for role in (
+                      "skill session", "orchestrator", "worker", "verifier", "reviewer"
+                  )}}
         accuracy = {"behavioural_fixtures_pass": True, "independent_verification": True,
                     "independent_milestone_review": True}
         self.assertTrue(all(self.release.check(report, accuracy).values()))
         report["summary"]["parent_share"] = 0.2
         self.assertFalse(self.release.check(report, accuracy)["parent traffic no more than 15%"])
+
+    def test_empty_report_cannot_certify_a_release(self):
+        report = self.measure.aggregate([], {"version": "x", "commit": "y"})
+        accuracy = {"behavioural_fixtures_pass": True, "independent_verification": True,
+                    "independent_milestone_review": True}
+        gates = self.release.check(report, accuracy)
+        self.assertFalse(gates["at least one context was measured"])
+        self.assertFalse(gates["measured traffic and API turns are nonzero"])
+        self.assertFalse(gates["all expected execution roles are present"])
+        self.assertFalse(gates["a parent/controller context is present"])
+
+    def test_partial_report_missing_reviewer_cannot_certify_a_release(self):
+        roles = {"skill session": {}, "orchestrator": {}, "worker": {}, "verifier": {}}
+        report = {"summary": {"contexts": 4, "api_turns": 20, "token_traffic": 1000,
+                  "polling_violations": 0, "hard_limit_violations": [],
+                  "orchestrator_median_turns": 20, "workers_over_45_turns": 0,
+                  "record_only_semantic_reviews": 0, "parent_share": 0.1},
+                  "by_role": roles}
+        accuracy = {"behavioural_fixtures_pass": True, "independent_verification": True,
+                    "independent_milestone_review": True}
+        self.assertFalse(self.release.check(report, accuracy)["all expected execution roles are present"])
 
     def test_bounded_curl_is_not_polling(self):
         self.assertFalse(self.measure.is_polling("curl --max-time 5 http://localhost/health"))

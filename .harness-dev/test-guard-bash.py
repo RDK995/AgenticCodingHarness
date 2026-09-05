@@ -65,8 +65,23 @@ class GuardBashTests(unittest.TestCase):
         self.assertIn("explicit timeout", result["hookSpecificOutput"]["permissionDecisionReason"])
 
     def test_allows_one_bounded_readiness_check(self):
-        result = self.run_hook("curl --max-time 5 http://localhost/ready")
-        self.assertEqual(self.decision(result), "allow")
+        for command in (
+            "curl --max-time 5 http://localhost/ready",
+            "curl --max-time=5 http://localhost/ready",
+            "curl --max-time=.5 http://localhost/ready",
+            "curl -m0.5 http://localhost/ready",
+        ):
+            with self.subTest(command=command):
+                result = self.run_hook(command, agent=command)
+                self.assertEqual(self.decision(result), "allow")
+
+    def test_denies_timeout_option_without_a_numeric_value(self):
+        for command in (
+            "curl --max-time http://localhost/ready",
+            "curl --max-time=soon http://localhost/ready",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.decision(self.run_hook(command)), "deny")
 
     def test_denies_repeated_identical_readiness_check(self):
         command = "curl --max-time 5 http://localhost/ready"

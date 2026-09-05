@@ -20,6 +20,11 @@ DEFAULT_PRICES = {
 ROLE_LIMITS = {"navigator": 10, "orchestrator": 30, "worker": 40,
                "verifier": 35, "reviewer": 50, "as-built": 30}
 POLL_RE = re.compile(r"\b(sleep\s+\d+|while\b|until\b)")
+CURL_RE = re.compile(r"(?m)(?:^|[;&|]\s*|\n\s*)curl(?:\s|$)")
+CURL_TIMEOUT_RE = re.compile(
+    r"(?:^|\s)(?:--max-time(?:=|\s+)|-m(?:=|\s*))"
+    r"(?:\d+(?:\.\d+)?|\.\d+)(?=\s|$)"
+)
 VALIDATION_RE = re.compile(
     r"\b(pytest|unittest|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|"
     r"yarn\s+test|bun\s+test|cargo\s+test|go\s+test|rspec|vitest|jest|"
@@ -104,8 +109,8 @@ def normalise_command(command):
 def is_polling(command):
     if POLL_RE.search(command):
         return True
-    return bool(re.search(r"\bcurl\b", command)) and not bool(
-        re.search(r"(?:^|\s)(?:--max-time|-m)\s*\d+", command)
+    return bool(CURL_RE.search(command)) and not bool(
+        CURL_TIMEOUT_RE.search(command)
     )
 
 

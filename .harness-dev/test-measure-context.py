@@ -102,8 +102,16 @@ class MeasurementTests(unittest.TestCase):
         self.assertFalse(self.release.check(report, accuracy)["all expected execution roles are present"])
 
     def test_bounded_curl_is_not_polling(self):
-        self.assertFalse(self.measure.is_polling("curl --max-time 5 http://localhost/health"))
+        for command in (
+            "curl --max-time 5 http://localhost/health",
+            "curl --max-time=5 http://localhost/health",
+            "curl --max-time=.5 http://localhost/health",
+            "curl -m0.5 http://localhost/health",
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(self.measure.is_polling(command))
         self.assertTrue(self.measure.is_polling("curl http://localhost/health"))
+        self.assertTrue(self.measure.is_polling("curl --max-time=soon http://localhost/health"))
 
 
 if __name__ == "__main__":

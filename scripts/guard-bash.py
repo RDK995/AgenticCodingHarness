@@ -15,7 +15,10 @@ import tempfile
 SHELL_SLEEP = re.compile(r"(?im)(?:^|[;&|]\s*|\n\s*)sleep(?:\s|$)")
 SHELL_POLL_LOOP = re.compile(r"(?im)(?:^|[;&|]\s*|\n\s*)(?:until|while)\b")
 CURL = re.compile(r"(?m)(?:^|[;&|]\s*|\n\s*)curl(?:\s|$)")
-CURL_TIMEOUT = re.compile(r"(?:--max-time(?:=|\s)|-m(?:\d|\s))")
+CURL_TIMEOUT = re.compile(
+    r"(?:^|\s)(?:--max-time(?:=|\s+)|-m(?:=|\s*))"
+    r"(?:\d+(?:\.\d+)?|\.\d+)(?=\s|$)"
+)
 READINESS = re.compile(
     r"(?i)(?:/health(?:z)?\b|/ready\b|\bready(?:ness)?\b|"
     r"(?:^|[;&|]\s*|\n\s*)(?:pgrep|lsof)\b|"

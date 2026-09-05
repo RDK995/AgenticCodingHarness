@@ -6,8 +6,8 @@ Add a calculator function that divides two numbers.
 
 ## Functional Requirements
 
-- Provide a `divide(a, b)` function.
-- Division by zero must raise an error, not return `Infinity`, `NaN`, or `None`.
+- [FR1] Provide a `divide(a, b)` function.
+- [FR2] Division by zero must raise an error, not return `Infinity`, `NaN`, or `None`.
 
 ## Acceptance Criteria
 

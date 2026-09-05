@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "current_milestone": "M1",
+  "requirements": {
+    "FR1": "M1",
+    "FR2": "M1"
+  },
+  "milestones": {
+    "M1": {
+      "outcome": "Calculator division is available and safe against division by zero",
+      "status": "TODO",
+      "review_cycles": 0,
+      "review_override": null,
+      "baseline": {
+        "commit": "",
+        "branch": ""
+      },
+      "as_built": {
+        "artifact": null,
+        "result": "PENDING"
+      },
+      "criteria": [
+        {
+          "id": "M1-AC1",
+          "status": "PENDING",
+          "text": "Division returns the expected quotient",
+          "evidence": []
+        }
+      ],
+      "tasks": [
+        {
+          "id": "M1-T1",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Mid",
+            "model": "sonnet",
+            "reason_code": "ORDINARY_IMPLEMENTATION",
+            "detail": "Adds normal production behaviour behind an existing API"
+          }
+        }
+      ],
+      "reviews": [],
+      "findings": [],
+      "validation": [],
+      "follow_ups": []
+    }
+  }
+}

@@ -98,6 +98,19 @@ Do not emulate the override by editing `model:` in `agents/worker.md`, which
 promotes *every* delegated task permanently and quietly inverts the economics the
 routing rule exists to protect.
 
+**6. Hard subagent turn limits.** Every bundled subagent declares `maxTurns` and
+hands off before reaching it. The runtime must honour that field. The controller
+also handles runtimes that stop without a labelled partial result: a response
+without the role's required terminal field is `INTERRUPTED`, never evidence. Pin
+and record the runtime version used for a release instead of assuming a newly
+documented partial-result shape exists on an older CLI.
+
+**7. Plugin hooks.** The runtime must load `hooks/hooks.json` and permit its
+`PreToolUse` hook to deny a Bash call. This is the deterministic circuit breaker
+for foreground sleeps and polling loops. If policy disables plugin hooks, report
+that degradation before implementation rather than silently falling back to a
+prompt-only rule.
+
 ## Capability tiers
 
 The roles differ sharply in how much model capability they need, and the
@@ -105,12 +118,12 @@ difference is not about size of output.
 
 | Role | Tier | Why |
 | --- | --- | --- |
-| `worker` | **Cheap / Mid / Top** | The tier is chosen per task by risk (§47), with `haiku` as the default and a named reason required to go above it (§49): `sonnet` when the task is not clearly specified, not bounded, not low risk or not easily verified; `opus` for architecture, security, cross-cutting or ambiguous work. Nothing it claims is trusted at any tier: a verifier re-runs the validation in a context that did not write the code, and a fresh reviewer checks the result. Failure degrades gracefully — the ladder assumes workers fail. |
+| `worker` | **Cheap / Mid / Top** | The tier is chosen from the current task: `haiku` for mechanical or bounded low-risk work, `sonnet` for ordinary implementation, and `opus` for architecture, security, difficult concurrency, cross-cutting or ambiguous work. Structured state records the model and named reason. Nothing it claims is trusted: a verifier re-runs focused validation and a fresh reviewer checks the milestone. |
 | `orchestrator` | **Highest** | Holds the routing decision, the escalation judgement, and the judgement of evidence. It delegates every task and implements none (§46), and since §48 it delegates the re-running of a task's validation too — what it retains is deciding whether the returned command, exit status and file list actually support the claim. Risky work is routed to a worker at this same tier rather than retained. |
 | `verifier` | **Cheap** | Re-runs one task's stated validation and reports the command, exit status, output and changed files. Deliberately not the gate, which is what makes a cheap tier safe here: its output is a command and an exit status rather than a judgement, and a tier-matched reviewer re-runs the validation independently before anything becomes `DONE` (§48). It cannot edit what it checks. |
 | `navigator` | **Cheap** | Answers *where things are* — line ranges, commit SHAs, file sizes, one command's exit status — so the orchestrator does not spend its opening turns finding out. Cheap for the same structural reason as the verifier and `as-built`: its contract forbids summarising, so it issues no verdict and there is no judgement for a weak tier to get wrong. A brief that characterises a requirement instead of quoting it is a contract violation, not a stylistic one — it would move risk to a cheap tier invisibly. It writes nothing. |
-| `as-built` | **Cheap** | Draws what a milestone actually built and, at the end, lays the union against the agreed architecture (§50). Cheap for the same structural reason as the verifier: it issues no verdict, names no severity and suggests no correction, so there is no judgement for a weak tier to get wrong. Its only write is one file under `.harness/as-built/`; the reviewer grades what it recorded. |
-| `reviewer` | **Derived — never below the work** | The thing that verifies everything else. Nothing verifies it except a human. Its tier is not fixed: it runs at no less than the highest tier that produced the work under review (§47), with `sonnet` as the floor and the final holistic review at the top tier. A reviewer weaker than the work it judges emits a confident `PASS` and the gate opens on nothing. |
+| `as-built` | **Cheap** | Draws what one milestone actually built. It issues no verdict, names no severity and suggests no correction; its only write is one file under `.harness/as-built/`, which the milestone reviewer grades. |
+| `reviewer` | **Derived from current diff** | The independent milestone gate runs at `sonnet` by default and `opus` when the current substantive diff contains Opus-routed, architecture, security or difficult-concurrency work. A later correction review does not inherit an earlier diff's tier. Record-only corrections invoke no semantic reviewer. |
 | `roast-requirements`, `architect`, `scope-mvp` | **High** | Their entire value is asking the question nobody had considered — the capability weaker models lack most. `scope-mvp` sits with them because deciding which single outcome is worth shipping first, and what a product can ship without, is the same judgement applied to scope. |
 
 A weak reviewer does not fail loudly; it emits a confident, well-formatted,

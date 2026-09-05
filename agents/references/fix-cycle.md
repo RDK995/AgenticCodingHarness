@@ -111,7 +111,8 @@ the skill records that directly from the reviewer's verdict. There is no path to
 Allow at most **2 review/fix cycles per milestone**, counted in authoritative
 `.harness/state.json` and mirrored under `### Review Cycles`. Update both in the
 same change and run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py
-.harness/state.json --milestones .harness/milestones.md`; a mismatch blocks the transition. If
+.harness/state.json --milestones .harness/milestones.md --requirements
+.harness/requirements.md`; a mismatch blocks the transition. If
 BLOCKER or IMPORTANT findings remain after 2 cycles, set the milestone
 to `BLOCKED` and escalate — the Human Escalation Contract is in
 `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md` — instead of trying a third time. This same

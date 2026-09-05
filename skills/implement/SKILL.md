@@ -54,7 +54,8 @@ IF `.harness/state.json` is missing but `.harness/milestones.md` exists:
     run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/migrate-state.py
     .harness/milestones.md .harness/state.json` once
     validate it with `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py
-    .harness/state.json --milestones .harness/milestones.md`
+    .harness/state.json --milestones .harness/milestones.md
+    --requirements .harness/requirements.md`
     STOP on any migration or consistency error rather than guessing
 
 Read .harness/milestones.md
@@ -70,7 +71,8 @@ IF missing:
 
     Before entering the LOOP, confirm both files exist, every template heading
     is present, and `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py
-    .harness/state.json --milestones .harness/milestones.md` passes.
+    .harness/state.json --milestones .harness/milestones.md
+    --requirements .harness/requirements.md` passes.
 
 LOOP:
     find the first milestone that is not DONE
@@ -84,7 +86,8 @@ LOOP:
 
     IF none exists (all DONE):
         run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
-        --milestones .harness/milestones.md --all-done`. This checks that every
+        --milestones .harness/milestones.md --requirements
+        .harness/requirements.md --all-done`. This checks that every
         in-scope requirement is owned, every milestone is DONE, every criterion
         passed and no blocking finding remains. Report completed milestone ids,
         review/validation artifact paths, follow-ups, branch and commits; then STOP.
@@ -170,7 +173,8 @@ LOOP:
                 corrections named by finding id, and commit their explicit
                 `.harness/` paths. Run `python3
                 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
-                --record-only <pre> HEAD` plus the normal state/index check. If
+                --requirements .harness/requirements.md --record-only <pre> HEAD`
+                plus the normal state/index check. If
                 both pass and the original
                 per-criterion rows were all PASS, record the resolved finding ids,
                 then finalise the passing milestone exactly as described under
@@ -301,7 +305,8 @@ record-only correction:
    reading the artifact. If it returns `BLOCKED`, record that result and carry
    on; this record is evidence, not another completion gate.
 2. Set the milestone to `DONE` in both state views and run the normal
-   `check-state.py` consistency check.
+   `check-state.py` consistency check with `--requirements
+   .harness/requirements.md`.
 3. Close the milestone branch as described below. The closing commit therefore
    includes the as-built artifact, structured state and human milestone update
    together. There must be no `.harness/` write after this commit.

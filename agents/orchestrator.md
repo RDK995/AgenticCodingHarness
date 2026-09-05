@@ -656,7 +656,7 @@ criteria, architecture/as-built paths, baseline, evidence, validation, review,
 cycle count and follow-ups. Keep detail in structured entries or artifact paths,
 not duplicated narrative. Record `Baseline` before any task runs. Before
 returning, run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
---milestones .harness/milestones.md`.
+--milestones .harness/milestones.md --requirements .harness/requirements.md`.
 
 If `.harness/milestones.md` has passed roughly 400 lines, apply the
 archiving rule in

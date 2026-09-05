@@ -21,6 +21,12 @@ class StateTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.state = json.loads((ROOT / "examples" / "state.example.json").read_text())
+        self.requirements = self.root / "requirements.md"
+        self.requirements.write_text(
+            "# Requirements\n\n## Functional Requirements\n\n"
+            "- [FR1] Divide numbers\n- [FR2] Reject division by zero\n\n"
+            "## Acceptance Criteria\n"
+        )
 
     def write_state(self):
         path = self.root / "state.json"
@@ -65,16 +71,44 @@ class StateTests(unittest.TestCase):
         self.state["current_milestone"] = None
         self.state["milestones"]["M1"]["status"] = "DONE"
         self.state["milestones"]["M1"]["criteria"][0]["status"] = "PASS"
-        self.assertEqual(self.run_check("--all-done").returncode, 0)
+        self.assertEqual(
+            self.run_check("--all-done", "--requirements", self.requirements).returncode,
+            0,
+        )
 
     def test_all_done_requires_requirement_ownership(self):
         self.state["requirements"] = {}
         self.state["current_milestone"] = None
         self.state["milestones"]["M1"]["status"] = "DONE"
         self.state["milestones"]["M1"]["criteria"][0]["status"] = "PASS"
-        completed = self.run_check("--all-done")
+        completed = self.run_check("--all-done", "--requirements", self.requirements)
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("requirement ownership", completed.stderr)
+
+    def test_all_done_rejects_omitted_documented_requirement(self):
+        self.state["requirements"].pop("FR2")
+        self.state["current_milestone"] = None
+        self.state["milestones"]["M1"]["status"] = "DONE"
+        self.state["milestones"]["M1"]["criteria"][0]["status"] = "PASS"
+        completed = self.run_check("--all-done", "--requirements", self.requirements)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("missing milestone ownership: FR2", completed.stderr)
+
+    def test_all_done_requires_requirements_document_input(self):
+        self.state["current_milestone"] = None
+        self.state["milestones"]["M1"]["status"] = "DONE"
+        self.state["milestones"]["M1"]["criteria"][0]["status"] = "PASS"
+        completed = self.run_check("--all-done")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("requires --requirements", completed.stderr)
+
+    def test_legacy_unnumbered_requirements_get_stable_positional_ids(self):
+        self.requirements.write_text(
+            "# Requirements\n\n## Functional Requirements\n\n"
+            "- Divide numbers\n- Reject division by zero\n\n## Constraints\n"
+        )
+        completed = self.run_check("--requirements", self.requirements)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_record_only_gate_rejects_source_changes(self):
         harness = self.root / ".harness"

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 from pathlib import Path
 import re
@@ -40,12 +41,40 @@ def markdown_statuses(path: Path) -> dict[str, str]:
     return result
 
 
+def documented_requirement_ids(path: Path) -> tuple[set[str], list[str]]:
+    """Return functional-requirement ids, synthesising FR<n> for legacy files."""
+    try:
+        text = path.read_text()
+    except OSError as error:
+        return set(), [f"cannot read requirements document: {error}"]
+    section = re.search(
+        r"(?ms)^## Functional Requirements\s*\n(.*?)(?=^## |\Z)", text
+    )
+    if not section:
+        return set(), ["requirements document lacks a Functional Requirements section"]
+    ids = []
+    for number, item in enumerate(re.finditer(r"(?m)^\s*-\s+(.+)$", section.group(1)), 1):
+        body = item.group(1).strip()
+        explicit = re.match(
+            r"(?:\[(FR\d+)\]|\*\*(FR\d+)\*\*|(FR\d+)\s*[:—-])",
+            body,
+            re.IGNORECASE,
+        )
+        ids.append(next(group for group in explicit.groups() if group).upper() if explicit else f"FR{number}")
+    duplicates = sorted(requirement for requirement, count in Counter(ids).items() if count > 1)
+    errors = ["requirements document repeats ids: " + ", ".join(duplicates)] if duplicates else []
+    if not ids:
+        errors.append("requirements document has no functional requirements")
+    return set(ids), errors
+
+
 def validate(
     state: dict,
     state_path: Path,
     milestones_path: Path | None,
     all_done: bool,
     record_only: tuple[str, str] | None,
+    requirements_path: Path | None = None,
 ) -> list[str]:
     errors = []
     if state.get("schema_version") != 1:
@@ -152,6 +181,18 @@ def validate(
             if owner not in milestones:
                 errors.append(f"requirement {requirement} has unknown owner {owner}")
 
+    if requirements_path:
+        documented, document_errors = documented_requirement_ids(requirements_path)
+        errors.extend(document_errors)
+        if isinstance(requirements, dict):
+            mapped = set(requirements)
+            missing = sorted(documented - mapped)
+            extra = sorted(mapped - documented)
+            if missing:
+                errors.append("requirements missing milestone ownership: " + ", ".join(missing))
+            if extra:
+                errors.append("state maps requirements absent from document: " + ", ".join(extra))
+
     if milestones_path:
         try:
             markdown = markdown_statuses(milestones_path)
@@ -166,6 +207,8 @@ def validate(
                     )
 
     if all_done:
+        if requirements_path is None:
+            errors.append("all-DONE check requires --requirements")
         if not requirements:
             errors.append("all-DONE check requires explicit requirement ownership")
         unfinished = [key for key, value in milestones.items() if value.get("status") != "DONE"]
@@ -197,6 +240,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("state", type=Path)
     parser.add_argument("--milestones", type=Path)
+    parser.add_argument("--requirements", type=Path)
     parser.add_argument("--all-done", action="store_true")
     parser.add_argument("--record-only", nargs=2, metavar=("BASE", "HEAD"))
     args = parser.parse_args()
@@ -208,6 +252,7 @@ def main() -> int:
             args.milestones,
             args.all_done,
             tuple(args.record_only) if args.record_only else None,
+            args.requirements,
         )
     except ValueError as error:
         errors = [str(error)]

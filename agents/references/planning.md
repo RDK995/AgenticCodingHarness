@@ -43,7 +43,8 @@ itself. The file holds milestones only. In the same planning step, write
 requirement id to one owning milestone and give every acceptance criterion a
 stable `<milestone>-AC<n>` id. Validate both files with `python3
 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json --milestones
-.harness/milestones.md` before returning; generation is incomplete if they disagree.
+.harness/milestones.md --requirements .harness/requirements.md` before returning;
+generation is incomplete if they disagree.
 
 Milestones represent **observable outcomes**, not implementation steps. Tests
 belong inside each milestone, not as a separate milestone.

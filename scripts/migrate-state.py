@@ -7,15 +7,67 @@ import argparse
 import json
 from pathlib import Path
 import re
+import sys
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from requirements_ids import functional_requirement_ids
 
 
-def migrate(text: str) -> dict:
+def derive_ownership(requirement_ids, milestone_sections, supplied=None):
+    supplied = supplied or {}
+    milestones = set(milestone_sections)
+    unknown_requirements = sorted(set(supplied) - requirement_ids)
+    unknown_milestones = sorted(
+        f"{requirement}={owner}"
+        for requirement, owner in supplied.items()
+        if owner not in milestones
+    )
+    if unknown_requirements:
+        raise ValueError(
+            "ownership map contains ids absent from requirements: "
+            + ", ".join(unknown_requirements)
+        )
+    if unknown_milestones:
+        raise ValueError(
+            "ownership map names unknown milestones: " + ", ".join(unknown_milestones)
+        )
+
+    ownership = {}
+    ambiguous = []
+    for requirement in sorted(requirement_ids):
+        if requirement in supplied:
+            ownership[requirement] = supplied[requirement]
+            continue
+        referenced_by = [
+            milestone_id
+            for milestone_id, section in milestone_sections.items()
+            if re.search(rf"\b{re.escape(requirement)}\b", section, re.IGNORECASE)
+        ]
+        if len(referenced_by) == 1:
+            ownership[requirement] = referenced_by[0]
+        elif len(milestones) == 1:
+            ownership[requirement] = next(iter(milestones))
+        else:
+            ambiguous.append(requirement)
+    if ambiguous:
+        raise ValueError(
+            "cannot infer one owning milestone for "
+            + ", ".join(ambiguous)
+            + "; pass --ownership <json> with an explicit id-to-milestone map"
+        )
+    return ownership
+
+
+def migrate(text: str, requirement_ids: set[str], supplied_ownership=None) -> dict:
     headings = list(re.finditer(r"(?m)^## (M[^ ]+)\s+—\s*(.+)$", text))
     milestones = {}
+    milestone_sections = {}
     for index, heading in enumerate(headings):
         milestone_id, outcome = heading.group(1), heading.group(2).strip()
         end = headings[index + 1].start() if index + 1 < len(headings) else len(text)
         section = text[heading.end():end]
+        milestone_sections[milestone_id] = f"{outcome}\n{section}"
         status_match = re.search(r"(?m)^Status:\s*([A-Z_]+)\s*$", section)
         cycles_match = re.search(r"(?ms)^### Review Cycles\s*\n+\s*(\d+)", section)
         baseline_match = re.search(r"(?ms)^### Baseline\s*\n+\s*([^\n]+)", section)
@@ -66,7 +118,9 @@ def migrate(text: str) -> dict:
     return {
         "schema_version": 1,
         "current_milestone": current,
-        "requirements": {},
+        "requirements": derive_ownership(
+            requirement_ids, milestone_sections, supplied_ownership
+        ),
         "milestones": milestones,
     }
 
@@ -75,11 +129,37 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("milestones", type=Path)
     parser.add_argument("state", type=Path)
+    parser.add_argument("--requirements", required=True, type=Path)
+    parser.add_argument(
+        "--ownership",
+        type=Path,
+        help="JSON object mapping requirement ids to milestone ids when inference is ambiguous",
+    )
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
     if args.state.exists() and not args.force:
         parser.error(f"refusing to overwrite {args.state}; pass --force deliberately")
-    state = migrate(args.milestones.read_text())
+    try:
+        requirements_text = args.requirements.read_text()
+    except OSError as error:
+        parser.error(f"cannot read requirements document: {error}")
+    requirement_ids, requirement_errors = functional_requirement_ids(requirements_text)
+    if requirement_errors:
+        parser.error("; ".join(requirement_errors))
+    supplied_ownership = None
+    if args.ownership:
+        try:
+            supplied_ownership = json.loads(args.ownership.read_text())
+        except (OSError, json.JSONDecodeError) as error:
+            parser.error(f"cannot read ownership map: {error}")
+        if not isinstance(supplied_ownership, dict):
+            parser.error("ownership map must be a JSON object")
+    try:
+        state = migrate(
+            args.milestones.read_text(), requirement_ids, supplied_ownership
+        )
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
     if not state["milestones"]:
         parser.error("no milestone sections found")
     args.state.parent.mkdir(parents=True, exist_ok=True)

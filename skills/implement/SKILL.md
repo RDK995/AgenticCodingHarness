@@ -52,7 +52,10 @@ one current milestone. Then read only that milestone's section from
 
 IF `.harness/state.json` is missing but `.harness/milestones.md` exists:
     run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/migrate-state.py
-    .harness/milestones.md .harness/state.json` once
+    .harness/milestones.md .harness/state.json --requirements
+    .harness/requirements.md` once. If it reports ambiguous ownership, STOP and
+    ask the human for the explicit id-to-milestone JSON map required by
+    `--ownership`; never guess ownership
     validate it with `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py
     .harness/state.json --milestones .harness/milestones.md
     --requirements .harness/requirements.md`

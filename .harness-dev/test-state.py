@@ -143,7 +143,14 @@ class StateTests(unittest.TestCase):
             "### Baseline\n\nabc123 on m1-divide\n\n### Review Cycles\n\n1\n"
         )
         completed = subprocess.run(
-            [sys.executable, str(MIGRATE), str(source), str(target)],
+            [
+                sys.executable,
+                str(MIGRATE),
+                str(source),
+                str(target),
+                "--requirements",
+                str(self.requirements),
+            ],
             text=True,
             capture_output=True,
             check=False,
@@ -156,6 +163,55 @@ class StateTests(unittest.TestCase):
         self.assertEqual(milestone["baseline"]["branch"], "m1-divide")
         self.assertEqual(milestone["as_built"], {"artifact": None, "result": "PENDING"})
         self.assertEqual([item["status"] for item in milestone["criteria"]], ["PASS", "PENDING"])
+        self.assertEqual(migrated["requirements"], {"FR1": "M1", "FR2": "M1"})
+
+    def test_migration_derives_ownership_from_milestone_references(self):
+        source = self.root / "milestones.md"
+        target = self.root / "state.json"
+        source.write_text(
+            "# Milestones\n\n## M1 — Divide [FR1]\n\nStatus: DONE\n\n"
+            "## M2 — Reject zero [FR2]\n\nStatus: TODO\n"
+        )
+        completed = subprocess.run(
+            [sys.executable, str(MIGRATE), str(source), str(target),
+             "--requirements", str(self.requirements)],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(
+            json.loads(target.read_text())["requirements"],
+            {"FR1": "M1", "FR2": "M2"},
+        )
+
+    def test_ambiguous_migration_requires_explicit_ownership(self):
+        source = self.root / "milestones.md"
+        target = self.root / "state.json"
+        ownership = self.root / "ownership.json"
+        source.write_text(
+            "# Milestones\n\n## M1 — Divide\n\nStatus: DONE\n\n"
+            "## M2 — Reject zero\n\nStatus: TODO\n"
+        )
+        command = [sys.executable, str(MIGRATE), str(source), str(target),
+                   "--requirements", str(self.requirements)]
+        completed = subprocess.run(command, text=True, capture_output=True, check=False)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("--ownership", completed.stderr)
+        self.assertFalse(target.exists())
+
+        ownership.write_text(json.dumps({"FR1": "M1", "FR2": "M2"}))
+        completed = subprocess.run(
+            [*command, "--ownership", str(ownership)],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(
+            json.loads(target.read_text())["requirements"],
+            {"FR1": "M1", "FR2": "M2"},
+        )
 
 
 if __name__ == "__main__":

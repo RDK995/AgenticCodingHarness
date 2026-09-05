@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter
 import json
 from pathlib import Path
 import re
 import subprocess
 import sys
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from requirements_ids import functional_requirement_ids
 
 
 STATUSES = {"TODO", "IN_PROGRESS", "REVIEW", "DONE", "BLOCKED", "DEFERRED"}
@@ -42,30 +45,11 @@ def markdown_statuses(path: Path) -> dict[str, str]:
 
 
 def documented_requirement_ids(path: Path) -> tuple[set[str], list[str]]:
-    """Return functional-requirement ids, synthesising FR<n> for legacy files."""
     try:
         text = path.read_text()
     except OSError as error:
         return set(), [f"cannot read requirements document: {error}"]
-    section = re.search(
-        r"(?ms)^## Functional Requirements\s*\n(.*?)(?=^## |\Z)", text
-    )
-    if not section:
-        return set(), ["requirements document lacks a Functional Requirements section"]
-    ids = []
-    for number, item in enumerate(re.finditer(r"(?m)^\s*-\s+(.+)$", section.group(1)), 1):
-        body = item.group(1).strip()
-        explicit = re.match(
-            r"(?:\[(FR\d+)\]|\*\*(FR\d+)\*\*|(FR\d+)\s*[:—-])",
-            body,
-            re.IGNORECASE,
-        )
-        ids.append(next(group for group in explicit.groups() if group).upper() if explicit else f"FR{number}")
-    duplicates = sorted(requirement for requirement, count in Counter(ids).items() if count > 1)
-    errors = ["requirements document repeats ids: " + ", ".join(duplicates)] if duplicates else []
-    if not ids:
-        errors.append("requirements document has no functional requirements")
-    return set(ids), errors
+    return functional_requirement_ids(text)
 
 
 def validate(

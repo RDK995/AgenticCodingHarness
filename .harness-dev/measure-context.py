@@ -1,199 +1,285 @@
 #!/usr/bin/env python3
-"""Measure a harness run's context cost from its Claude Code transcript.
+"""Measure deduplicated token traffic and efficiency signals in Claude transcripts."""
 
-Method used for the §48 baseline. Point it at one or more session directories:
+from __future__ import annotations
 
-    ./measure-context.py ~/.claude/projects/<project>/<session-uuid> [more...]
-    ./measure-context.py --top-level-role orchestrator <dir> [more...]
-
-Since §48 a milestone runs as several invocations, so it spans several sessions;
-pass them all and the totals aggregate. `--top-level-role` labels each session's
-own transcript, which is the orchestrator when invoked with
-`--agent harness:orchestrator` and the skill session when invoked with
-`/harness:implement` (the default).
-
-It reads <session-uuid>.jsonl and <session-uuid>/subagents/*.jsonl, counting
-input + cache_creation + cache_read + output tokens per assistant turn.
-`fixed` is the smallest context observed times the turn count; `growth` is the
-rest. Reports per-context totals, each orchestrator's turn profile, and the split
-between the implementation phase and the review/fix phase.
-
-A "turn" here is one **API call**, not one `assistant` record. Claude Code splits
-a single response across several records sharing a `message.id` — the text block,
-then each tool call — and repeats the same `usage` on every one of them. Counting
-per record inflates totals by roughly 1.7x and invents no-tool turns that never
-happened. Every figure this script produced before 2026-08-27 was wrong that way;
-see the CORRECTION section in `.harness-dev/progress.md`.
-"""
+import argparse
+from collections import Counter, defaultdict
 import json
-import re
-import sys
-from collections import Counter
 from pathlib import Path
+import re
+import statistics
+import subprocess
+
+
+DEFAULT_PRICES = {
+    "haiku": {"input": 0.80, "cache_creation": 1.00, "cache_read": 0.08, "output": 4.00},
+    "sonnet": {"input": 3.00, "cache_creation": 3.75, "cache_read": 0.30, "output": 15.00},
+    "opus": {"input": 15.00, "cache_creation": 18.75, "cache_read": 1.50, "output": 75.00},
+}
+ROLE_LIMITS = {"navigator": 10, "orchestrator": 30, "worker": 40,
+               "verifier": 35, "reviewer": 50, "as-built": 30}
+POLL_RE = re.compile(r"\b(sleep\s+\d+|while\b|until\b)")
+CURL_RE = re.compile(r"(?m)(?:^|[;&|]\s*|\n\s*)curl(?:\s|$)")
+CURL_TIMEOUT_RE = re.compile(
+    r"(?:^|\s)(?:--max-time(?:=|\s+)|-m(?:=|\s*))"
+    r"(?:\d+(?:\.\d+)?|\.\d+)(?=\s|$)"
+)
+VALIDATION_RE = re.compile(
+    r"\b(pytest|unittest|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|"
+    r"yarn\s+test|bun\s+test|cargo\s+test|go\s+test|rspec|vitest|jest|"
+    r"tsc(?:\s+--noEmit)?|typecheck)\b", re.I
+)
+MILESTONE_RE = re.compile(r"\b(M\d+[a-z]?)\b", re.I)
+
+
+def token_usage(usage):
+    cache_creation = usage.get("cache_creation_input_tokens", 0)
+    if isinstance(cache_creation, dict):
+        cache_creation = sum(value for value in cache_creation.values() if isinstance(value, int))
+    return {
+        "input": usage.get("input_tokens", 0),
+        "cache_creation": cache_creation,
+        "cache_read": usage.get("cache_read_input_tokens", 0),
+        "output": usage.get("output_tokens", 0),
+    }
 
 
 def turns(path):
+    """Yield one row per API response, deduplicated by message id."""
     seen = {}
-    for i, line in enumerate(path.open()):
-        try:
-            d = json.loads(line)
-        except ValueError:
-            continue
-        if d.get("type") != "assistant":
-            continue
-        msg = d.get("message") or {}
-        # One API response is split across several `assistant` records that share
-        # a message.id — the text block is one, each tool_use is another — and
-        # every record repeats the same `usage`. Summing per record inflates the
-        # total by ~1.7x. Accumulate per message.id and count usage once.
-        mid = msg.get("id")
-        if mid is None:
-            mid = ("anon", i)
-        e = seen.setdefault(mid, {"u": None, "tools": [], "ts": d.get("timestamp", "")})
-        if msg.get("usage") and e["u"] is None:
-            e["u"] = msg["usage"]
-        for b in (msg.get("content") or []):
-            if isinstance(b, dict) and b.get("type") == "tool_use":
-                e["tools"].append(b)
-    for e in seen.values():
-        u = e["u"] or {}
-        if not u:
-            continue
-        ctx = (u.get("input_tokens", 0) + u.get("cache_creation_input_tokens", 0)
-               + u.get("cache_read_input_tokens", 0))
-        yield e["ts"], ctx, u.get("output_tokens", 0), e["tools"]
-
-
-def analyse(path):
-    ctxs, total, tools, ts = [], 0, Counter(), []
-    for t, ctx, out, tu in turns(path):
-        ctxs.append(ctx)
-        total += ctx + out
-        ts.append(t)
-        for b in tu:
-            tools[b["name"]] += 1
-    if not ctxs:
-        return None
-    base = min(ctxs)
-    ctxs.sort()
-    return dict(turns=len(ctxs), total=total, base=base, peak=ctxs[-1],
-                median=ctxs[len(ctxs) // 2], growth=total - base * len(ctxs),
-                tools=tools, first=ts[0], last=ts[-1])
-
-
-def orchestrator_profile(path):
-    notool = reads_out = reads_repo = poll = 0
-    bash = Counter()
-    rows = []
-    first_review = None
-    for t, ctx, out, tu in turns(path):
-        rows.append((t, ctx + out))
-        if not tu:
-            notool += 1
-        for b in tu:
-            name, i = b["name"], b.get("input", {})
-            if name == "Read":
-                p = i.get("file_path", "")
-                if "/tasks/" in p and p.endswith(".output"):
-                    reads_out += 1
-                else:
-                    reads_repo += 1
-            elif name == "Bash":
-                c = i.get("command", "")
-                if re.search(r"\b(until|while)\b.*\bls\b|sleep \d", c):
-                    bash["wait/poll"] += 1
-                    poll += 1
-                elif re.search(r"bun (test|x tsc)|pytest|npm test|tsc --noEmit", c):
-                    bash["run tests/typecheck"] += 1
-                elif re.search(r"git (diff|show|log|status)", c):
-                    bash["git inspect"] += 1
-                elif re.search(r"\b(grep|rg)\b", c):
-                    bash["grep"] += 1
-                elif re.search(r"\b(sed -n|cat|head|tail)\b", c):
-                    bash["read file via bash"] += 1
-                else:
-                    bash["other"] += 1
-            elif name in ("Agent", "Task"):
-                d = str(i.get("description", "")) + str(i.get("subagent_type", ""))
-                if "review" in d.lower() and first_review is None:
-                    first_review = t
-    n = len(rows)
-    print(f"  tool-free turns      {notool}/{n} ({100 * notool / n:.0f}%)")
-    print(f"  Read .output files   {reads_out}")
-    print(f"  Read repo files      {reads_repo}")
-    print(f"  poll/sleep calls     {poll}")
-    print(f"  bash                 {dict(bash.most_common())}")
-    if first_review:
-        pre = sum(c for t, c in rows if t < first_review)
-        post = sum(c for t, c in rows if t >= first_review)
-        npre = sum(1 for t, _ in rows if t < first_review)
-        print(f"  plan+implement       {npre} turns, {pre:,} tokens "
-              f"({100 * pre / (pre + post):.0f}%)")
-        print(f"  review/fix           {n - npre} turns, {post:,} tokens "
-              f"({100 * post / (pre + post):.0f}%)")
-
-
-def collect(session_dir, top_level_role):
-    d = Path(session_dir).expanduser()
-    rows = []
-    subagents = d / "subagents"
-    if subagents.is_dir():
-        for meta in sorted(subagents.glob("*.meta.json")):
-            m = json.loads(meta.read_text())
-            jsonl = meta.with_suffix("").with_suffix(".jsonl")
-            a = analyse(jsonl)
-            if not a:
+    with path.open() as transcript:
+        for index, line in enumerate(transcript):
+            try:
+                event = json.loads(line)
+            except ValueError:
                 continue
-            a.update(kind=m.get("agentType", "?").replace("harness:", ""),
-                     desc=m.get("description", ""),
-                     model=m.get("model", "(default)"), path=jsonl)
-            rows.append(a)
-    top = d.with_suffix(".jsonl")
-    main_a = analyse(top)
-    if main_a:
-        main_a.update(kind=top_level_role, desc=f"[{d.name[:8]}]",
-                      model="", path=top)
-        rows.append(main_a)
+            if event.get("type") != "assistant":
+                continue
+            message = event.get("message") or {}
+            message_id = message.get("id") or f"anonymous-{index}"
+            row = seen.setdefault(
+                message_id,
+                {"usage": None, "tools": [], "timestamp": event.get("timestamp", ""),
+                 "model": message.get("model", "")},
+            )
+            if message.get("usage") and row["usage"] is None:
+                row["usage"] = message["usage"]
+            for block in message.get("content") or []:
+                if isinstance(block, dict) and block.get("type") == "tool_use":
+                    row["tools"].append(block)
+    for row in seen.values():
+        if row["usage"]:
+            yield {
+                "timestamp": row["timestamp"],
+                "usage": token_usage(row["usage"]),
+                "tools": row["tools"],
+                "model": row["model"],
+            }
+
+
+def model_family(model):
+    lowered = (model or "").lower()
+    return next((family for family in DEFAULT_PRICES if family in lowered), "unknown")
+
+
+def estimate_cost(usage, model, prices):
+    rate = prices.get(model_family(model))
+    if not rate:
+        return None
+    return sum(usage[key] * rate[key] / 1_000_000 for key in usage)
+
+
+def milestone_from(*values):
+    match = MILESTONE_RE.search(" ".join(str(value or "") for value in values))
+    return match.group(1).upper() if match else "unknown"
+
+
+def command_from(tool):
+    if tool.get("name") not in {"Bash", "bash", "exec_command"}:
+        return None
+    arguments = tool.get("input") or {}
+    return arguments.get("command") or arguments.get("cmd")
+
+
+def normalise_command(command):
+    return " ".join(command.strip().split())
+
+
+def is_polling(command):
+    if POLL_RE.search(command):
+        return True
+    return bool(CURL_RE.search(command)) and not bool(
+        CURL_TIMEOUT_RE.search(command)
+    )
+
+
+def analyse(path, role, description, configured_model, milestone_override, prices):
+    contexts, total_usage, tools, commands, model_counts = [], Counter(), Counter(), [], Counter()
+    for turn in turns(path):
+        usage = turn["usage"]
+        total_usage.update(usage)
+        contexts.append(sum(usage[key] for key in ("input", "cache_creation", "cache_read")))
+        model = turn["model"] or configured_model
+        model_counts[model] += 1
+        for tool in turn["tools"]:
+            tools[tool.get("name", "unknown")] += 1
+            command = command_from(tool)
+            if command:
+                commands.append(normalise_command(command))
+    if not contexts:
+        return None
+    model = model_counts.most_common(1)[0][0] if model_counts else configured_model
+    usage = dict(total_usage)
+    command_counts = Counter(commands)
+    validation_counts = Counter(command for command in commands if VALIDATION_RE.search(command))
+    poll_commands = [command for command in commands if is_polling(command)]
+    return {
+        "role": role,
+        "milestone": milestone_override or milestone_from(description, path),
+        "description": description,
+        "model": model,
+        "path": str(path),
+        "api_turns": len(contexts),
+        "peak_context": max(contexts),
+        "median_context": int(statistics.median(contexts)),
+        "tokens": usage,
+        "token_traffic": sum(usage.values()),
+        "estimated_cost_usd": estimate_cost(usage, model, prices),
+        "tools": dict(tools),
+        "polling_commands": poll_commands,
+        "repeated_commands": {key: value for key, value in command_counts.items() if value > 1},
+        "duplicate_validation_commands": {
+            key: value - 1 for key, value in validation_counts.items() if value > 1
+        },
+        "review_diff_ranges": sorted({
+            match.group(1) for command in commands
+            for match in re.finditer(r"git\s+diff(?:\s+--[^ ]+)*\s+([^ ]+(?:\.\.|\.\.\.)[^ ]+)", command)
+        }),
+        "record_only_review": role == "reviewer" and "record_only" in description.lower(),
+    }
+
+
+def collect(session_dir, top_level_role, milestone, prices):
+    directory = Path(session_dir).expanduser()
+    rows = []
+    subagents = directory / "subagents"
+    if subagents.is_dir():
+        metadata_by_stem = {
+            path.name.removesuffix(".meta.json"): json.loads(path.read_text())
+            for path in subagents.glob("*.meta.json")
+        }
+        for transcript in sorted(subagents.glob("*.jsonl")):
+            metadata = metadata_by_stem.get(transcript.stem, {})
+            role = metadata.get("agentType", "unknown").replace("harness:", "")
+            row = analyse(transcript, role, metadata.get("description", ""),
+                          metadata.get("model", ""), milestone, prices)
+            if row:
+                rows.append(row)
+    top_transcript = directory.with_suffix(".jsonl")
+    if top_transcript.exists():
+        row = analyse(top_transcript, top_level_role, f"[{directory.name[:8]}]",
+                      "", milestone, prices)
+        if row:
+            rows.append(row)
     return rows
 
 
-def main(session_dirs, top_level_role):
+def harness_identity(repository):
+    plugin = repository / ".claude-plugin/plugin.json"
+    version = json.loads(plugin.read_text()).get("version") if plugin.exists() else None
+    completed = subprocess.run(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        text=True, capture_output=True, check=False,
+    )
+    return {"version": version, "commit": completed.stdout.strip() if completed.returncode == 0 else None}
+
+
+def aggregate(rows, harness):
+    total = sum(row["token_traffic"] for row in rows)
+    empty = lambda: {"contexts": 0, "api_turns": 0, "tokens": 0, "cost": 0.0}
+    by_role, by_milestone = defaultdict(empty), defaultdict(empty)
+    for row in rows:
+        for bucket, key in ((by_role, row["role"]), (by_milestone, row["milestone"])):
+            bucket[key]["contexts"] += 1
+            bucket[key]["api_turns"] += row["api_turns"]
+            bucket[key]["tokens"] += row["token_traffic"]
+            bucket[key]["cost"] += row["estimated_cost_usd"] or 0
+    parents = [row for row in rows if row["role"] in {"skill session", "parent", "controller"}]
+    orchestrator_turns = [row["api_turns"] for row in rows if row["role"] == "orchestrator"]
+    hard_limit_violations = [
+        {"role": row["role"], "turns": row["api_turns"], "limit": ROLE_LIMITS[row["role"]], "path": row["path"]}
+        for row in rows if row["role"] in ROLE_LIMITS and row["api_turns"] > ROLE_LIMITS[row["role"]]
+    ]
+    reviewer_rows = [row for row in rows if row["role"] == "reviewer"]
+    return {
+        "schema_version": 1,
+        "harness": harness,
+        "summary": {
+            "contexts": len(rows),
+            "api_turns": sum(row["api_turns"] for row in rows),
+            "token_traffic": total,
+            "estimated_cost_usd": sum(row["estimated_cost_usd"] or 0 for row in rows),
+            "unpriced_contexts": sum(row["estimated_cost_usd"] is None for row in rows),
+            "peak_context": max((row["peak_context"] for row in rows), default=0),
+            "parent_share": sum(row["token_traffic"] for row in parents) / total if total else 0,
+            "orchestrator_median_turns": statistics.median(orchestrator_turns) if orchestrator_turns else 0,
+            "polling_violations": sum(len(row["polling_commands"]) for row in rows),
+            "hard_limit_violations": hard_limit_violations,
+            "workers_over_45_turns": sum(row["api_turns"] > 45 for row in rows if row["role"] == "worker"),
+            "record_only_semantic_reviews": sum(row["record_only_review"] for row in reviewer_rows),
+            "duplicate_validation_commands": sum(
+                sum(row["duplicate_validation_commands"].values()) for row in rows
+            ),
+            "semantic_reviews": len(reviewer_rows),
+            "semantic_review_diff_ranges": sum(len(row["review_diff_ranges"]) for row in reviewer_rows),
+        },
+        "by_role": dict(by_role),
+        "by_milestone": dict(by_milestone),
+        "contexts": rows,
+    }
+
+
+def print_report(report):
+    print(f"{'role':<14}{'milestone':<10}{'model':<24}{'turns':>7}{'peak':>10}{'tokens':>14}{'cost':>10}")
+    for row in sorted(report["contexts"], key=lambda value: -value["token_traffic"]):
+        cost = "n/a" if row["estimated_cost_usd"] is None else f"${row['estimated_cost_usd']:.2f}"
+        print(f"{row['role']:<14}{row['milestone']:<10}{row['model'][:23]:<24}"
+              f"{row['api_turns']:>7}{row['peak_context']:>10,}{row['token_traffic']:>14,}{cost:>10}")
+    summary = report["summary"]
+    print(f"\nTOTAL {summary['api_turns']} turns, {summary['token_traffic']:,} tokens, "
+          f"${summary['estimated_cost_usd']:.2f}")
+    print(f"Peak context {summary['peak_context']:,}; parent share {summary['parent_share']:.1%}; "
+          f"polling {summary['polling_violations']}; duplicate validation "
+          f"{summary['duplicate_validation_commands']}")
+    if summary["unpriced_contexts"]:
+        print(f"WARNING: {summary['unpriced_contexts']} context(s) use an unpriced model; cost is partial")
+    for role, values in sorted(report["by_role"].items(), key=lambda item: -item[1]["tokens"]):
+        share = values["tokens"] / summary["token_traffic"] if summary["token_traffic"] else 0
+        print(f"  {role:<14} n={values['contexts']:<3} turns={values['api_turns']:<5} "
+              f"tokens={values['tokens']:>13,} share={share:>6.1%} cost=${values['cost']:.2f}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("session_dirs", nargs="+")
+    parser.add_argument("--top-level-role", default="skill session")
+    parser.add_argument("--milestone", help="label every supplied session with this milestone")
+    parser.add_argument("--prices", type=Path, help="JSON price map in USD per million tokens")
+    parser.add_argument("--json", type=Path, dest="json_path", help="also write machine-readable report")
+    parser.add_argument("--harness-repo", type=Path, default=Path(__file__).resolve().parents[1])
+    args = parser.parse_args()
+    prices = json.loads(args.prices.read_text()) if args.prices else DEFAULT_PRICES
     rows = []
-    for sd in session_dirs:
-        rows += collect(sd, top_level_role)
-
-    print(f"{'kind':<14}{'model':<12}{'description':<40}"
-          f"{'turns':>6}{'peak':>9}{'median':>9}{'tokens':>13}{'growth':>8}")
-    for r in sorted(rows, key=lambda x: -x["total"]):
-        g = 100 * r["growth"] / r["total"]
-        print(f"{r['kind']:<14}{r['model']:<12}{r['desc'][:39]:<40}"
-              f"{r['turns']:>6}{r['peak']:>9,}{r['median']:>9,}"
-              f"{r['total']:>13,}{g:>7.0f}%")
-
-    grand = sum(r["total"] for r in rows)
-    print(f"\nTOTAL {sum(r['turns'] for r in rows)} turns, {grand:,} tokens")
-    for kind in ("orchestrator", "worker", "verifier", "reviewer",
-                 "skill session"):
-        s = [r for r in rows if r["kind"] == kind]
-        if not s:
-            continue
-        tok = sum(r["total"] for r in s)
-        print(f"  {kind:<14} n={len(s):<3} turns={sum(r['turns'] for r in s):<6}"
-              f"tokens={tok:>13,}  {100 * tok / grand:>5.1f}%")
-
-    for r in rows:
-        if r["kind"] == "orchestrator":
-            print(f"\norchestrator — {r['desc']}")
-            orchestrator_profile(r["path"])
+    for directory in args.session_dirs:
+        rows.extend(collect(directory, args.top_level_role, args.milestone, prices))
+    if not rows:
+        parser.error("no assistant contexts found in the supplied session directories")
+    report = aggregate(rows, harness_identity(args.harness_repo))
+    print_report(report)
+    if args.json_path:
+        args.json_path.write_text(json.dumps(report, indent=2) + "\n")
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    role = "skill session"
-    if "--top-level-role" in args:
-        i = args.index("--top-level-role")
-        role = args[i + 1]
-        del args[i:i + 2]
-    if not args:
-        sys.exit(__doc__)
-    main(args, role)
+    main()

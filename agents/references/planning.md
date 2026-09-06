@@ -37,7 +37,14 @@ generate milestones into it using **exactly** the structure in
 (`### Outcome`, not a renamed or added heading), same order, nothing extra.
 Reconnaissance is a planning input, not persisted state: use it to shape the
 milestones, but do not write a reconnaissance section into `milestones.md`
-itself. The file holds milestones only.
+itself. The file holds milestones only. In the same planning step, write
+`.harness/state.json` using schema version 1 and the shape in
+`${CLAUDE_PLUGIN_ROOT}/examples/state.example.json`. Map every in-scope
+requirement id to one owning milestone and give every acceptance criterion a
+stable `<milestone>-AC<n>` id. Validate both files with `python3
+${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json --milestones
+.harness/milestones.md --requirements .harness/requirements.md` before returning;
+generation is incomplete if they disagree.
 
 Milestones represent **observable outcomes**, not implementation steps. Tests
 belong inside each milestone, not as a separate milestone.
@@ -108,15 +115,28 @@ M4 — Write tests
 
 ### How big is a milestone
 
-Size a milestone by its **acceptance criteria**: target **3-5**, and past **7**
-it is two milestones. Decide that here, during generation — a milestone that is
-too large is not discovered until it has already cost a long context to run.
+Size a milestone by its **acceptance criteria and operational complexity**.
+Target **3-5** criteria, and past **7** it is two milestones. Also split when
+reconnaissance shows any of these independent pressure signals:
 
-Criteria are the measure because they are fixed here, visible in
+- more than three affected subsystems;
+- concurrency or lifecycle ownership changes;
+- implementation combined with live-environment proof;
+- more than roughly eight expected production files;
+- more than six anticipated worker tasks; or
+- multiple independently demonstrable outcomes.
+
+One signal is a prompt to find a smaller seam; two signals require a split. A
+concurrency/lifecycle change combined with live-environment proof also requires a
+split even if it is the same outward outcome. Record the signal names in the
+first child milestone's outcome. Decide this during generation, before writing
+acceptance work or task packets — a milestone that is too large is otherwise not
+discovered until it has already cost a long context to run.
+
+Criteria are one reproducible measure because they are fixed here, visible in
 `milestones.md` afterwards, and checkable by a human without watching the run.
-Each one needs an implementation, a test, and recorded evidence, so ten criteria
-is not a large milestone — it is two or three milestones that were written as
-one.
+They are not the sole measure: a short checklist can still hide several runtime
+owners, failure modes and proof environments.
 
 Split on the outcome, not the checklist: two milestones each of which is
 independently implementable, testable and reviewable, not one outcome with its

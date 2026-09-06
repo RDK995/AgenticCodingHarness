@@ -115,46 +115,43 @@ carry every template heading — the remaining headings are in its archive file.
 
 ## Rules
 
-- No JSON state store, no hidden state — this file plus `requirements.md` (plus
-  `.harness/archive/` once milestones have been archived, read on demand) must
-  be enough for a new session to understand project status. `.harness/tasks/`
-  and `.harness/reviews/` do not change that: task packets and review reports are
-  scratch for a milestone in flight, written so neither is re-sent to every
-  worker, verifier, retry or fix cycle that needs it. Nothing reads them to learn
-  project status, and they carry no evidence — that lives here.
+- `.harness/state.json` is authoritative workflow state; this file is its compact
+  human view. Every writer updates both in one change and runs
+  `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
+  --milestones .harness/milestones.md --requirements
+  .harness/requirements.md`. Task, review and validation
+  detail lives in structured artifacts under `.harness/`; this file carries
+  stable ids and paths, not duplicated report bodies. If the two views disagree,
+  stop and repair the record mechanically before dispatching another agent.
 - A milestone may only become `DONE` once its `Evidence` and `Validation`
   sections contain real implementation/test evidence, not a claim.
 - `### Evidence` records, per task, the tier it entered at, the named reason if
   that was not Cheap, and the outcome at each rung attempted. The tier alone shows
   what was chosen; the outcome is what shows whether the choice was right, and it
   is the only record from which a human can see routing drifting upward over time.
-- `### Baseline` records the commit the milestone started from, and the branch
-  (e.g. `8b81cf1 on m0-implementation`). The orchestrator writes it as its first
-  act on the implementation phase. A later phase runs in a fresh context and
-  computes the milestone's diff from it, so a milestone past `TODO` without a
-  baseline cannot be reviewed. The harness does not commit after every task, so
-  the milestone's work may be uncommitted or untracked: whoever records evidence
-  says whether it is in `git diff <baseline>` or in `git status --porcelain`.
+- `### Baseline` records the commit the milestone started from, and the milestone
+  branch it opened (e.g. `8b81cf1 on m0-implementation`). The orchestrator writes
+  it as its first act on the implementation phase, after creating that branch and
+  committing anything the tree already carried. A later phase runs in a fresh
+  context and computes the milestone's diff from it, so a milestone past `TODO`
+  without a baseline cannot be reviewed. Every accepted task is committed to the
+  branch, so the milestone's diff is `git diff <baseline> HEAD` and nothing else;
+  if `git status --porcelain` is not empty, whoever records evidence says so.
+  A target that is not a git repository records that here instead, once.
 - `### Review` records each cycle's verdict, the tier it ran at, and — for a
-  cycle that routed corrections — the path of the **correction patch** it wrote
-  under `.harness/reviews/`, a `Pre-correction: <sha>` ref, and **the files those
-  corrections changed**, calling out any file no finding named. The patch is the
-  next review's scope. Filenames alone are not a diff: the harness does not commit
-  after every task, so those files hold the milestone's original implementation
-  too, and a file the milestone added but never committed is invisible to any
-  diff taken against the worktree. A missing patch means the next review has
-  nothing to scope to and reads the whole milestone.
+  cycle that routed corrections — a `Pre-correction: <sha>` ref taken *before*
+  the cycle routed anything, and **the files those corrections changed**, calling
+  out any file no finding named. `git diff <Pre-correction> HEAD` is the next
+  review's scope. Filenames alone are not a diff: those files hold the milestone's
+  original implementation too, which is the whole milestone under a narrower name.
+  A missing ref means the next review has nothing to scope to and reads the whole
+  milestone.
 - `### Review Cycles` counts completed review/fix cycles for that milestone and
   is used to enforce the two-cycle cap. A cycle is a review **whose findings were
   routed and fixed**. A review that passes ends the loop and is not a cycle, so it
   does not increment this — a milestone corrected twice and then passed records
   `2`, not `3`. Counting passing reviews makes the cap unreachable. It is the only record of the count that
   survives between invocations, since each phase runs in its own context.
-- `## Final Review`, at the end of the file, exists only once every milestone is
-  `DONE` and the final review returned findings. It holds that loop's cycle count
-  and, per cycle, the findings resolved, the correction patch, the pre-correction
-  ref and the files changed — the same fields a milestone's `### Review` holds, for a loop that
-  belongs to no milestone. Its 2-cycle cap is counted there and nowhere else.
 - `### Follow-ups` records out-of-scope ideas surfaced while working the
   milestone. It is a record, not a task list — items there must not be
   implemented as part of this milestone.

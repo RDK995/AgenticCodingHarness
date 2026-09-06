@@ -1,0 +1,16 @@
+{
+  "description": "Deterministically blocks open-ended polling in harness agents.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/guard-bash.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

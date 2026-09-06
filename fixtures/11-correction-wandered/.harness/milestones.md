@@ -22,7 +22,7 @@ N/A
 
 ### Baseline
 
-The fixture's initial `baseline` commit, on the default branch.
+BASELINE_SHA on m1-receipt
 
 ### Evidence
 
@@ -80,7 +80,6 @@ Correction task T4 was routed and returned; the verifier re-ran the suite and
 confirmed it green.
 
 Pre-correction: PRE_CORRECTION_SHA
-Correction patch: `.harness/reviews/M1-cycle1.patch`
 
 Files the correction changed: `receipt/parse.py`, `tests/test_parse.py`,
 `receipt/total.py`, `tests/test_total.py`.

@@ -287,8 +287,8 @@ point.
 
 ## Expanding later
 
-Once the MVP is `DONE`, the final review has passed, and someone has actually used
-it, re-invoke this skill. It reads `.harness/mvp.md`, takes the next increment,
+Once every MVP milestone is `DONE`, and someone has actually used it, re-invoke
+this skill. It reads `.harness/mvp.md`, takes the next increment,
 folds that increment's requirements and components back from `.harness/full/` into
 `.harness/requirements.md` and `.harness/architecture.md`, and records the
 promotion under `## Decisions` with the date and what prompted it. Hand back to
@@ -302,9 +302,9 @@ written before anyone had the system. If the first users needed something else,
 reorder `## Expansion Path` and record why — that is the whole reason to build the
 small version first.
 
-**Read `.harness/as-built/drift.md` if the project has one.** It is the evidence
-for whether the MVP actually built the boundaries the expansion assumes it can
-build on, as opposed to the ones it claimed.
+**Read the relevant `.harness/as-built/M<n>.md` records.** They are the evidence
+for whether the MVP actually built the boundaries the next increment assumes it
+can build on, as opposed to the ones it claimed.
 
 If the MVP turned out not to deliver its outcome, the answer is not the next
 increment. Take what was learned back to `roast-requirements`; the requirements

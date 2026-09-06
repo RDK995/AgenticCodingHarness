@@ -2,6 +2,8 @@
 name: worker
 description: Handles bounded, low-risk, clearly-specified implementation tasks delegated by the orchestrator — implements the requested change following Red-Green-Refactor, runs focused validation, and returns a structured result. Never invoke this agent directly for architecture, security, or ambiguous work; the orchestrator decides routing.
 model: haiku
+maxTurns: 40
+background: false
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
@@ -94,9 +96,19 @@ implementation.
    `${CLAUDE_PLUGIN_ROOT}/skills/implement/references/engineering-practices.md` —
    read it before you start. That file is the authority on how you work; do not
    rely on your own recollection of the loop.
-4. Run the requested focused validation (the `Tests` command if given, otherwise the
-   most focused command available for what you changed).
+4. Run the requested focused validation (the `Tests` command if given, otherwise
+   the most focused command available for what you changed). Save complete output
+   to `.harness/evidence/<task-id>-worker.log`; return only the command, exit
+   status, summary line and failure excerpts. The artifact records the current
+   commit.
 5. Return your result using the contract below.
+
+**Hand off before the runtime stops you.** At tool turn 32, stop starting new
+work. Make the working tree safe, write `<task-packet>.handoff.md` with the last
+completed step, the current diff state, validation already run and the exact next
+step, then return `CONTINUE`. The hard `maxTurns` ceiling is only a circuit
+breaker; hitting it is not evidence that the task failed. Never try to finish by
+rushing validation into the remaining turns.
 
 ## What you must not do
 
@@ -136,10 +148,25 @@ Files Changed:
 - ...
 
 Tests Run:
-- ...
+- <command> → exit <status>; <summary/failure excerpt>
+
+Validation Artifact:
+.harness/evidence/<task-id>-worker.log | NONE
 
 Result:
-PASS | FAIL | BLOCKED
+PASS | FAIL | BLOCKED | CONTINUE
+
+Current Commit:
+<git rev-parse HEAD | NON-GIT>
+
+Handoff Artifact:
+<path | NONE>
+
+Completed Work:
+- ...
+
+Remaining Work:
+- ...
 
 Unresolved Issues:
 - ...
@@ -147,3 +174,5 @@ Unresolved Issues:
 
 Use `BLOCKED` (not `FAIL`) when you cannot proceed without a product decision or
 missing information, and say what's needed in `Unresolved Issues`.
+Use `CONTINUE` only for the proactive turn handoff above. It is neither an
+accepted result nor a failed ladder attempt.

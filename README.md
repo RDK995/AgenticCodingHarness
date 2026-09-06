@@ -40,9 +40,9 @@ No database, MCP server, or other external runtime is required.
 6. The harness works through milestones on its own — planning them if
    `.harness/milestones.md` doesn't exist yet, then implementing, testing, and
    getting each one fresh-reviewed before moving to the next
-7. Review the final result — the harness runs one more fresh, holistic review
-   once every milestone is `DONE` and reports `COMPLETE` or asks you to resolve
-   a `BLOCKED` state
+7. When every milestone is `DONE`, the harness mechanically confirms requirement
+   ownership and reports the completed milestones, evidence and follow-ups. It
+   does not run an additional project-wide review.
 
 If you carved an MVP, put it in front of someone before going further — that is
 what building the small version first was for. Then re-invoke
@@ -54,32 +54,47 @@ version of it.
 
 When the project has an agreed architecture, each completed milestone also gets
 drawn: what it *actually* built, derived from its own diff, into
-`.harness/as-built/M<n>.md`. Before the final review those are composed into
-`.harness/as-built/drift.md`, which lays the built system against the agreed one
-and sorts every component and boundary into *planned and built*, *built but not
-planned*, and *planned but never built* — each reconciled against the deviations
-you recorded. Divergence with a recorded reason is a decision; divergence
-without one is what the comparison exists to surface.
+`.harness/as-built/M<n>.md`. Its milestone reviewer grades undeclared divergence
+and any existing interfaces touched by that diff. The records are not composed
+into a separate project-wide review.
 
 If the harness ever stops with `BLOCKED`, that's deliberate: it hit an
 unresolved ambiguity or two failed review cycles, and it needs a decision only
 you can make, rather than continuing to guess.
 
+## What it does to your repository
+
+Each milestone runs on its own branch — `m<n>-<slug>`, created when the
+milestone opens, off whatever `HEAD` was — and every task the harness accepts is
+committed to it. Uncommitted work already in your tree comes across to that
+branch and is committed there first, as its own commit, so the branch you were
+on is left exactly as you found it. The result is that a milestone's diff is
+`git diff <baseline> HEAD` and nothing else: the reviewer, the verifier and the
+as-built record all read it straight out of git rather than reconstructing it.
+
+The harness **never pushes, never merges, never deletes a branch, never squashes,
+and never rewrites history.** Integrating a finished milestone is your decision,
+and may be a pull request or a review it cannot see. At `DONE` it keeps the
+independently verified per-task commits. If the target is not a git repository,
+it says so once in the milestone record and runs without any of this rather than
+running `git init` behind you.
+
 ## State
 
-Everything the harness needs to resume — even in a brand-new Claude session
-with no memory of this conversation — lives in two plain Markdown files in the
-target project:
+Everything the harness needs to resume lives in versioned structured state, with
+compact Markdown views for people:
 
 ```
 .harness/requirements.md
 .harness/architecture.md   (new projects only)
 .harness/milestones.md
+.harness/state.json        (authoritative workflow state)
 .harness/mvp.md            (only if you carved an MVP)
 .harness/full/             (only if you carved an MVP — the unedited full scope)
-.harness/as-built/         (new projects only — one file per milestone, plus drift.md)
+.harness/as-built/         (new projects only — one file per milestone)
 .harness/tasks/            (task packets for a milestone in flight — scratch, not status)
 .harness/reviews/          (review reports a fix cycle is answering — scratch, not status)
+.harness/evidence/         (validation artifacts keyed by task/milestone and commit)
 ```
 
 `requirements.md` is the agreed, implementation-ready requirements.
@@ -87,10 +102,11 @@ target project:
 boundaries and technology choices, plus a log of any deviation made while
 building. Milestones say which components they realise, so progress against the
 architecture is visible without a second status field to fall out of date.
-`as-built/` is the record of what each milestone actually constructed, drawn
-from its diff rather than from what it claimed, and the comparison composed from
-those records at the end. `milestones.md` tracks each milestone's status,
-acceptance criteria, evidence, validation results, and review outcome.
+`as-built/` records what each milestone actually constructed, drawn from its
+diff rather than from what it claimed. `state.json` carries statuses, stable ids,
+requirement ownership, review cycles and artifact paths. `milestones.md` is the
+compact human-readable view and is checked against that authority on every
+transition.
 `mvp.md` and `full/` exist only on a project that was carved down to a first
 useful version: `requirements.md` and `architecture.md` then hold the MVP, so
 everything downstream implements it without needing to know it is one, and the
@@ -106,3 +122,16 @@ like once filled in.
 
 Requirements, tests, diffs and evidence are authoritative.
 Agent confidence is not.
+
+## Measuring a run
+
+Use `python3 .harness-dev/measure-context.py <session-dir> [more...] --json report.json`
+to produce deduplicated token traffic, estimated cost, role/milestone splits,
+peak contexts, polling, repeated commands, duplicate validation, review/diff
+counts, and the harness version and commit. Price assumptions are replaceable
+with `--prices <json>`.
+
+After the behavioural fixtures and independent gates are confirmed, copy
+`examples/accuracy-evidence.example.json` and run
+`python3 .harness-dev/check-efficiency.py report.json --accuracy-evidence <file>`.
+This fails if any release threshold in the token-efficiency plan is missed.

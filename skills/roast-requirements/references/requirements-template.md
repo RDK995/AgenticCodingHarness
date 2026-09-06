@@ -26,6 +26,10 @@ must be either a real list or the literal word `None`.
 
 ## Rules
 
+- Give every functional-requirement bullet a stable id in the form
+  `- [FR1] ...`, `- [FR2] ...`. Never reuse or renumber an existing id. The
+  implementation state maps these ids to owning milestones and the all-DONE
+  gate compares the complete set against this document.
 - Set `## Open Questions` to exactly `None` only when the requirements gate has
   passed (no unresolved question is likely to materially change the implementation).
 - `## Decisions / Clarifications` records answers the human has already given,

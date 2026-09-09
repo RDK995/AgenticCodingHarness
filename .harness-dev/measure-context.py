@@ -31,6 +31,7 @@ VALIDATION_RE = re.compile(
     r"tsc(?:\s+--noEmit)?|typecheck)\b", re.I
 )
 MILESTONE_RE = re.compile(r"\b(M\d+[a-z]?)\b", re.I)
+NOTIFICATION_RE = re.compile(r"SYSTEM NOTIFICATION - NOT USER INPUT|<task-notification>")
 
 
 def token_usage(usage):
@@ -114,6 +115,45 @@ def is_polling(command):
     )
 
 
+def segment_turns(path):
+    """Turn counts between background-task re-entries.
+
+    An agent that ends its turn to wait for a subagent is re-entered when that
+    subagent finishes, and the re-entry restarts its `maxTurns` allowance on the
+    context it already holds. One segment is one allowance: an agent that
+    collects its dispatches without sleeping shows a single long segment, while
+    one that waits by ending its turn shows many short ones and never appears to
+    exceed its cap.
+    """
+    counts, seen, current = [], set(), 0
+    with path.open() as transcript:
+        for index, line in enumerate(transcript):
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            if event.get("type") == "user":
+                content = (event.get("message") or {}).get("content")
+                text = content if isinstance(content, str) else json.dumps(content)
+                if text and NOTIFICATION_RE.search(text):
+                    counts.append(current)
+                    current = 0
+                    continue
+            if event.get("type") != "assistant":
+                continue
+            message = event.get("message") or {}
+            # Same fallback identifier as turns(), so the two turn counts agree.
+            # An assistant event with usage but no id is still an API turn there,
+            # and dropping it here would leave an over-limit transcript with
+            # max_segment_turns 0 and a fabricated evaded cap.
+            message_id = message.get("id") or f"anonymous-{index}"
+            if message_id not in seen and message.get("usage"):
+                seen.add(message_id)
+                current += 1
+    counts.append(current)
+    return [count for count in counts if count]
+
+
 def analyse(path, role, description, configured_model, milestone_override, prices):
     contexts, total_usage, tools, commands, model_counts = [], Counter(), Counter(), [], Counter()
     for turn in turns(path):
@@ -132,6 +172,7 @@ def analyse(path, role, description, configured_model, milestone_override, price
     model = model_counts.most_common(1)[0][0] if model_counts else configured_model
     usage = dict(total_usage)
     command_counts = Counter(commands)
+    segments = segment_turns(path)
     validation_counts = Counter(command for command in commands if VALIDATION_RE.search(command))
     poll_commands = [command for command in commands if is_polling(command)]
     return {
@@ -141,6 +182,9 @@ def analyse(path, role, description, configured_model, milestone_override, price
         "model": model,
         "path": str(path),
         "api_turns": len(contexts),
+        "segments": len(segments),
+        "max_segment_turns": max(segments, default=0),
+        "re_entries": max(len(segments) - 1, 0),
         "peak_context": max(contexts),
         "median_context": int(statistics.median(contexts)),
         "tokens": usage,
@@ -211,6 +255,15 @@ def aggregate(rows, harness):
         {"role": row["role"], "turns": row["api_turns"], "limit": ROLE_LIMITS[row["role"]], "path": row["path"]}
         for row in rows if row["role"] in ROLE_LIMITS and row["api_turns"] > ROLE_LIMITS[row["role"]]
     ]
+    # A cap the agent never appears to break, because every re-entry restarts it.
+    caps_evaded = [
+        {"role": row["role"], "turns": row["api_turns"], "segments": row.get("segments", 1),
+         "max_segment_turns": row.get("max_segment_turns", 0), "path": row["path"]}
+        for row in rows
+        if row["role"] in ROLE_LIMITS
+        and row["api_turns"] > ROLE_LIMITS[row["role"]]
+        and row.get("max_segment_turns", 0) <= ROLE_LIMITS[row["role"]]
+    ]
     reviewer_rows = [row for row in rows if row["role"] == "reviewer"]
     return {
         "schema_version": 1,
@@ -225,6 +278,8 @@ def aggregate(rows, harness):
             "parent_share": sum(row["token_traffic"] for row in parents) / total if total else 0,
             "orchestrator_median_turns": statistics.median(orchestrator_turns) if orchestrator_turns else 0,
             "polling_violations": sum(len(row["polling_commands"]) for row in rows),
+            "notification_re_entries": sum(row.get("re_entries", 0) for row in rows),
+            "caps_evaded_by_re_entry": caps_evaded,
             "hard_limit_violations": hard_limit_violations,
             "workers_over_45_turns": sum(row["api_turns"] > 45 for row in rows if row["role"] == "worker"),
             "record_only_semantic_reviews": sum(row["record_only_review"] for row in reviewer_rows),
@@ -252,6 +307,8 @@ def print_report(report):
     print(f"Peak context {summary['peak_context']:,}; parent share {summary['parent_share']:.1%}; "
           f"polling {summary['polling_violations']}; duplicate validation "
           f"{summary['duplicate_validation_commands']}")
+    print(f"Re-entries {summary['notification_re_entries']}; caps evaded by re-entry "
+          f"{len(summary['caps_evaded_by_re_entry'])}")
     if summary["unpriced_contexts"]:
         print(f"WARNING: {summary['unpriced_contexts']} context(s) use an unpriced model; cost is partial")
     for role, values in sorted(report["by_role"].items(), key=lambda item: -item[1]["tokens"]):

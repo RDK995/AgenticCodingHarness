@@ -17,6 +17,147 @@ B25 and B26 merged, but `~/tools/harness` — the clone the real runs load their
 agents and skills from — is still at `99f9044` and must be pulled before any run
 exercises them. B26's Cheap-share criterion waits on the same run.
 
+## Out-of-milestone change — the orchestrator collects what it dispatches (2026-09-09)
+
+**The bug: a cap that reports compliance and bounds nothing.** `Agent` dispatch
+is asynchronous — the tool returns an `agentId` in a median 1.7 seconds
+(421 of 424 measured dispatches under 5s), not a result. An orchestrator that
+ends its turn to wait is re-entered by the completion notification, and **the
+re-entry restarts its `maxTurns` allowance on the context it already holds**.
+
+Measured on the 24 `token-efficiency-v2` field sessions (see the 2026-09-08
+measurement; that section lands on `main` with the Graft branch):
+
+```
+84 orchestrator contexts, 326 segments between re-entries
+median segment 8 turns, longest segment 30, none over the 30-turn cap
+longest context 147 turns
+242 notification re-entries
+53% of orchestrator traffic ($450 of $918) accrued past cumulative turn 30
+73 of 81 contexts exceeded the 90k mid-phase ceiling
+```
+
+Every segment was obedient. `agents/orchestrator.md`'s "count your turns, at 20
+hand off" never fired because with a median segment of 8 the orchestrator never
+observes 20. `background: false` is declared on all six agents and does not
+prevent this — it does not govern dispatch in this Claude Code version, so P1
+item 6 of the token-efficiency plan ("disable background agents by default") is
+declared but not satisfied.
+
+**The spike that made the fix cheap.** `TaskOutput(task_id, block: true,
+timeout: 600000)` on a `local_agent` task was unexercised anywhere in the
+transcript corpus, and its own documentation warns that an agent's `.output`
+file is a symlink to the full JSONL transcript. Run against a throwaway agent it
+returns a compact envelope — `retrieval_status`, `task_type: local_agent`,
+`status`, and the agent's final report only. The transcript warning applies to
+`Read`/shell on the file, not to the tool. Blocking spends no tokens while it
+waits, and the wait window fits the workload: **91% of workers, 100% of
+verifiers and navigators, and 82% of reviewers finish inside one ten-minute
+block**; the rest cost one further call.
+
+**The change.** A new `### Collect what you dispatch` section in the
+implementation loop: load `TaskOutput` once via `ToolSearch`, dispatch everything
+that can run at once, then block-collect each `agentId` in turn. Never wait by
+sleeping, polling a file, or arming a Monitor on a subagent. A notification for
+an already-collected agent is a no-op. The handoff rule now says the turn count
+survives being woken.
+
+Two things folded into the same section because they are the same act:
+
+- **Dispatch stays parallel.** Blocking on *collection* is the fix; blocking on
+  *dispatch* would be a regression — 88% of measured orchestrator contexts had
+  two or more agents outstanding at once, some six.
+- **Subagents are named with their plugin prefix.** 46 dispatches failed as
+  `Agent type 'navigator' not found` in the measured cohort against 4 in the
+  baseline. `skills/implement/SKILL.md` always used `harness:` prefixes; the
+  orchestrator was never told, and each failure spent an Opus turn.
+
+**Decisions.**
+
+- *The orchestrator core cap went 700 → 720 lines.* The rule is 26 lines and
+  applies to every dispatch in both phases, so a reference file would be loaded
+  by both and cost more than keeping it in the core. The cap exists to stop the
+  core regrowing toward its old 912 lines, not to freeze it; the reason is
+  recorded in `test-orchestrator-inventory.py` beside the number.
+- *The `state.json` / `milestones.md` collapse was deliberately NOT bundled.*
+  It is the change most likely to decide whether this one pays off, because a
+  handoff's cost is re-orientation and those two files are what a fresh
+  orchestrator re-reads. It is also a data-model change touching every agent,
+  both state scripts, the ledger and a live project's state. Bundled, neither
+  change could be attributed — which is exactly how the 2026-08-25 phase split
+  came to measure as a wash. It is the next change, on its own branch.
+- *`measure-context.py` gained the metric this fix is judged by*, beyond the
+  three commits originally scoped. Without it the acceptance claim cannot be
+  checked on a real run, and the fixture alone cannot check it either.
+
+**Validation actually run.**
+
+```
+python3 .harness-dev/test-dispatch-collect.py          7 tests, OK
+python3 .harness-dev/test-orchestrator-inventory.py    3 tests, OK
+python3 .harness-dev/test-measure-context.py           8 tests, OK  (6 before)
+```
+
+The new metric was re-run against the 24-session cohort it was derived from and
+reproduces the finding independently: 84 orchestrator contexts, 326 segments,
+242 re-entries, longest segment 30, `caps_evaded_by_re_entry` 61 orchestrator
+and 1 worker.
+
+**The fixture ran, 2026-09-09, and it passes.** Four `claude` invocations against
+`fixtures/14-dispatch-collect`, harness loaded from this branch: 176 turns, 4.9M
+tokens, $11.35, milestone at `REVIEW` with four tasks accepted and committed.
+Every context reported `segments: 1`, `re_entries: 0`; `caps_evaded_by_re_entry`
+empty and `polling_violations` 0. `ToolSearch("select:TaskOutput")` was the first
+tool call of all four orchestrator invocations, so the deferred-tool load — the
+one mechanical unknown — is settled. Dispatch stayed parallel: T1-T3 went out
+back-to-back before any collection, and so did their three verifiers.
+
+**Three things the run exposed.**
+
+1. *Seven of nine dispatches were collected.* The T3 worker's result and its
+   verifier's arrived on their own as notification attachments while the session
+   was still busy. Nothing was re-entered, because the session never went idle —
+   but as a subagent that is exactly the state a notification wakes. The rule now
+   says **never end your turn holding an uncollected dispatch**, with a test for
+   it. That wording change postdates the run and is itself unexercised.
+2. *`Status: DONE` was an unreachable expectation for the recorded command.* The
+   orchestrator does not invoke the reviewer; the skill does. Four of the five
+   invocations found nothing to do and cost about $0.30 apiece. `EXPECTED.md` now
+   scopes the mechanical check to `Status: REVIEW`.
+3. *The fixture cannot test the cap half.* Run via `--agent`, the orchestrator is
+   the top-level session: no `maxTurns`, no parent to hand back to. Phase 1
+   reached **31 turns without handing off**, past both the 20-turn instruction and
+   the 30-turn cap it would have had as a subagent. The dispatch-and-collect
+   behaviour is proven; the handoff behaviour is not, and only a real milestone
+   driven through `skills/implement` can prove it.
+
+**What is still not proven.** Nothing here has run against a real milestone, and
+the 20-turn handoff has not been observed firing even once.
+
+**What to expect, stated before the fact so it can be checked against.** Judge
+this on mechanism, not cost: `caps_evaded_by_re_entry` should go to zero,
+orchestrator `segments` to one or two per context, and turns past cumulative 30
+to roughly zero. Those move on a single milestone. Cost should improve by
+roughly **$100 of the orchestrator's $918** — turns past 30 cost $0.305 against
+$0.204 for turns 1-30, and re-homing the 1,500 late turns into fresh contexts
+costs about $52 in startup at a median $1.05 per fresh orchestrator. That is
+inside single-run variance, so **do not judge this change on a cost number**.
+
+**Follow-ups, in the order they are worth doing.**
+
+1. Collapse `state.json` and `milestones.md`. Every role pays for the dual
+   ledger — 3,398 state-file reads across the cohort — and handoffs pay most.
+2. Take the dispatch loop off Opus. The orchestrator is 100% Opus and 63% of the
+   window's cost; its identical traffic prices at $184 on Sonnet against $918.
+   This is the largest single lever measured and it is untouched.
+3. If a re-measurement still shows contexts growing, add the deterministic
+   backstop: a `PreToolUse` guard holding a cumulative per-agent budget across
+   re-entries, denying `Agent` dispatches once spent. Instructions the
+   orchestrator can ignore are not enforcement.
+4. The skill session dispatches orchestrators and reviewers the same
+   asynchronous way. It has no cap so there is no correctness bug, but it wakes
+   for every one, and its share of traffic rose from 8.3% to 15.2%.
+
 ## Out-of-milestone change — splitting the orchestrator by phase (2026-08-25)
 
 Human-directed, outside B27, and prompted by a fair question: the orchestrator

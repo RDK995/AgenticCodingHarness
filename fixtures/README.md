@@ -56,6 +56,7 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `11-correction-wandered` | When a correction edits a file no finding named, does the second review widen back to the whole milestone — or pass a correct-looking correction that broke the entry point? | 2026-08-25 |
 | `12-scoped-second-review` | When a correction stays inside its finding, does the second review stay scoped, and does a passing review complete the milestone without instantiating a coordinator? | 2026-08-25 |
 | `13-operationally-oversized` | Does a low-criterion milestone with several lifecycle/concurrency responsibilities split before tasks are created? | token-efficiency v2 |
+| `14-dispatch-collect` | Does the orchestrator block on `TaskOutput` to collect a dispatch, instead of ending its turn and being re-entered with a fresh turn allowance — and does it still dispatch independent tasks concurrently? | 2026-09-09 |
 
 ## `02` and the two-cycle cap
 

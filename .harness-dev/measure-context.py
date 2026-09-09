@@ -127,7 +127,7 @@ def segment_turns(path):
     """
     counts, seen, current = [], set(), 0
     with path.open() as transcript:
-        for line in transcript:
+        for index, line in enumerate(transcript):
             try:
                 event = json.loads(line)
             except ValueError:
@@ -142,8 +142,12 @@ def segment_turns(path):
             if event.get("type") != "assistant":
                 continue
             message = event.get("message") or {}
-            message_id = message.get("id")
-            if message_id and message_id not in seen and message.get("usage"):
+            # Same fallback identifier as turns(), so the two turn counts agree.
+            # An assistant event with usage but no id is still an API turn there,
+            # and dropping it here would leave an over-limit transcript with
+            # max_segment_turns 0 and a fabricated evaded cap.
+            message_id = message.get("id") or f"anonymous-{index}"
+            if message_id not in seen and message.get("usage"):
                 seen.add(message_id)
                 current += 1
     counts.append(current)

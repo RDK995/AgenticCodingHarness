@@ -92,6 +92,33 @@ class MeasurementTests(unittest.TestCase):
         # The blunt gate sees it too, but cannot say why; this is the why.
         self.assertTrue(report["summary"]["hard_limit_violations"])
 
+    def test_anonymous_turns_are_counted_in_segments_too(self):
+        """turns() falls back to anonymous-{index}; segment_turns must agree.
+
+        An assistant event carrying usage but no message id is a real API turn.
+        Dropped from the segment count, an over-limit transcript reports
+        max_segment_turns 0, which satisfies `<= limit` and fabricates an evaded
+        cap next to re_entries 0 — a false positive on the metric this change is
+        judged by.
+        """
+        usage = {"input_tokens": 1, "cache_creation_input_tokens": 1,
+                 "cache_read_input_tokens": 1, "output_tokens": 1}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "agent.jsonl"
+            events = [{"type": "assistant", "message": {"model": "claude-opus-5",
+                       "usage": usage, "content": []}} for _ in range(35)]
+            path.write_text("\n".join(json.dumps(event) for event in events) + "\n")
+            row = self.measure.analyse(path, "orchestrator", "M1", "", None,
+                                       self.measure.DEFAULT_PRICES)
+        self.assertEqual(row["api_turns"], 35)
+        self.assertEqual(row["segments"], 1)
+        self.assertEqual(row["max_segment_turns"], 35)
+        self.assertEqual(row["re_entries"], 0)
+
+        report = self.measure.aggregate([row], {"version": "test", "commit": None})
+        self.assertTrue(report["summary"]["hard_limit_violations"])
+        self.assertEqual(report["summary"]["caps_evaded_by_re_entry"], [])
+
     def test_one_long_segment_is_not_an_evaded_cap(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "agent.jsonl"

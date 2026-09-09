@@ -144,13 +144,21 @@ LOOP:
         an unfinished review, also give it `<that path>.partial.md` when the
         file exists.
 
-        IF it returns INCOMPLETE, or returns truncated with no verdict and
-        no per-criterion table:
+        IF it returns INCOMPLETE, or any response missing the `Result:`
+        field its envelope contract requires:
             the review did not happen. `maxTurns` cut it off mid-generation,
-            which is why there is no terminal field to read.
-            Do NOT mine the truncated text for findings. A partial look
-            formatted as a verdict is the exact failure this role exists to
-            prevent, and this one is not even formatted.
+            which is why the terminal field is absent.
+            This is the general rule at the top of the LOOP, not a special
+            case: `INTERRUPTED` is defined by the missing terminal field
+            alone. Do not additionally require the verdict and the table to
+            be absent — the cut-off can land *inside* the envelope, after a
+            verdict or after per-criterion rows, and a partly-formed envelope
+            is the one shape the branches below would otherwise consume as
+            though it were whole.
+            Do NOT mine the truncated text for findings, however complete
+            it looks — a partly-formed envelope looks most complete exactly
+            when it is most dangerous. A partial look formatted as a verdict
+            is the precise failure this role exists to prevent.
             confirm HEAD is unmoved and that nothing changed outside the
             three artifacts a review may leave: `<report path>.partial.md`,
             the report path itself, and
@@ -195,6 +203,11 @@ LOOP:
             a PASS that does not cover every criterion is the failure this
             gate exists for, not a formality
             otherwise:
+              - delete any file at `<report path>`. A passing review writes
+                none, so a file there is the `CHANGES REQUIRED` report of a
+                superseded attempt that was cut off after writing it. Left
+                alone it is committed with the DONE milestone and describes
+                an outcome that did not happen.
               - check every acceptance criterion off as [x], against the
                 reviewer's per-criterion row and nothing else. A milestone
                 that is DONE with criteria still unchecked contradicts its

@@ -99,13 +99,31 @@ class ReviewLoopHandlesAnUnfinishedReviewTests(unittest.TestCase):
     def test_the_loop_branches_on_a_review_that_did_not_finish(self):
         # Before this, the loop handled only PASS and CHANGES REQUIRED, and the
         # adjudication was done by hand on both occurrences.
-        self.assertIn("IF it returns INCOMPLETE, or returns truncated with no verdict", self.skill)
+        self.assertIn("IF it returns INCOMPLETE, or any response missing the `Result:`", self.skill)
+
+    def test_the_predicate_is_the_missing_terminal_field_alone(self):
+        # The cut-off can land inside the envelope, after a verdict or after
+        # per-criterion rows. Requiring both to be absent leaves that shape for
+        # the PASS/CHANGES REQUIRED branches to consume as though it were whole,
+        # and contradicts the LOOP's own definition of INTERRUPTED.
+        self.assertIn("`INTERRUPTED` is defined by the missing terminal field", self.skill)
+        self.assertIn("Do not additionally require the verdict and the table to", self.skill)
+
+    def test_the_general_interrupted_rule_it_defers_to_still_exists(self):
+        self.assertIn("A response missing its required terminal field is\n    `INTERRUPTED`", self.skill)
+
+    def test_a_superseded_report_is_removed_when_the_retry_passes(self):
+        # A cut-off after the report write leaves a CHANGES REQUIRED report; a
+        # passing retry writes none, so without this the stale report is
+        # committed with the DONE milestone describing an outcome that never was.
+        self.assertIn("delete any file at `<report path>`", self.skill)
+        self.assertIn("describes\n                an outcome that did not happen", self.skill)
 
     def test_an_unfinished_review_is_not_a_spent_cycle(self):
         self.assertIn("Do NOT increment ### Review Cycles. The cap counts reviews whose", self.skill)
 
     def test_the_truncated_text_is_never_mined_for_findings(self):
-        self.assertIn("Do NOT mine the truncated text for findings", self.skill)
+        self.assertIn("Do NOT mine the truncated text for findings, however complete", self.skill)
 
     def test_it_does_not_demand_a_clean_tree(self):
         # An interrupted review that reached its first criterion has left a

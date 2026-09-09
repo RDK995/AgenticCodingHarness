@@ -175,11 +175,35 @@ that reads correctly and does nothing on the one path nobody exercised. Neither
 would have been caught by the static tests as first written, which is why the
 tests now assert them.
 
-**Validation.** `.harness-dev/test-interrupted-review.py` — 19 static contract
+**Two more from a second review round on PR #26, both in the branch's own new
+code.**
+
+- *The interrupted predicate was narrower than the rule it implements.* The
+  `INCOMPLETE` branch required the verdict **and** the table to be absent, while
+  the LOOP's general rule (`skills/implement/SKILL.md`, top) defines
+  `INTERRUPTED` by the **missing terminal field alone**. The cut-off can land
+  inside the envelope, after a verdict or after per-criterion rows — the one
+  shape that would satisfy neither the new branch nor a valid envelope, and so
+  would fall through to `IF it returns PASS` and be consumed as though whole.
+  The branch now keys on the absent `Result:` field and says explicitly that it
+  is the general rule rather than a special case.
+- *A superseded report survived a passing retry.* A cut-off after the report
+  write leaves a `CHANGES REQUIRED` report at the path; a passing retry writes
+  none, and the caller cleanup removed only the partial. The stale report would
+  have been committed with the `DONE` milestone, describing an outcome that
+  never happened. The accepted-`PASS` path now deletes any file at the report
+  path, which is a no-op on every normal pass.
+
+Both are the same failure as the first round: the change was written for the
+clean cut-off and not for the cut-off landing mid-artifact. Worth noting that
+the branch's own claim "the retry overwrites it" was true only for a retry that
+returns `CHANGES REQUIRED`, and nothing tested the other half.
+
+**Validation.** `.harness-dev/test-interrupted-review.py` — 22 static contract
 tests over the three files, asserting each rule above and, in
 `test_the_cycle_cap_rule_it_leans_on_still_exists`, the existing rule the new
 branch cites, so a reword of one cannot silently strip the other's
-justification. Whole suite: **92 tests across 13 files, all OK** (73 before these
+justification. Whole suite: **95 tests across 13 files, all OK** (73 before these
 changes). Command: `for f in .harness-dev/test-*.py; do python3 "$f"; done`.
 
 **What this does not prove.** All 15 are static assertions over instruction text.

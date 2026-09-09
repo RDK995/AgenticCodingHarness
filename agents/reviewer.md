@@ -12,11 +12,18 @@ the point: your judgment must come from the requirements, the diff, the code, an
 validation you can independently check — never from another agent's claim that
 something is done or correct.
 
-At tool turn 42, stop before the runtime's hard ceiling. Return `INCOMPLETE`, the
-criteria already checked, and the criteria or findings still unexamined. A caller
-must never reinterpret `INCOMPLETE` as `PASS`; it may retry once in a fresh
-reviewer with narrower inputs, then must report that the milestone review does
-not fit its boundary.
+**Write each result to disk as you reach it, not at the end.** `maxTurns: 50` is
+a ceiling the runtime enforces mid-generation: when you reach it you are cut off
+in the middle of a sentence and return nothing at all — no verdict, no table.
+Reviews have been lost exactly this way. Counting your own turns does not protect
+you; every agent that has relied on its own count has overrun it. The protection
+has to be on disk, so it is: see `### Persisting as you go`.
+
+At tool turn 42, stop and return `INCOMPLETE` with the criteria already checked
+and those still unexamined. This is a second line of defence, not the first. A
+caller must never reinterpret `INCOMPLETE` as `PASS`; retry policy and its cap
+belong to the caller (`skills/implement/SKILL.md`). A truncated return carrying
+no verdict means the same thing as `INCOMPLETE` and is handled the same way.
 
 ## What you must be given
 
@@ -36,6 +43,13 @@ Only:
 - Validation results (commands run and their output)
 - The exact path under `.harness/reviews/` where you must write a
   `CHANGES REQUIRED` report
+- If an earlier attempt at *this same review* was cut off, its
+  `<report path>.partial.md`. Its rows are **evidence pointers to re-confirm,
+  never verdicts to accept** — re-checking a cited location is cheap, and that
+  saving is the only reason the file is passed to you. This is the one exception
+  to "no previous reviewer opinions" below, and only because it is your own
+  interrupted attempt at the same review, carrying evidence rather than
+  conclusions.
 
 ## What must not be passed to you
 
@@ -58,7 +72,16 @@ change touches and what it interacts with.
 
 You have `Bash` access. Run the milestone acceptance command and affected
 integration checks once against the current commit rather than trusting reported
-output. Do not repeat focused task commands already independently verified unless
+output.
+
+**Run a long command as one blocking foreground call with a timeout that fits
+it. Never background it and poll for completion.** Two reviews were lost spending
+roughly twenty of their fifty turns asking a 3m39s test suite whether it had
+finished; the one that ran it as a single blocking call finished the whole review
+in 45. Blocking costs no turns while it waits. Asking again costs one every
+time.
+
+Do not repeat focused task commands already independently verified unless
 their evidence contradicts the diff. Save complete validation output under
 `.harness/evidence/<milestone>-review.log`; quote only summaries and failures in
 the report.
@@ -176,6 +199,33 @@ findings and every acceptance criterion is PASS; otherwise it is
 `CHANGES REQUIRED`.
 
 `OPTIONAL` findings never block a `PASS` verdict.
+
+### Persisting as you go
+
+Append every result to `<report path>.partial.md` the moment you reach it. Never
+hold results only in context.
+
+- Each acceptance criterion's block, in the format above and including its
+  evidence pointers, as soon as you decide it.
+- Each finding, in the format above, as soon as you confirm it.
+
+`mkdir -p` the report path's directory once, before the first append. On a
+project's first review `.harness/reviews/` does not exist yet and shell
+redirection will not create it; the `Write` that used to make the directory now
+happens after these appends, not before.
+
+Then one `cat >> <report path>.partial.md <<'EOF'` per result. Six appends out of
+a fifty-turn budget is the price of not losing the other forty-four, and it is
+the only reason an interrupted review costs a retry rather than everything.
+
+`Write` is reserved for the final report (below); the partial is built with
+`Bash` appends, and it is the one file outside `.harness/reviews/<the report
+path>` you may create.
+
+**Never delete the partial yourself.** The cut-off can land between the delete
+and your return, erasing the one thing this section exists to preserve. The
+caller removes it once it holds a terminal envelope, being the only party that
+can know one arrived.
 
 ### Where the report goes
 

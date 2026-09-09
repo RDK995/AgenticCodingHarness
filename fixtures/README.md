@@ -57,6 +57,42 @@ writes are blocked, which looks like a harness failure and isn't (recorded in B8
 | `12-scoped-second-review` | When a correction stays inside its finding, does the second review stay scoped, and does a passing review complete the milestone without instantiating a coordinator? | 2026-08-25 |
 | `13-operationally-oversized` | Does a low-criterion milestone with several lifecycle/concurrency responsibilities split before tasks are created? | token-efficiency v2 |
 | `14-dispatch-collect` | Does the orchestrator block on `TaskOutput` to collect a dispatch, instead of ending its turn and being re-entered with a fresh turn allowance — and does it still dispatch independent tasks concurrently? | 2026-09-09 |
+| `15-partial-not-credited` | Handed an interrupted review's partial containing a row that is wrong, does the fresh reviewer re-confirm the cited evidence — or credit the row and pass a criterion the code fails? | **not yet run** |
+| `16-superseded-report` | When the cut-off landed after the report was written and the retry passes, is the superseded `CHANGES REQUIRED` report removed — or committed with the `DONE` milestone, describing an outcome that never happened? | **not yet run** |
+
+## `15` and `16` have not been run
+
+Every other row in this table records a scenario whose outcome was independently
+verified the first time it ran. These two have not run at all. They are seeded,
+their setup is reproducible, and their expectations were derived from the rules
+in `agents/reviewer.md` and `skills/implement/SKILL.md` — but a fixture whose
+expectation has never been checked against a real run is a hypothesis, not a
+verified outcome, and the table would lie if it implied otherwise.
+
+They exist because the interrupted-review path had **no** behavioural coverage:
+`.harness-dev/test-interrupted-review.py` asserts that the rules are present in
+the instruction text and can assert nothing about whether an agent follows them.
+That gap is what these two close, and closing it takes running them.
+
+## `15` and `16`, and why neither runs alone
+
+The two halves of what happens after `maxTurns` cuts a reviewer off, split by
+where the cut-off landed.
+
+`15` cuts before the report: a partial survives, one of its rows is wrong, and
+the code genuinely fails that criterion. Run alone it rewards ignoring the
+partial altogether — a reviewer that re-derives everything from zero gets the
+right verdict and has thrown away the entire saving the partial exists for.
+
+`16` cuts after the report: a complete `CHANGES REQUIRED` report survives with
+no envelope behind it, its finding is a false positive of the characteristic
+kind (one test file read where two were needed), and the retry passes. Run alone
+it rewards deleting anything found under `.harness/reviews/` on sight, which in
+`15` would destroy the input the retry depends on.
+
+One says the leftovers are worth reading. The other says they are not worth
+believing. A harness that learns only one of those is wrong in the other
+direction.
 
 ## `02` and the two-cycle cap
 

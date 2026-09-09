@@ -140,7 +140,59 @@ LOOP:
         invoke a FRESH harness:reviewer at the tier derived below, scoped
         per "What a second review sees" — you invoke it, not the
         orchestrator. Give it `.harness/reviews/M<n>-cycle<c>.md` as the report
-        path. It writes there only when changes are required.
+        path. It writes there only when changes are required. On a retry after
+        an unfinished review, also give it `<that path>.partial.md` when the
+        file exists.
+
+        IF it returns INCOMPLETE, or any response missing the `Result:`
+        field its envelope contract requires:
+            the review did not happen. `maxTurns` cut it off mid-generation,
+            which is why the terminal field is absent.
+            This is the general rule at the top of the LOOP, not a special
+            case: `INTERRUPTED` is defined by the missing terminal field
+            alone. Do not additionally require the verdict and the table to
+            be absent — the cut-off can land *inside* the envelope, after a
+            verdict or after per-criterion rows, and a partly-formed envelope
+            is the one shape the branches below would otherwise consume as
+            though it were whole.
+            Do NOT mine the truncated text for findings, however complete
+            it looks — a partly-formed envelope looks most complete exactly
+            when it is most dangerous. A partial look formatted as a verdict
+            is the precise failure this role exists to prevent.
+            confirm HEAD is unmoved and that nothing changed outside the
+            three artifacts a review may leave: `<report path>.partial.md`,
+            the report path itself, and
+            `.harness/evidence/<milestone>-review.log`. Do NOT require a
+            clean tree — a review that reached its first criterion is
+            supposed to have left a partial behind, and demanding a clean
+            tree would reject every retry the partial exists to make cheap.
+            A review corrects nothing, so a change anywhere else means
+            something other than the review ran: STOP and report that
+            instead of retrying.
+            A complete report may sit at the path even though nothing
+            terminal came back — the cut-off can land after the write. That
+            is still not a review: the completion gate consumes the returned
+            envelope, not the file, and you must not read the file to
+            reconstruct one. The retry overwrites it.
+            Do NOT increment ### Review Cycles. The cap counts reviews whose
+            findings were routed and fixed; this one routed nothing, so it has
+            not happened yet — the same rule the fix cycle's CONTINUE branch
+            applies below.
+            invoke a FRESH harness:reviewer for the SAME cycle, at the SAME
+            tier, with the SAME scope and report path, plus the partial.
+            Cap this at 2 retries per cycle. Past that, STOP and report that
+            the review does not fit a reviewer's turn budget and needs
+            narrowing or a human decision. (2 is what the one measured
+            occurrence needed — attempts 1 and 2 lost, attempt 3 passing —
+            and that was before the reviewer persisted anything or was told
+            not to poll a long suite.)
+
+        ON ANY TERMINAL VERDICT — PASS or CHANGES REQUIRED — delete
+        `<report path>.partial.md` once the envelope is in your hands. The
+        reviewer never deletes it: a cut-off landing between its delete and
+        its return would erase the only resumable state there is. You are the
+        one party that can tell a review finished, so you are the one that
+        cleans up after it.
 
         IF it returns PASS:
             apply the completion gate yourself — it is mechanical:
@@ -151,6 +203,11 @@ LOOP:
             a PASS that does not cover every criterion is the failure this
             gate exists for, not a formality
             otherwise:
+              - delete any file at `<report path>`. A passing review writes
+                none, so a file there is the `CHANGES REQUIRED` report of a
+                superseded attempt that was cut off after writing it. Left
+                alone it is committed with the DONE milestone and describes
+                an outcome that did not happen.
               - check every acceptance criterion off as [x], against the
                 reviewer's per-criterion row and nothing else. A milestone
                 that is DONE with criteria still unchecked contradicts its

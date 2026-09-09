@@ -13,8 +13,12 @@ class OrchestratorInventoryTests(unittest.TestCase):
     def setUpClass(cls):
         cls.text = (ROOT / "agents/orchestrator.md").read_text()
 
-    def test_core_is_at_most_700_lines(self):
-        self.assertLessEqual(len(self.text.splitlines()), 700)
+    def test_core_stays_compact(self):
+        # 700 until the dispatch-collect rule (2026-09-09) took 26 lines. The cap
+        # exists to stop the core regrowing toward the 912 lines it was before the
+        # phase split, not to freeze it; a rule every dispatch in both phases needs
+        # belongs here rather than in a reference file both phases would load.
+        self.assertLessEqual(len(self.text.splitlines()), 720)
 
     def test_behavioral_seams_remain(self):
         for phrase in (
@@ -25,6 +29,7 @@ class OrchestratorInventoryTests(unittest.TestCase):
             "Routing rule",
             "Task-level retry and escalation",
             "Verifying a task result",
+            "Collect what you dispatch",
             "Git discipline in the target repository",
             "One fix cycle",
             "Milestone completion gate",

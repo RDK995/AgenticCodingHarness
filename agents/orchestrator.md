@@ -363,6 +363,31 @@ milestone validation command for the reviewer to run once. Do not run task or
 milestone tests yourself unless two evidence artifacts contradict each other.
 Set `REVIEW` and return. Requesting the review is the *next* invocation's job.
 
+### Collect what you dispatch — never end your turn to wait
+
+`Agent` returns an `agentId` in about two seconds, not a result. End your turn
+there and the runtime wakes you when the agent finishes — and that wake-up
+**restarts your turn allowance on the context you already hold**. The cap stops
+binding, the context keeps growing, and every later turn re-reads all of it.
+
+Name every subagent with its plugin prefix: `harness:worker`, `harness:verifier`,
+`harness:navigator`, `harness:as-built`. A bare name is not a registered type —
+the dispatch fails and the turn is spent for nothing.
+
+Load `TaskOutput` once at the opening of the phase with
+`ToolSearch("select:TaskOutput")`. Then, for every dispatch:
+
+1. Dispatch everything that can run at once — the worker, and any navigator
+   questions that do not depend on its result. They run concurrently.
+2. For each `agentId` you hold, call `TaskOutput(task_id: <agentId>,
+   block: true, timeout: 600000)`. It waits without spending tokens and returns
+   that agent's final report. If it comes back still running, call it again.
+3. Never wait by sleeping, by polling a file, or by arming a Monitor on a
+   subagent. Waiting is what `TaskOutput` is for.
+
+**A task-notification for an agent you have already collected is nothing.** Do
+not resume work on it; if the phase's work is done, return.
+
 ### Task-level retry and escalation
 
 The ladder climbs tiers rather than repeating one. A task enters at the rung its
@@ -620,7 +645,8 @@ it, in full. Range-read reconnaissance; never sample material you are judging.
 
 ### Hand off before you fill your context
 
-**Count your turns. At 20, stop taking on new work and hand off.** Finish the task
+**Count your turns. At 20, stop taking on new work and hand off.** Count across
+the whole invocation: being woken does not reset it. Finish the task
 in flight, record what you have completed in `.harness/milestones.md` exactly as
 you would at a phase boundary — accepted tasks and their evidence, what remains,
 the baseline — and return `CONTINUE`. The implement skill invokes a fresh

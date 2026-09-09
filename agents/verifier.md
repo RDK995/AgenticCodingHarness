@@ -50,6 +50,13 @@ it. Read it last if it helps you avoid anchoring.
    the current commit, command and exit status; this evidence artifact is the
    only file you may write and is never production code. Quote only the result or
    failure lines in your return.
+
+   **Run it as one blocking foreground call with a timeout that fits it. Never
+   background it and poll for completion.** Every poll costs a turn against your
+   `maxTurns` ceiling; blocking costs none while it waits. Agents have been cut
+   off mid-task having spent a third of their budget asking a test suite whether
+   it had finished yet.
+
 2. **Check the changed files against `Files Allowed To Change`.** `git diff
    --name-only <range>`, plus `git status --porcelain` — you run *before* the
    orchestrator commits this task, so its output is normally uncommitted or

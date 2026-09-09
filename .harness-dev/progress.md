@@ -17,6 +17,148 @@ B25 and B26 merged, but `~/tools/harness` — the clone the real runs load their
 agents and skills from — is still at `99f9044` and must be pulled before any run
 exercises them. B26's Cheap-share criterion waits on the same run.
 
+Also open: the subagent cut-offs seen across M7ad and M7ae are `maxTurns`
+firing, not a context wall. The fixes are made and unit-tested on
+`fix/orchestrator-blocking-collect` (see the observation below), but every
+test is a static assertion over instruction text. They are unproven until a
+milestone runs against them with a long validation suite.
+
+## Out-of-milestone observation — the "fragmentation" is `maxTurns` firing (2026-09-09)
+
+Field observation from the `P2-M7ad` and `P2-M7ae` runs on
+`OpenCodeOpenWeightHarness`, against the harness as it stands on `main`.
+Recorded rather than acted on. Two earlier readings of this were wrong and are
+superseded here.
+
+**The observation.** Subagents repeatedly returned mid-sentence with no terminal
+field, across roles and tiers. Recorded instances:
+
+| Run | Agent | Cut off at | That agent's `maxTurns` |
+|---|---|---|---|
+| M7ae T1 attempt 1 | worker | 44 tool uses | 40 |
+| M7ae T7 attempt 1 | worker | 44 tool uses | 40 |
+| M7ae archiving task | worker | 40 tool uses | 40 |
+| M7ad re-entry phase | 3 of 4 workers | 40-45 tool uses | 40 |
+| M7ad cycle 2, attempt 2 | reviewer | 58 tool uses | 50 |
+| M7ad cycle 2, attempt 3 | reviewer | 45 tool uses — **completed** | 50 |
+
+**The cause is the configured cap, not a context wall.** Every cut-off sits at
+or just above its own agent's `maxTurns`, and the one review that finished came
+in *under* its cap. The worker column is near-exact: `maxTurns: 40`, cut off at
+40, 44, 44. Tool uses run slightly ahead of turns because parallel calls batch
+within a turn, which is why the numbers overshoot rather than land exactly. The
+band looked role-independent only because nobody had put it next to the
+frontmatter.
+
+This also explains the shape of the failure. `maxTurns` truncates the agent
+mid-generation, so it never reaches its return contract — hence no verdict, no
+per-criterion table, no terminal field. It is not a degraded answer; it is no
+answer.
+
+**Why the self-stop guards did not save it.** Each agent carries a proactive
+handoff instruction set below its cap:
+
+| Agent | `maxTurns` | Self-stop guard | Headroom |
+|---|---|---|---|
+| `worker` | 40 | tool turn 32 (`agents/worker.md:106`) | 8 |
+| `reviewer` | 50 | tool turn 42 (`agents/reviewer.md:15`) | 8 |
+| `navigator` | 10 | tool turn 8 (`agents/navigator.md:60`) | 2 |
+
+All three overran in the field. The cap is enforced by the runtime; the guard is
+enforced by the model counting its own tool uses, which it does unreliably — and
+the two are denominated in different units, since a turn may carry several
+parallel tool calls. **A guard that depends on self-counting cannot be made
+reliable by wording it more firmly.** That rules out the first fix considered.
+
+It also rules out the second. Smaller task scopes would reduce how often the cap
+is reached but would not change what happens when it is, and the run that
+prompted this had already been re-invoked with an explicit tool budget, which did
+not prevent the overrun.
+
+**What actually made the difference, twice.**
+
+- *Persist-early.* `agents/worker.md:106` requires a `<task-packet>.handoff.md`
+  and a safe working tree before returning `CONTINUE`. Every interrupted worker
+  above was resumed from repository state and cost only a re-invocation. The
+  reviewer writes its report only at the end (`agents/reviewer.md:182`), so an
+  interrupted reviewer leaves nothing and loses everything. This is the single
+  highest-value change available and it is mechanical, not a judgement call.
+- *Not spending turns waiting.* M7ad's record (`.harness/milestones.md:3988`)
+  found both lost reviewers had backgrounded a 3m39s `bun test` and polled it,
+  while the third ran it as one blocking call. Polling does not cause the cap; it
+  consumes the budget the cap allows. This is the same defect as the
+  dispatch-collect fix on `fix/orchestrator-blocking-collect`, one level down —
+  an agent spending tokens to wait instead of blocking once.
+
+**A third gap, independent of all the above.** `agents/reviewer.md:15` defines an
+`INCOMPLETE` verdict and tells the caller never to read it as `PASS`, but the
+review `WHILE` loop in `skills/implement/SKILL.md:129-208` branches only on
+`PASS` and `CHANGES REQUIRED`. There is no branch for a review that does not
+finish. The symmetric case exists one level down — the fix cycle's `CONTINUE`,
+which explicitly does not increment `### Review Cycles` and is capped at 4
+continuations — with no counterpart on the review side. Both runs adjudicated
+this by hand and recorded it as `INTERRUPTED`, a term the harness does not
+define.
+
+**What the harness got right.** Cycle accounting needed no judgement:
+`skills/implement/SKILL.md:162` already states that only "a review whose findings
+were routed and fixed counts". M7ad closed at `### Review Cycles` 1 with two lost
+reviews correctly uncounted, and no interrupted worker spent a ladder rung.
+
+**Changes made (2026-09-09, on `fix/orchestrator-blocking-collect`).**
+
+1. *The reviewer persists as it goes.* `### Persisting as you go` in
+   `agents/reviewer.md` requires one `cat >>` append to `<report path>.partial.md`
+   per criterion and per finding, at the moment each is decided, and an `rm -f` of
+   that file on any terminal verdict so a partial cannot outlive its review. The
+   path is the report path with a suffix, not a derived name, so the agent does no
+   string arithmetic. `Write` stays reserved for the final report; the partial is
+   built with `Bash`. This is the worker's `<task-packet>.handoff.md` contract
+   applied to the one role that lacked it.
+2. *A predecessor's partial is admissible as pointers.* Added to `What you must
+   be given` as the single exception to "no previous reviewer opinions", and
+   bounded: rows are **evidence pointers to re-confirm, never verdicts to
+   accept**. Re-checking a cited location is cheap; that saving is the only
+   reason the file is passed at all. Crediting the rows would contradict the core
+   rule, so it is not permitted.
+3. *The review loop branches on a review that did not finish.*
+   `skills/implement/SKILL.md` gains an `IF it returns INCOMPLETE, or returns
+   truncated with no verdict` branch before `IF it returns PASS`. It does not
+   increment `### Review Cycles` (citing the existing routed-and-fixed rule), does
+   not mine the truncated text for findings, confirms the review changed nothing,
+   and retries fresh at the same tier and scope with the partial attached, capped
+   at 2 retries. 2 is what the one measured occurrence needed — attempts 1 and 2
+   lost, attempt 3 passing — and that was before either fix existed.
+4. *Block once, never poll.* Added to `agents/reviewer.md`, `agents/worker.md`
+   and `agents/verifier.md`: run a long command as one blocking foreground call
+   with a fitting timeout. Every poll spends a turn against the ceiling; blocking
+   spends none. Counterpart of the orchestrator's existing "never wait by
+   sleeping, by polling a file, or by arming a Monitor".
+5. *Vocabulary settled on `INCOMPLETE`.* A truncated return carrying no verdict
+   is defined to mean the same thing and is handled by the same branch.
+   `INTERRUPTED`, used in both run records, is not introduced as a second term.
+6. *Retry policy moved to the caller.* `agents/reviewer.md` no longer states its
+   own "may retry once"; the cap lives in the loop that owns the loop, so there
+   is one number rather than two that can drift apart.
+
+**Not done, deliberately.** The caps themselves are untouched. Raising `maxTurns`
+buys margin without fixing the mechanism, and widening guard headroom has the
+same limit — both leave the failure mode intact and only move the number at
+which it fires. Revisit only if cut-offs persist with 1-4 in force.
+
+**Validation.** `.harness-dev/test-interrupted-review.py` — 15 static contract
+tests over the three files, asserting each rule above and, in
+`test_the_cycle_cap_rule_it_leans_on_still_exists`, the existing rule the new
+branch cites, so a reword of one cannot silently strip the other's
+justification. Whole suite: **88 tests across 13 files, all OK** (73 before these
+changes). Command: `for f in .harness-dev/test-*.py; do python3 "$f"; done`.
+
+**What this does not prove.** All 15 are static assertions over instruction text.
+They prove the rules are present and mutually consistent; they cannot prove a
+reviewer obeys them under a real cut-off. The first milestone that runs against
+these files with a long suite is the evidence — specifically whether an
+interrupted review now leaves a usable partial, which is the whole claim.
+
 ## Out-of-milestone change — the orchestrator collects what it dispatches (2026-09-09)
 
 **The bug: a cap that reports compliance and bounds nothing.** `Agent` dispatch

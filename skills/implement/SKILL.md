@@ -140,7 +140,31 @@ LOOP:
         invoke a FRESH harness:reviewer at the tier derived below, scoped
         per "What a second review sees" — you invoke it, not the
         orchestrator. Give it `.harness/reviews/M<n>-cycle<c>.md` as the report
-        path. It writes there only when changes are required.
+        path. It writes there only when changes are required. On a retry after
+        an unfinished review, also give it `<that path>.partial.md` when the
+        file exists.
+
+        IF it returns INCOMPLETE, or returns truncated with no verdict and
+        no per-criterion table:
+            the review did not happen. `maxTurns` cut it off mid-generation,
+            which is why there is no terminal field to read.
+            Do NOT mine the truncated text for findings. A partial look
+            formatted as a verdict is the exact failure this role exists to
+            prevent, and this one is not even formatted.
+            confirm it changed nothing: working tree clean, HEAD unmoved, no
+            report at the path you gave it.
+            Do NOT increment ### Review Cycles. The cap counts reviews whose
+            findings were routed and fixed; this one routed nothing, so it has
+            not happened yet — the same rule the fix cycle's CONTINUE branch
+            applies below.
+            invoke a FRESH harness:reviewer for the SAME cycle, at the SAME
+            tier, with the SAME scope and report path, plus the partial.
+            Cap this at 2 retries per cycle. Past that, STOP and report that
+            the review does not fit a reviewer's turn budget and needs
+            narrowing or a human decision. (2 is what the one measured
+            occurrence needed — attempts 1 and 2 lost, attempt 3 passing —
+            and that was before the reviewer persisted anything or was told
+            not to poll a long suite.)
 
         IF it returns PASS:
             apply the completion gate yourself — it is mechanical:

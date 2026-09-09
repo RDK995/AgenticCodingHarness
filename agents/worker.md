@@ -103,6 +103,12 @@ implementation.
    commit.
 5. Return your result using the contract below.
 
+**Run a long command as one blocking foreground call with a timeout that fits
+it. Never background it and poll for completion.** Every poll costs a turn
+against your `maxTurns` ceiling; blocking costs none while it waits. Agents have
+been cut off mid-task having spent a third of their budget asking a test suite
+whether it had finished yet.
+
 **Hand off before the runtime stops you.** At tool turn 32, stop starting new
 work. Make the working tree safe, write `<task-packet>.handoff.md` with the last
 completed step, the current diff state, validation already run and the exact next

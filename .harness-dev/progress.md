@@ -206,7 +206,36 @@ branch cites, so a reword of one cannot silently strip the other's
 justification. Whole suite: **95 tests across 13 files, all OK** (73 before these
 changes). Command: `for f in .harness-dev/test-*.py; do python3 "$f"; done`.
 
-**What this does not prove.** All 15 are static assertions over instruction text.
+**Behavioural coverage, added after the second review round.** Two fixtures,
+neither yet run:
+
+- `fixtures/15-partial-not-credited` — the retry is handed a partial whose AC2
+  row says `PASS`, citing a test that genuinely exists and genuinely passes but
+  asserts only half the criterion. The code fails the other half: the ledger
+  mutates before its guard, so a rejected withdrawal leaves the count at `-2`
+  where the criterion requires `3`. The suite is green and nothing about the
+  failure is visible from validation output, the milestone record, or the
+  partial. Crediting the row passes a broken milestone; re-confirming the
+  pointer catches it. That is the "pointers, not verdicts" rule under load.
+- `fixtures/16-superseded-report` — the cut-off landed *after* the report was
+  written. A complete `CHANGES REQUIRED` report sits at the path with no
+  envelope behind it, its finding a false positive of the characteristic kind
+  (one test file read where two were needed), and the retry passes. The
+  question is whether the superseded report is removed or committed with the
+  `DONE` milestone describing an outcome that never happened.
+
+They are a pair for the reason `11`/`12` are: run alone, `15` rewards ignoring
+the partial entirely and `16` rewards deleting anything under
+`.harness/reviews/` on sight — and each of those behaviours is the failure the
+other fixture exists to catch. One says the leftovers are worth reading; the
+other says they are not worth believing.
+
+`fixtures/README.md` marks both **not yet run** rather than giving them a
+validation date. Every other row there records an outcome verified on a real
+run; these two are expectations derived from the rules, which is a hypothesis
+and not the same thing.
+
+**What this does not prove.** All 22 are static assertions over instruction text.
 They prove the rules are present and mutually consistent; they cannot prove a
 reviewer obeys them under a real cut-off. The first milestone that runs against
 these files with a long suite is the evidence — specifically whether an

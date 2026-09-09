@@ -43,6 +43,14 @@ class DispatchCollectTests(unittest.TestCase):
             self.orchestrator,
         )
 
+    def test_the_turn_never_ends_on_an_uncollected_dispatch(self):
+        # 2 of 9 dispatches in the first fixture run were left to arrive on their
+        # own. Harmless there — the session never went idle — but as a subagent
+        # that is precisely the state a completion notification wakes.
+        self.assertIn(
+            "Never end your turn holding an uncollected dispatch", self.orchestrator
+        )
+
     def test_a_collected_agents_notification_is_a_no_op(self):
         self.assertIn("you have already collected is nothing", self.orchestrator)
 

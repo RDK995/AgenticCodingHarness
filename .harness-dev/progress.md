@@ -103,9 +103,36 @@ reproduces the finding independently: 84 orchestrator contexts, 326 segments,
 242 re-entries, longest segment 30, `caps_evaded_by_re_entry` 61 orchestrator
 and 1 worker.
 
-**What is not proven.** `fixtures/14-dispatch-collect` is specified and seeded
-but **has not been run** — no live orchestrator has yet been observed obeying
-the rule. Nothing here has run against a real milestone.
+**The fixture ran, 2026-09-09, and it passes.** Four `claude` invocations against
+`fixtures/14-dispatch-collect`, harness loaded from this branch: 176 turns, 4.9M
+tokens, $11.35, milestone at `REVIEW` with four tasks accepted and committed.
+Every context reported `segments: 1`, `re_entries: 0`; `caps_evaded_by_re_entry`
+empty and `polling_violations` 0. `ToolSearch("select:TaskOutput")` was the first
+tool call of all four orchestrator invocations, so the deferred-tool load — the
+one mechanical unknown — is settled. Dispatch stayed parallel: T1-T3 went out
+back-to-back before any collection, and so did their three verifiers.
+
+**Three things the run exposed.**
+
+1. *Seven of nine dispatches were collected.* The T3 worker's result and its
+   verifier's arrived on their own as notification attachments while the session
+   was still busy. Nothing was re-entered, because the session never went idle —
+   but as a subagent that is exactly the state a notification wakes. The rule now
+   says **never end your turn holding an uncollected dispatch**, with a test for
+   it. That wording change postdates the run and is itself unexercised.
+2. *`Status: DONE` was an unreachable expectation for the recorded command.* The
+   orchestrator does not invoke the reviewer; the skill does. Four of the five
+   invocations found nothing to do and cost about $0.30 apiece. `EXPECTED.md` now
+   scopes the mechanical check to `Status: REVIEW`.
+3. *The fixture cannot test the cap half.* Run via `--agent`, the orchestrator is
+   the top-level session: no `maxTurns`, no parent to hand back to. Phase 1
+   reached **31 turns without handing off**, past both the 20-turn instruction and
+   the 30-turn cap it would have had as a subagent. The dispatch-and-collect
+   behaviour is proven; the handoff behaviour is not, and only a real milestone
+   driven through `skills/implement` can prove it.
+
+**What is still not proven.** Nothing here has run against a real milestone, and
+the 20-turn handoff has not been observed firing even once.
 
 **What to expect, stated before the fact so it can be checked against.** Judge
 this on mechanism, not cost: `caps_evaded_by_re_entry` should go to zero,

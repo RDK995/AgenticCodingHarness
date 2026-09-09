@@ -385,8 +385,10 @@ Load `TaskOutput` once at the opening of the phase with
 3. Never wait by sleeping, by polling a file, or by arming a Monitor on a
    subagent. Waiting is what `TaskOutput` is for.
 
-**A task-notification for an agent you have already collected is nothing.** Do
-not resume work on it; if the phase's work is done, return.
+**Never end your turn holding an uncollected dispatch** — that is the state the
+runtime wakes you out of. A result that reached you on its own is discharged. A
+notification for an agent you have already collected is nothing: do not resume
+work on it; if the phase's work is done, return.
 
 ### Task-level retry and escalation
 

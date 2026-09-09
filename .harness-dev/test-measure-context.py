@@ -53,6 +53,58 @@ class MeasurementTests(unittest.TestCase):
         self.assertEqual(row["duplicate_validation_commands"]["pytest -q"], 1)
         self.assertIsNotNone(row["estimated_cost_usd"])
 
+    def write_re_entered_transcript(self, path, allowance=3, segments=4):
+        """An agent woken by a completion notification after every `allowance` turns."""
+        usage = {"input_tokens": 1, "cache_creation_input_tokens": 1,
+                 "cache_read_input_tokens": 1, "output_tokens": 1}
+        events, turn = [], 0
+        for segment in range(segments):
+            if segment:
+                events.append({"type": "user", "message": {"content":
+                    "[SYSTEM NOTIFICATION - NOT USER INPUT] <task-notification>"
+                    "<status>completed</status></task-notification>"}})
+            for _ in range(allowance):
+                turn += 1
+                events.append({"type": "assistant", "message": {
+                    "id": f"turn-{turn}", "model": "claude-opus-5", "usage": usage,
+                    "content": []}})
+        path.write_text("\n".join(json.dumps(event) for event in events) + "\n")
+
+    def test_segments_split_on_re_entry_so_an_evaded_cap_is_visible(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "agent.jsonl"
+            # 4 segments of 12 turns: 48 turns total against a 30-turn cap, with
+            # no single segment anywhere near it.
+            self.write_re_entered_transcript(path, allowance=12, segments=4)
+            row = self.measure.analyse(path, "orchestrator", "M1", "", None,
+                                       self.measure.DEFAULT_PRICES)
+        self.assertEqual(row["api_turns"], 48)
+        self.assertEqual(row["segments"], 4)
+        self.assertEqual(row["re_entries"], 3)
+        self.assertEqual(row["max_segment_turns"], 12)
+
+        report = self.measure.aggregate([row], {"version": "test", "commit": None})
+        evaded = report["summary"]["caps_evaded_by_re_entry"]
+        self.assertEqual(report["summary"]["notification_re_entries"], 3)
+        self.assertEqual(len(evaded), 1)
+        self.assertEqual(evaded[0]["role"], "orchestrator")
+        self.assertEqual(evaded[0]["max_segment_turns"], 12)
+        # The blunt gate sees it too, but cannot say why; this is the why.
+        self.assertTrue(report["summary"]["hard_limit_violations"])
+
+    def test_one_long_segment_is_not_an_evaded_cap(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "agent.jsonl"
+            self.write_re_entered_transcript(path, allowance=40, segments=1)
+            row = self.measure.analyse(path, "orchestrator", "M1", "", None,
+                                       self.measure.DEFAULT_PRICES)
+        self.assertEqual(row["segments"], 1)
+        self.assertEqual(row["re_entries"], 0)
+        report = self.measure.aggregate([row], {"version": "test", "commit": None})
+        # Over its cap in one uninterrupted run: a real overrun, not an evasion.
+        self.assertTrue(report["summary"]["hard_limit_violations"])
+        self.assertEqual(report["summary"]["caps_evaded_by_re_entry"], [])
+
     def test_aggregate_includes_role_milestone_parent_and_limits(self):
         row = {"role": "skill session", "milestone": "M1", "api_turns": 3,
                "token_traffic": 30, "estimated_cost_usd": 0.1, "peak_context": 20,

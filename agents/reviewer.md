@@ -209,17 +209,23 @@ hold results only in context.
   evidence pointers, as soon as you decide it.
 - Each finding, in the format above, as soon as you confirm it.
 
-One `cat >> <report path>.partial.md <<'EOF'` per result. Six appends out of a
-fifty-turn budget is the price of not losing the other forty-four, and it is the
-only reason an interrupted review costs a retry rather than everything.
+`mkdir -p` the report path's directory once, before the first append. On a
+project's first review `.harness/reviews/` does not exist yet and shell
+redirection will not create it; the `Write` that used to make the directory now
+happens after these appends, not before.
+
+Then one `cat >> <report path>.partial.md <<'EOF'` per result. Six appends out of
+a fifty-turn budget is the price of not losing the other forty-four, and it is
+the only reason an interrupted review costs a retry rather than everything.
 
 `Write` is reserved for the final report (below); the partial is built with
 `Bash` appends, and it is the one file outside `.harness/reviews/<the report
 path>` you may create.
 
-When you return a terminal verdict — `PASS` or `CHANGES REQUIRED` — delete it:
-`rm -f <report path>.partial.md`. A partial that outlives its review is a file
-nobody downstream can tell is stale.
+**Never delete the partial yourself.** The cut-off can land between the delete
+and your return, erasing the one thing this section exists to preserve. The
+caller removes it once it holds a terminal envelope, being the only party that
+can know one arrived.
 
 ### Where the report goes
 

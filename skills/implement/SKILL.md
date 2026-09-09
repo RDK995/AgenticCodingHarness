@@ -151,8 +151,21 @@ LOOP:
             Do NOT mine the truncated text for findings. A partial look
             formatted as a verdict is the exact failure this role exists to
             prevent, and this one is not even formatted.
-            confirm it changed nothing: working tree clean, HEAD unmoved, no
-            report at the path you gave it.
+            confirm HEAD is unmoved and that nothing changed outside the
+            three artifacts a review may leave: `<report path>.partial.md`,
+            the report path itself, and
+            `.harness/evidence/<milestone>-review.log`. Do NOT require a
+            clean tree — a review that reached its first criterion is
+            supposed to have left a partial behind, and demanding a clean
+            tree would reject every retry the partial exists to make cheap.
+            A review corrects nothing, so a change anywhere else means
+            something other than the review ran: STOP and report that
+            instead of retrying.
+            A complete report may sit at the path even though nothing
+            terminal came back — the cut-off can land after the write. That
+            is still not a review: the completion gate consumes the returned
+            envelope, not the file, and you must not read the file to
+            reconstruct one. The retry overwrites it.
             Do NOT increment ### Review Cycles. The cap counts reviews whose
             findings were routed and fixed; this one routed nothing, so it has
             not happened yet — the same rule the fix cycle's CONTINUE branch
@@ -165,6 +178,13 @@ LOOP:
             occurrence needed — attempts 1 and 2 lost, attempt 3 passing —
             and that was before the reviewer persisted anything or was told
             not to poll a long suite.)
+
+        ON ANY TERMINAL VERDICT — PASS or CHANGES REQUIRED — delete
+        `<report path>.partial.md` once the envelope is in your hands. The
+        reviewer never deletes it: a cut-off landing between its delete and
+        its return would erase the only resumable state there is. You are the
+        one party that can tell a review finished, so you are the one that
+        cleans up after it.
 
         IF it returns PASS:
             apply the completion gate yourself — it is mechanical:

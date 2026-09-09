@@ -38,9 +38,18 @@ class ReviewerPersistsAsItGoesTests(unittest.TestCase):
         self.assertIn("the moment you reach it", self.reviewer)
         self.assertIn("Never\nhold results only in context", self.reviewer)
 
-    def test_the_partial_is_removed_on_a_terminal_verdict(self):
-        # Otherwise the caller cannot tell a live partial from a stale one.
-        self.assertIn("rm -f <report path>.partial.md", self.reviewer)
+    def test_the_directory_is_created_before_the_first_append(self):
+        # `Write` used to create `.harness/reviews/` implicitly and now runs
+        # after these appends; shell redirection creates no parent directory,
+        # so a project's first review would fail every append without this.
+        self.assertIn("`mkdir -p` the report path's directory once, before the first append",
+                      self.reviewer)
+
+    def test_the_reviewer_never_deletes_its_own_partial(self):
+        # A cut-off landing between the delete and the return would erase the
+        # only resumable state the persist rule exists to create.
+        self.assertIn("**Never delete the partial yourself.**", self.reviewer)
+        self.assertNotIn("rm -f", self.reviewer)
 
     def test_self_counting_is_named_as_the_unreliable_part(self):
         # The reviewer already carried "at tool turn 42"; it overran it. The file
@@ -98,8 +107,28 @@ class ReviewLoopHandlesAnUnfinishedReviewTests(unittest.TestCase):
     def test_the_truncated_text_is_never_mined_for_findings(self):
         self.assertIn("Do NOT mine the truncated text for findings", self.skill)
 
-    def test_it_confirms_the_review_changed_nothing(self):
-        self.assertIn("working tree clean, HEAD unmoved, no", self.skill)
+    def test_it_does_not_demand_a_clean_tree(self):
+        # An interrupted review that reached its first criterion has left a
+        # partial by design, so a clean-tree precondition would reject exactly
+        # the retries the partial exists to make cheap.
+        self.assertIn("Do NOT require a\n            clean tree", self.skill)
+        self.assertNotIn("working tree clean, HEAD unmoved", self.skill)
+
+    def test_it_checks_HEAD_and_allows_only_the_reviews_own_artifacts(self):
+        self.assertIn("confirm HEAD is unmoved and that nothing changed outside the", self.skill)
+        for artifact in ("`<report path>.partial.md`", "`.harness/evidence/<milestone>-review.log`"):
+            with self.subTest(artifact=artifact):
+                self.assertIn(artifact, self.skill)
+
+    def test_a_finished_report_without_an_envelope_is_still_not_a_review(self):
+        # The cut-off can land after the Write. The completion gate consumes the
+        # returned envelope, and the caller may not read the file to rebuild one.
+        self.assertIn("A complete report may sit at the path even though nothing", self.skill)
+        self.assertIn("you must not read the file to", self.skill)
+
+    def test_the_caller_deletes_the_partial_on_a_terminal_verdict(self):
+        self.assertIn("ON ANY TERMINAL VERDICT — PASS or CHANGES REQUIRED — delete", self.skill)
+        self.assertIn("The\n        reviewer never deletes it", self.skill)
 
     def test_the_retry_is_fresh_same_scope_and_capped(self):
         self.assertIn("invoke a FRESH harness:reviewer for the SAME cycle", self.skill)

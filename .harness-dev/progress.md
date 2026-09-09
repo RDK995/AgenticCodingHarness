@@ -146,11 +146,40 @@ buys margin without fixing the mechanism, and widening guard headroom has the
 same limit — both leave the failure mode intact and only move the number at
 which it fires. Revisit only if cut-offs persist with 1-4 in force.
 
-**Validation.** `.harness-dev/test-interrupted-review.py` — 15 static contract
+**Three defects in the above, found by automated review of PR #26.** Two were
+introduced by the change itself; all three are fixed in the same branch.
+
+- *The clean-tree check contradicted the partial.* The `INCOMPLETE` branch
+  required `working tree clean`, but a review that reaches its first criterion
+  now leaves a partial by design — so the precondition would have rejected
+  exactly the retries the partial exists to make cheap. It now checks that
+  `HEAD` is unmoved and that nothing changed outside the three artifacts a
+  review may leave (partial, report path, review log), and stops rather than
+  retries if anything else moved.
+- *Nothing created `.harness/reviews/`.* `Write` used to make the directory
+  implicitly, and moving the first write to a `Bash` append removed that without
+  replacing it, so a project's **first** review would have failed every append —
+  a persist rule that silently persisted nothing. `mkdir -p` now runs once
+  before the first append.
+- *The reviewer deleted its own partial.* A cut-off landing between the `rm -f`
+  and the return would have erased the only resumable state the change exists to
+  create. Deletion moved to the caller, which is the only party that can know a
+  terminal envelope arrived. The same review surfaced the related case the branch
+  had not handled: a **complete report can sit at the path with no envelope
+  returned**, because the cut-off can land after the `Write`. That is still not a
+  review — the gate consumes the envelope, not the file — and the caller is
+  explicitly forbidden from reading the file to reconstruct one.
+
+The first two are the same class of defect the harness exists to catch: a change
+that reads correctly and does nothing on the one path nobody exercised. Neither
+would have been caught by the static tests as first written, which is why the
+tests now assert them.
+
+**Validation.** `.harness-dev/test-interrupted-review.py` — 19 static contract
 tests over the three files, asserting each rule above and, in
 `test_the_cycle_cap_rule_it_leans_on_still_exists`, the existing rule the new
 branch cites, so a reword of one cannot silently strip the other's
-justification. Whole suite: **88 tests across 13 files, all OK** (73 before these
+justification. Whole suite: **92 tests across 13 files, all OK** (73 before these
 changes). Command: `for f in .harness-dev/test-*.py; do python3 "$f"; done`.
 
 **What this does not prove.** All 15 are static assertions over instruction text.

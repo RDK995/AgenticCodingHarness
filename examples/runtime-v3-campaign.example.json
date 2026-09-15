@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "campaign_id": "replace-with-uuid",
+  "authorization": {
+    "text": "",
+    "max_cost_usd": 40
+  },
+  "harness": {
+    "commit": "replace-with-tested-commit",
+    "version": "0.2.0"
+  },
+  "target": {
+    "fixture_commit": "replace-with-fixture-commit"
+  },
+  "runtime": {
+    "claude_code_version": "2.1.269",
+    "model": "replace-with-pinned-model-id",
+    "judge_model": null,
+    "disable_background_tasks": true,
+    "permissions": ["Bash", "Write", "Edit", "Agent", "Skill"]
+  },
+  "protocol": {
+    "runs_per_arm": 3,
+    "arm_order": ["control", "treatment"],
+    "ablation": "none",
+    "cases": [
+      "01-namespaced-state",
+      "07-evidence-routing",
+      "08-high-risk-routing",
+      "09-accuracy-regression"
+    ]
+  },
+  "arms": {
+    "control": {"skill": "implement", "native_result": null, "measured_reports": []},
+    "treatment": {"skill": "implement-v3", "native_result": null, "measured_reports": []}
+  }
+}

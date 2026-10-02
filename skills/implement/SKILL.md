@@ -426,6 +426,11 @@ carrying on anyway: the milestone boundary is the cheapest context boundary in
 the system, and it is free precisely because the state file is already required
 to survive it.
 
+`/harness:implement-loop` automates the `/clear`-and-re-invoke: it starts each
+invocation of this skill as a brand-new headless session and decides whether to
+start another from `.harness/state.json` and `HEAD`. It changes nothing above —
+every one of those sessions still stops at its boundary exactly as described.
+
 **And it is checked on the way in, not only on the way out.** Stated only as an
 exit instruction, this rule lost to a session that simply never ended: one phase
 was dispatched from a session opened the previous day and already carrying 276k

@@ -39,7 +39,9 @@ No database, MCP server, or other external runtime is required.
 5. Run implementation: `/harness:implement`
 6. The harness works through milestones on its own — planning them if
    `.harness/milestones.md` doesn't exist yet, then implementing, testing, and
-   getting each one fresh-reviewed before moving to the next
+   getting each one fresh-reviewed. It stops at each milestone boundary and asks
+   you to `/clear` and re-invoke; `/harness:implement-loop` does that for you
+   (see [Running milestones unattended](#running-milestones-unattended))
 7. When every milestone is `DONE`, the harness mechanically confirms requirement
    ownership and reports the completed milestones, evidence and follow-ups. It
    does not run an additional project-wide review.
@@ -61,6 +63,65 @@ into a separate project-wide review.
 If the harness ever stops with `BLOCKED`, that's deliberate: it hit an
 unresolved ambiguity or two failed review cycles, and it needs a decision only
 you can make, rather than continuing to guess.
+
+## Running milestones unattended
+
+`/harness:implement` deliberately ends its session at every milestone boundary —
+one session carrying several milestones costs several times more — and asks you
+to `/clear` and re-invoke. `/harness:implement-loop` automates that:
+
+```
+/harness:implement-loop [--until <milestone-id>] [--max <n>] [--permission-mode <mode>]
+```
+
+It runs `scripts/implement-loop.py` in the background, which starts a brand-new
+headless `claude -p "/harness:implement"` process per iteration (a fresh process
+is the `/clear`) and decides whether to go again from `.harness/state.json` and
+`git rev-parse HEAD` only, never from what the session said. One iteration may
+advance only one phase of a milestone; the loop just re-invokes. It stops when:
+
+| Stop | Exit |
+| --- | --- |
+| every milestone is `DONE` | 0 |
+| the next milestone (first not `DONE`, as `/harness:implement` picks it) is `BLOCKED`, or has a status implement has no step for | 3 |
+| an iteration changed neither `state.json` nor `HEAD` — e.g. it is waiting on a human live check, or a command was denied | 3 |
+| `--until <id>`: that milestone became the next one (it is not run) | 3 |
+| `--max <n>` iterations ran (default 10) | 3 |
+| a `claude` process exited non-zero, or state could not be read | 1 |
+
+Each iteration prints one line — milestone, status before → after, `HEAD`
+before → after — and its full output goes to
+`.harness/evidence/implement-loop/<UTC timestamp>-<n>.log`, which the loop keeps
+out of git. The script also runs directly from a project root:
+`python3 /path/to/harness/scripts/implement-loop.py --plugin-dir /path/to/harness`.
+
+**Permissions.** Nobody is there to answer a permission prompt, so the loop
+passes `--permission-prompts none`: anything that would prompt is denied, and the
+iteration that hit it shows up as no progress. The default `--permission-mode`
+is `acceptEdits` — edits inside the project are allowed, and every shell command
+must already be allowed by your settings. Before running unattended, add an
+allowlist to the project's `.claude/settings.json` covering `git` (`add`,
+`commit`, `checkout -b`, `rev-parse`, `diff`, `log`, `status`), `python3` for
+the harness's scripts, and your project's test, lint and build commands, e.g.:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)", "Bash(git commit:*)", "Bash(git checkout:*)",
+      "Bash(git rev-parse:*)", "Bash(git diff:*)", "Bash(git log:*)",
+      "Bash(git status:*)", "Bash(python3:*)", "Bash(npm test:*)"
+    ]
+  }
+}
+```
+
+`--permission-mode bypassPermissions` turns every check off for the whole
+unattended run, including the ones that stop a confused session doing something
+destructive. Use it only inside a disposable container or VM with nothing to lose
+and no credentials worth taking. The harness's own rules — never push, never
+merge, reviewer independence — still hold, because each iteration is an ordinary
+`/harness:implement` session.
 
 ## What it does to your repository
 

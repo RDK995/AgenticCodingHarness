@@ -23,6 +23,30 @@ firing, not a context wall. The fixes are made and unit-tested on
 test is a static assertion over instruction text. They are unproven until a
 milestone runs against them with a long validation suite.
 
+## Out-of-milestone addition — `/harness:implement-loop` (2026-10-02)
+
+Owner request, on branch `feat/implement-loop`. Automates the `/clear`-and-re-invoke
+that `skills/implement/SKILL.md` asks for at each milestone boundary: a new
+`claude -p "/harness:implement"` process per iteration, continuation decided from
+`.harness/state.json` + `HEAD` only.
+
+- `scripts/implement-loop.py` — selection mirrors implement (first non-`DONE` in
+  `state.json` order). Stops: all `DONE` (exit 0); `BLOCKED`, a status with no
+  implement step (`DEFERRED`), no change to state or `HEAD`, `--until`, `--max`
+  (default 10) (exit 3); non-zero `claude` exit or unreadable state (exit 1).
+  Default `--permission-mode acceptEdits` plus `--permission-prompts none`;
+  never bypasses permissions by default. Logs under
+  `.harness/evidence/implement-loop/`, git-ignored by a `*` `.gitignore` the
+  script writes there so the implement skill never sweeps them into a commit.
+- `skills/implement-loop/SKILL.md` — launcher only: preflight `check-state.py`,
+  run in background with `--plugin-dir ${CLAUDE_PLUGIN_ROOT}`, report stdout.
+- **Validation.** `python3 .harness-dev/test-implement-loop.py` — 16 tests, OK
+  (fake `claude` on `PATH` mutating a fixture `state.json` / committing).
+  Full suite `for f in .harness-dev/test-*.py; do python3 "$f"; done` — 14 files, all OK.
+- **Unproven.** Not yet run against a real `claude` session; whether an
+  `acceptEdits` + allowlist configuration is enough for a whole milestone headless
+  is unmeasured.
+
 ## Out-of-milestone observation — the "fragmentation" is `maxTurns` firing (2026-09-09)
 
 Field observation from the `P2-M7ad` and `P2-M7ae` runs on

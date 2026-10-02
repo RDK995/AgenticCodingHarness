@@ -6,11 +6,17 @@ takes the next scripted step: set milestone statuses in .harness/state.json,
 optionally commit, and register a session that `claude agents --json` then
 reports -- done at once, or after waiting on a permission prompt for a few
 polls. `claude stop` marks it stopped.
+
+The loop runs as a copy beside a stand-in check-state.py, whose --all-done gate
+passes only when every milestone is DONE and current_milestone is null, and
+which records how it was called.
 """
 
+import fcntl
 import json
 import os
 from pathlib import Path
+import shutil
 import stat
 import subprocess
 import sys
@@ -98,6 +104,20 @@ FAKE_CLAUDE = textwrap.dedent(
     """
 )
 
+FAKE_CHECK_STATE = textwrap.dedent(
+    """\
+    #!/usr/bin/env python3
+    import json, os, sys
+    from pathlib import Path
+    Path(os.environ["FAKE_CHECK_CALLS"]).open("a").write(json.dumps(sys.argv[1:]) + "\\n")
+    state = json.loads(Path(sys.argv[1]).read_text())
+    if state["current_milestone"] is not None:
+        print("ERROR: all-DONE check requires current_milestone to be null", file=sys.stderr)
+        sys.exit(1)
+    sys.exit(0)
+    """
+)
+
 
 class ImplementLoopTests(unittest.TestCase):
     def setUp(self):
@@ -115,6 +135,12 @@ class ImplementLoopTests(unittest.TestCase):
         self.calls = base / "calls.jsonl"
         self.sessions = base / "sessions.json"
         self.stops = base / "stops.txt"
+        self.checks = base / "checks.jsonl"
+        scripts = base / "scripts"
+        scripts.mkdir()
+        self.loop = scripts / "implement-loop.py"
+        shutil.copy(LOOP, self.loop)
+        (scripts / "check-state.py").write_text(FAKE_CHECK_STATE)
         self.git("init", "-q")
         self.git("config", "user.email", "test@example.com")
         self.git("config", "user.name", "test")
@@ -124,10 +150,10 @@ class ImplementLoopTests(unittest.TestCase):
             ["git", *args], cwd=self.project, check=True, text=True, capture_output=True
         ).stdout.strip()
 
-    def seed(self, statuses):
+    def seed(self, statuses, current=None):
         state = {
             "schema_version": 1,
-            "current_milestone": None,
+            "current_milestone": current,
             "milestones": {key: {"status": value} for key, value in statuses.items()},
         }
         (self.project / ".harness" / "state.json").write_text(json.dumps(state, indent=2))
@@ -143,11 +169,12 @@ class ImplementLoopTests(unittest.TestCase):
             "FAKE_CLAUDE_CALLS": str(self.calls),
             "FAKE_CLAUDE_SESSIONS": str(self.sessions),
             "FAKE_CLAUDE_STOPS": str(self.stops),
+            "FAKE_CHECK_CALLS": str(self.checks),
             "HARNESS_LOOP_POLL_SECONDS": "0.01",
             "PYTHONDONTWRITEBYTECODE": "1",
         }
         return subprocess.run(
-            [sys.executable, str(LOOP), *args],
+            [sys.executable, str(self.loop), *args],
             cwd=self.project,
             env=env,
             text=True,
@@ -172,22 +199,77 @@ class ImplementLoopTests(unittest.TestCase):
             ]
         )
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
-        self.assertEqual(self.call_count(), 3)
+        # Three milestone sessions, then the one that writes the final report.
+        self.assertEqual(self.call_count(), 4)
         lines = completed.stdout.splitlines()
         self.assertEqual(lines[0], "[1] M1 (TODO) started -- watch it: claude attach s1")
         self.assertIn("[1] M1: TODO -> REVIEW, HEAD ", lines[1])
         self.assertIn("(session s1)", lines[1])
         self.assertIn("[2] M1: REVIEW -> DONE", lines[3])
         self.assertIn("[3] M2: TODO -> DONE", lines[5])
-        self.assertEqual(lines[-1], "STOP: all milestones are DONE")
+        self.assertIn("[4] final report written (session s4)", lines)
+        self.assertEqual(lines[-1], "STOP: all milestones are DONE and the all-DONE check passed")
         # Each finished session is stopped, which keeps its conversation.
-        self.assertEqual(self.stops.read_text().split(), ["s1", "s2", "s3"])
+        self.assertEqual(self.stops.read_text().split(), ["s1", "s2", "s3", "s4"])
+        gate = json.loads(self.checks.read_text().splitlines()[-1])
+        self.assertEqual(
+            gate,
+            [
+                str(self.project.resolve() / ".harness/state.json"),
+                "--milestones",
+                str(self.project.resolve() / ".harness/milestones.md"),
+                "--requirements",
+                str(self.project.resolve() / ".harness/requirements.md"),
+                "--all-done",
+            ],
+        )
 
-    def test_already_done_runs_nothing(self):
+    def test_already_done_runs_only_the_final_report(self):
         self.seed({"M1": "DONE"})
         completed = self.run_loop([])
-        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(completed.returncode, 0, completed.stdout)
+        self.assertEqual(self.call_count(), 1)
+        self.assertRegex(json.loads(self.calls.read_text())[2], r"^implement-loop final #1 ")
+
+    def test_failed_all_done_gate_is_an_error(self):
+        self.seed({"M1": "DONE"}, current="M1")
+        completed = self.run_loop([])
+        self.assertEqual(completed.returncode, 1)
+        self.assertEqual(self.call_count(), 1)
+        self.assertIn(
+            "STOP: every milestone is DONE but the all-DONE check failed: "
+            "all-DONE check requires current_milestone to be null",
+            completed.stdout,
+        )
+
+    def test_final_report_is_not_counted_against_max(self):
+        self.seed({"M1": "TODO"})
+        completed = self.run_loop([{"set": {"M1": "DONE"}, "commit": True}], "--max", "1")
+        self.assertEqual(completed.returncode, 0, completed.stdout)
+        self.assertEqual(self.call_count(), 2)
+
+    def test_final_report_session_that_reopens_a_milestone_continues_the_loop(self):
+        self.seed({"M1": "DONE"})
+        completed = self.run_loop([{"set": {"M1": "REVIEW"}}, {"set": {"M1": "DONE"}, "commit": True}])
+        self.assertEqual(completed.returncode, 0, completed.stdout)
+        # Final report reopened M1; M1 ran; the gate passed without a second report.
+        self.assertEqual(self.call_count(), 2)
+
+    def test_second_loop_in_the_same_checkout_refuses_to_start(self):
+        self.seed({"M1": "TODO"})
+        lock_path = self.project / ".harness/evidence/implement-loop/.lock"
+        lock_path.parent.mkdir(parents=True)
+        with lock_path.open("a+") as held:
+            fcntl.flock(held, fcntl.LOCK_EX)
+            held.write("4242\n")
+            held.flush()
+            completed = self.run_loop([{"set": {"M1": "DONE"}}])
+        self.assertEqual(completed.returncode, 1)
         self.assertEqual(self.call_count(), 0)
+        self.assertIn("another implement-loop (pid 4242) is already running in this checkout", completed.stdout)
+        # Once the first loop is gone, the checkout is free again.
+        completed = self.run_loop([{"set": {"M1": "DONE"}, "commit": True}])
+        self.assertEqual(completed.returncode, 0, completed.stdout)
 
     def test_stops_when_selected_milestone_becomes_blocked(self):
         self.seed({"M1": "TODO", "M2": "TODO"})
@@ -221,13 +303,13 @@ class ImplementLoopTests(unittest.TestCase):
         self.seed({"M1": "TODO"})
         completed = self.run_loop([{"set": {"M1": "IN_PROGRESS"}}, {"set": {"M1": "DONE"}}])
         self.assertEqual(completed.returncode, 0, completed.stdout)
-        self.assertEqual(self.call_count(), 2)
+        self.assertEqual(self.call_count(), 3)  # two steps, then the final report
 
     def test_commit_without_state_change_counts_as_progress(self):
         self.seed({"M1": "IN_PROGRESS"})
         completed = self.run_loop([{"commit": True}, {"set": {"M1": "DONE"}}])
         self.assertEqual(completed.returncode, 0, completed.stdout)
-        self.assertEqual(self.call_count(), 2)
+        self.assertEqual(self.call_count(), 3)  # two steps, then the final report
 
     def test_until_stops_before_running_that_milestone(self):
         self.seed({"M1": "TODO", "M2": "TODO", "M3": "TODO"})
@@ -304,7 +386,7 @@ class ImplementLoopTests(unittest.TestCase):
         argv = json.loads(self.calls.read_text().splitlines()[0])
         self.assertEqual(argv[0], "--bg")
         self.assertEqual(argv[-1], "/harness:implement")
-        self.assertRegex(argv[argv.index("--name") + 1], r"^implement-loop M1 #1 \d{8}T\d{6}Z$")
+        self.assertRegex(argv[argv.index("--name") + 1], r"^implement-loop M1 #1 \d{8}T\d{6}Z \d+$")
         self.assertEqual(argv[argv.index("--permission-mode") + 1], "acceptEdits")
         # Works in this checkout, where the loop reads state and HEAD.
         self.assertEqual(json.loads(argv[argv.index("--settings") + 1]), {"worktree": {"bgIsolation": "none"}})

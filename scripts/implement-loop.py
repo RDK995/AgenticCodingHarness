@@ -8,12 +8,17 @@ permission prompt waits there for the human to answer. Whether to run again is
 decided from repository state alone -- `.harness/state.json` and
 `git rev-parse HEAD` -- never from what the session said.
 
+When every milestone is DONE the loop runs one more session -- the one in
+which implement runs its all-DONE gate and writes the final report -- then runs
+that gate itself, and succeeds only if it passes. One loop runs per checkout at
+a time: a second exits at once.
+
 Run from the project root. Exit status:
-  0  every milestone is DONE
+  0  every milestone is DONE and the all-DONE gate passes
   3  stopped by a condition: a BLOCKED milestone, a status the implement skill
      has no branch for, no progress, --until reached, or --max reached
-  1  error: a session could not start or ended without finishing, or state
-     could not be read
+  1  error: a session could not start or ended without finishing, state could
+     not be read, the all-DONE gate failed, or another loop holds this checkout
   2  bad usage
 """
 
@@ -21,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import fcntl
 import hashlib
 import json
 import os
@@ -43,6 +49,9 @@ PERMISSION_MODES = ("acceptEdits", "auto", "bypassPermissions", "manual", "dontA
 DEFAULT_PERMISSION_MODE = "acceptEdits"
 DEFAULT_MAX = 10
 STATE = Path(".harness/state.json")
+MILESTONES = Path(".harness/milestones.md")
+REQUIREMENTS = Path(".harness/requirements.md")
+CHECK_STATE = Path(__file__).resolve().parent / "check-state.py"
 LOG_DIR = Path(".harness/evidence/implement-loop")
 POLL_SECONDS = float(os.environ.get("HARNESS_LOOP_POLL_SECONDS", "5"))
 # How long a launched session may take to appear in `claude agents`.
@@ -178,9 +187,76 @@ def stop(reason: str, code: int) -> int:
     return code
 
 
+def lock(root: Path):
+    """Hold this checkout for one loop: (open lock file, None), or (None, owner pid).
+
+    Two loops would run in-place sessions on the same milestone, branching and
+    committing in one working tree. The lock goes with the process, however it
+    ends.
+    """
+    handle = (root / LOG_DIR / ".lock").open("a+")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.seek(0)
+        owner = handle.read().strip() or "unknown"
+        handle.close()
+        return None, owner
+    handle.seek(0)
+    handle.truncate()
+    handle.write(f"{os.getpid()}\n")
+    handle.flush()
+    return handle, None
+
+
+def all_done_gate(root: Path) -> list[str]:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(CHECK_STATE),
+            str(root / STATE),
+            "--milestones",
+            str(root / MILESTONES),
+            "--requirements",
+            str(root / REQUIREMENTS),
+            "--all-done",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode == 0:
+        return []
+    return [line.removeprefix("ERROR: ") for line in completed.stderr.splitlines() if line.strip()] or [
+        f"check-state.py exited with status {completed.returncode}"
+    ]
+
+
+def run_session(args: argparse.Namespace, root: Path, name: str, label: str) -> str:
+    """Start one /harness:implement session, wait for its turn to end, close it."""
+    try:
+        launched = subprocess.run(
+            command(args, name), cwd=root, stdin=subprocess.DEVNULL, text=True, capture_output=True, check=False
+        )
+    except OSError as error:
+        raise SessionError(f"could not start claude: {error}") from error
+    if launched.returncode != 0:
+        raise SessionError(
+            f"claude --bg exited with status {launched.returncode}: {(launched.stdout + launched.stderr).strip()}"
+        )
+    session_id = wait_for(name, label)
+    # The turn is over. Stopping keeps the conversation: `claude attach`
+    # reopens it, and it stays listed under `claude agents --all`.
+    subprocess.run(["claude", "stop", session_id], capture_output=True, check=False)
+    return session_id
+
+
 def run(args: argparse.Namespace) -> int:
     root = Path.cwd()
     ignore_log_dir(root)
+    held, owner = lock(root)
+    if held is None:
+        return stop(f"another implement-loop (pid {owner}) is already running in this checkout", EXIT_ERROR)
     try:
         state, digest = read_state(root)
     except StateError as error:
@@ -193,10 +269,29 @@ def run(args: argparse.Namespace) -> int:
             return stop(f"--until {args.until} is already DONE", EXIT_ERROR)
 
     iteration = 0
+    reported = False
     while True:
         selected = select(state)
+        if selected is None and reported:
+            errors = all_done_gate(root)
+            if errors:
+                return stop("every milestone is DONE but the all-DONE check failed: " + "; ".join(errors), EXIT_ERROR)
+            return stop("all milestones are DONE and the all-DONE check passed", EXIT_ALL_DONE)
         if selected is None:
-            return stop("all milestones are DONE", EXIT_ALL_DONE)
+            # Implement runs its all-DONE gate and writes the final report only
+            # in a fresh session that finds nothing left; the session that
+            # finished the last milestone stopped at its boundary. This one is
+            # not counted against --max, and it is expected to change nothing.
+            reported = True
+            iteration += 1
+            name = f"implement-loop final #{iteration} {datetime.now(timezone.utc):%Y%m%dT%H%M%SZ} {os.getpid()}"
+            try:
+                session_id = run_session(args, root, name, f"[{iteration}] final report")
+                state, digest = read_state(root)
+            except (SessionError, StateError) as error:
+                return stop(str(error), EXIT_ERROR)
+            print(f"[{iteration}] final report written (session {session_id})", flush=True)
+            continue
         milestone_id, status = selected
         if status == "BLOCKED":
             return stop(f"{milestone_id} is BLOCKED and needs a human decision", EXIT_STOPPED)
@@ -213,26 +308,11 @@ def run(args: argparse.Namespace) -> int:
         iteration += 1
         head_before = head(root)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        name = f"implement-loop {milestone_id} #{iteration} {stamp}"
-        label = f"[{iteration}] {milestone_id} ({status})"
+        name = f"implement-loop {milestone_id} #{iteration} {stamp} {os.getpid()}"
         try:
-            launched = subprocess.run(
-                command(args, name), cwd=root, stdin=subprocess.DEVNULL, text=True, capture_output=True, check=False
-            )
-        except OSError as error:
-            return stop(f"could not start claude: {error}", EXIT_ERROR)
-        if launched.returncode != 0:
-            return stop(
-                f"claude --bg exited with status {launched.returncode}: {(launched.stdout + launched.stderr).strip()}",
-                EXIT_ERROR,
-            )
-        try:
-            session_id = wait_for(name, label)
+            session_id = run_session(args, root, name, f"[{iteration}] {milestone_id} ({status})")
         except SessionError as error:
             return stop(str(error), EXIT_ERROR)
-        # The turn is over. Stopping keeps the conversation: `claude attach`
-        # reopens it, and it stays listed under `claude agents --all`.
-        subprocess.run(["claude", "stop", session_id], capture_output=True, check=False)
 
         head_after = head(root)
         try:

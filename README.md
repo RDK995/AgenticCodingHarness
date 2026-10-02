@@ -82,12 +82,12 @@ advance only one phase of a milestone; the loop just re-invokes. It stops when:
 
 | Stop | Exit |
 | --- | --- |
-| every milestone is `DONE` | 0 |
+| every milestone is `DONE`, after one more session in which implement runs its all-DONE check and writes the final report, and that check passes | 0 |
 | the next milestone (first not `DONE`, as `/harness:implement` picks it) is `BLOCKED`, or has a status implement has no step for | 3 |
 | an iteration changed neither `state.json` nor `HEAD` — e.g. it is waiting on a human live check | 3 |
 | `--until <id>`: that milestone became the next one (it is not run) | 3 |
 | `--max <n>` iterations ran (default 10) | 3 |
-| a session could not start or ended before finishing, or state could not be read | 1 |
+| the all-DONE check fails; a session could not start or ended before finishing; state could not be read; or another loop is already running in this checkout | 1 |
 
 **Watching it.** Each session is an ordinary background session
 (`claude --bg`), so it looks exactly like one you started yourself:
@@ -100,7 +100,8 @@ claude agents        # list every session, the loop's included
 The loop prints the id as each session starts, and one line as each finishes —
 milestone, status before → after, `HEAD` before → after. Run from
 `/harness:implement-loop`, those lines arrive in the chat that launched it, and
-its output is kept in `.harness/evidence/implement-loop/loop.log` (out of git).
+its output is kept in `.harness/evidence/implement-loop/loop-<time>-<pid>.log`
+(out of git).
 Finished sessions are stopped, not deleted: `claude attach <id>` reopens one.
 Unlike other background sessions, the loop's sessions work in your checkout itself, not
 a separate worktree — that is where the harness's state and milestone branches

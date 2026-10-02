@@ -38,19 +38,22 @@ because each one *is* that skill, run fresh.
    be a Bash background task: those are killed after at most two hours, and
    a loop waiting on the user can run far longer.
        mkdir -p .harness/evidence/implement-loop
+       f=.harness/evidence/implement-loop/loop-$(date -u +%Y%m%dT%H%M%SZ)-$$.log
        nohup python3 -u ${CLAUDE_PLUGIN_ROOT}/scripts/implement-loop.py
-         --plugin-dir ${CLAUDE_PLUGIN_ROOT} [user args]
-         > .harness/evidence/implement-loop/loop.log 2>&1 &
-       echo $!
+         --plugin-dir ${CLAUDE_PLUGIN_ROOT} [user args] > "$f" 2>&1 &
+       echo "$! $f"
    --plugin-dir makes every inner session load this same harness. Note the
-   printed PID. Tell the user it is running; that each milestone's session
+   printed PID and log path; each launch gets its own log, so a second launch
+   never overwrites a running loop's. Only one loop runs per checkout: a
+   second exits at once with "already running", and that is the line to
+   report. Tell the user it is running; that each milestone's session
    can be watched live with `claude attach <id>` (the id arrives in the next
    step); and how to stop it: `kill <PID>`, then `claude stop <id>` for the
    session in flight — the milestone resumes from state next time.
 
 4. Stream the loop's lines into this conversation with the Monitor tool,
    timeout_ms 1800000 (the maximum), description "implement-loop progress":
-       f=.harness/evidence/implement-loop/loop.log; n=<N>; pid=<PID>
+       f=<LOG>; n=<N>; pid=<PID>
        while :; do
          t=$(wc -l < "$f"); [ "$t" -gt "$n" ] && sed -n "$((n+1)),${t}p" "$f" && n=$t
          kill -0 "$pid" 2>/dev/null || { sed -n "$((n+1)),\$p" "$f"; exit 0; }
@@ -67,11 +70,11 @@ because each one *is* that skill, run fresh.
          they may not be looking;
        - a "[n] M: A -> B, HEAD x -> y" line: the milestone moved from A to B,
          and whether a commit was made.
-   Do not poll or sleep otherwise. Read only loop.log, never a session's
+   Do not poll or sleep otherwise. Read only this launch's log, never a session's
    transcript or `claude logs` output — reading them is what the fresh
    sessions exist to avoid.
 
-5. When the monitor exits, read the last line of loop.log (STOP: ...) and
+5. When the monitor exits, read the last line of the log (STOP: ...) and
    report in plain words why it stopped and what the user should do next
    (see the table).
    Then STOP. Do not re-run the loop, and do not continue the work yourself.
@@ -79,7 +82,9 @@ because each one *is* that skill, run fresh.
 
 | `STOP:` line | Meaning | What to tell the user |
 | --- | --- | --- |
-| all milestones are DONE | Every milestone is `DONE` | Done; `claude attach` on the last session shows the final report. Nothing was pushed or merged. |
+| all milestones are DONE and the all-DONE check passed | Every milestone is `DONE`, and the loop ran the final session in which implement checks that and writes its report | Done; `claude attach` on the "final report" session shows the report. Nothing was pushed or merged. |
+| every milestone is DONE but the all-DONE check failed | The milestones say DONE, but the final check rejects the state | Pass on the reasons; the final-report session explains them. Not finished. |
+| another implement-loop … is already running | A loop is already working in this checkout | Nothing was started. Watch or stop the running one. |
 | … is BLOCKED | A milestone needs a human decision | Open `.harness/milestones.md` for that milestone's escalation, decide, then re-run. |
 | changed neither … nor HEAD | A session finished without moving anything | The milestone is waiting on something only a person can do (e.g. a live check), or a permission was refused. The line gives the `claude attach` command that shows which. |
 | reached --until / --max | The limit the user set was reached | Re-run to continue. |
@@ -114,6 +119,6 @@ progress — stalling on a denied command is the safety working.
 - Never pass `--permission-mode bypassPermissions` unless the user asked for it
   in this conversation.
 - Never read a session's transcript or `claude logs` output into context;
-  loop.log is the only thing to read.
+  this launch's log is the only thing to read.
 - Never answer a session's permission prompt for the user, or attach to one.
 - Never push, merge, or open a pull request.

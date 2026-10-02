@@ -37,7 +37,7 @@ that `skills/implement/SKILL.md` asks for at each milestone boundary: a new
   before finishing, or unreadable state (exit 1). Default
   `--permission-mode acceptEdits`; never bypasses permissions by default.
   `.harness/evidence/implement-loop/` is git-ignored by a `*` `.gitignore` the
-  script writes there so the implement skill never sweeps `loop.log` into a commit.
+  script writes there so the implement skill never sweeps its logs into a commit.
 - **Visibility (owner follow-up, same day).** First version ran `claude -p
   --output-format text`, so nothing was visible until each session ended, and
   the launcher only reported at the very end. Each iteration is now
@@ -57,8 +57,8 @@ that `skills/implement/SKILL.md` asks for at each milestone boundary: a new
   `--settings '{"worktree":{"bgIsolation":"none"}}'` to its own sessions only,
   since implement's state and branches live in the checkout.
 - `skills/implement-loop/SKILL.md` — launcher only: preflight `check-state.py`;
-  starts the loop **detached** (`nohup … > loop.log &`), because a Bash
-  background task is killed after at most two hours; streams `loop.log` into the
+  starts the loop **detached** (`nohup … > loop-<time>-<pid>.log &`), because a Bash
+  background task is killed after at most two hours; streams that log into the
   chat with Monitor, re-armed on expiry; push-notifies on "waiting for you".
 - **Validation.** `python3 .harness-dev/test-implement-loop.py` — 20 tests, OK
   (fake `claude` on `PATH` emulating `--bg`, `agents --json`, `stop`).
@@ -71,6 +71,16 @@ that `skills/implement/SKILL.md` asks for at each milestone boundary: a new
   arriving in the launching chat as written. The first probe, before the
   `bgIsolation` setting, was refused the edit and correctly reported
   `is waiting for you (your input)`.
+- **PR #27 review (2026-10-02).** (P1) The loop returned success on all `DONE`
+  without the fresh implement session that runs `check-state.py --all-done` and
+  writes the final report. It now runs that session once (not counted against
+  `--max`, not subject to the no-progress stop), then runs the same gate itself:
+  pass → exit 0, fail → exit 1 with its errors. (P2) Two loops could run
+  in-place sessions in one checkout. A non-blocking `flock` on
+  `.harness/evidence/implement-loop/.lock`, held for the process's life, makes a
+  second exit 1 naming the holder's pid; session names carry the pid; each
+  launch logs to its own `loop-<time>-<pid>.log` so a refused launch cannot
+  truncate the running loop's log. `test-implement-loop.py`: 24 tests, OK.
 - **Unproven.** A whole real milestone through the loop; whether
   `state: done` can fire while a session still has background subagents running.
 

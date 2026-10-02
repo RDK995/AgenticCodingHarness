@@ -27,25 +27,52 @@ milestone runs against them with a long validation suite.
 
 Owner request, on branch `feat/implement-loop`. Automates the `/clear`-and-re-invoke
 that `skills/implement/SKILL.md` asks for at each milestone boundary: a new
-`claude -p "/harness:implement"` process per iteration, continuation decided from
+`/harness:implement` session per iteration, continuation decided from
 `.harness/state.json` + `HEAD` only.
 
 - `scripts/implement-loop.py` — selection mirrors implement (first non-`DONE` in
   `state.json` order). Stops: all `DONE` (exit 0); `BLOCKED`, a status with no
   implement step (`DEFERRED`), no change to state or `HEAD`, `--until`, `--max`
-  (default 10) (exit 3); non-zero `claude` exit or unreadable state (exit 1).
-  Default `--permission-mode acceptEdits` plus `--permission-prompts none`;
-  never bypasses permissions by default. Logs under
-  `.harness/evidence/implement-loop/`, git-ignored by a `*` `.gitignore` the
-  script writes there so the implement skill never sweeps them into a commit.
-- `skills/implement-loop/SKILL.md` — launcher only: preflight `check-state.py`,
-  run in background with `--plugin-dir ${CLAUDE_PLUGIN_ROOT}`, report stdout.
-- **Validation.** `python3 .harness-dev/test-implement-loop.py` — 16 tests, OK
-  (fake `claude` on `PATH` mutating a fixture `state.json` / committing).
+  (default 10) (exit 3); a session that fails to start, is stopped or vanishes
+  before finishing, or unreadable state (exit 1). Default
+  `--permission-mode acceptEdits`; never bypasses permissions by default.
+  `.harness/evidence/implement-loop/` is git-ignored by a `*` `.gitignore` the
+  script writes there so the implement skill never sweeps `loop.log` into a commit.
+- **Visibility (owner follow-up, same day).** First version ran `claude -p
+  --output-format text`, so nothing was visible until each session ended, and
+  the launcher only reported at the very end. Each iteration is now
+  `claude --bg --name "implement-loop <M> #<n> <stamp>" … /harness:implement`:
+  the owner watches it in the normal UI with `claude attach <id>`. The loop polls
+  `claude agents --json --all` for that name — `state: done` = turn finished
+  (then `claude stop`, which keeps the conversation); `state: blocked` = paused
+  on the human, reported once with the attach command (`waitingFor` names it,
+  e.g. `permission prompt`; otherwise "your input"); `stopped` / missing = error.
+  Owner decision: **permission prompts wait for the human** (no more
+  `--permission-prompts none`). States observed against real `claude` 2.1.287:
+  `done` (plain reply), `blocked` + `waitingFor: permission prompt` (unallowed
+  Bash in default mode), `blocked` with no `waitingFor` (unknown slash command),
+  `stopped` (after `claude stop`).
+  Background sessions refuse edits to the main checkout by default (they expect
+  a worktree); found by the real probe below. The loop passes
+  `--settings '{"worktree":{"bgIsolation":"none"}}'` to its own sessions only,
+  since implement's state and branches live in the checkout.
+- `skills/implement-loop/SKILL.md` — launcher only: preflight `check-state.py`;
+  starts the loop **detached** (`nohup … > loop.log &`), because a Bash
+  background task is killed after at most two hours; streams `loop.log` into the
+  chat with Monitor, re-armed on expiry; push-notifies on "waiting for you".
+- **Validation.** `python3 .harness-dev/test-implement-loop.py` — 20 tests, OK
+  (fake `claude` on `PATH` emulating `--bg`, `agents --json`, `stop`).
   Full suite `for f in .harness-dev/test-*.py; do python3 "$f"; done` — 14 files, all OK.
-- **Unproven.** Not yet run against a real `claude` session; whether an
-  `acceptEdits` + allowlist configuration is enough for a whole milestone headless
-  is unmeasured.
+  **Real probe** (claude 2.1.287, throwaway project, stand-in `harness` plugin
+  whose `implement` sets M1 `REVIEW` → `DONE`), launched detached as the skill
+  does and watched with the skill's Monitor loop: `[1] M1 (REVIEW) started --
+  watch it: claude attach 87c1eba1` / `[1] M1: REVIEW -> DONE, HEAD 2147f5c ->
+  2147f5c (session 87c1eba1)` / `STOP: all milestones are DONE`, each line
+  arriving in the launching chat as written. The first probe, before the
+  `bgIsolation` setting, was refused the edit and correctly reported
+  `is waiting for you (your input)`.
+- **Unproven.** A whole real milestone through the loop; whether
+  `state: done` can fire while a session still has background subagents running.
 
 ## Out-of-milestone observation — the "fragmentation" is `maxTurns` firing (2026-09-09)
 

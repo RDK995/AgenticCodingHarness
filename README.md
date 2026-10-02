@@ -74,9 +74,9 @@ to `/clear` and re-invoke. `/harness:implement-loop` automates that:
 /harness:implement-loop [--until <milestone-id>] [--max <n>] [--permission-mode <mode>]
 ```
 
-It runs `scripts/implement-loop.py` in the background, which starts a brand-new
-headless `claude -p "/harness:implement"` process per iteration (a fresh process
-is the `/clear`) and decides whether to go again from `.harness/state.json` and
+It starts `scripts/implement-loop.py` as its own process, which starts a
+brand-new `/harness:implement` session per iteration (a fresh session is the
+`/clear`) and decides whether to go again from `.harness/state.json` and
 `git rev-parse HEAD` only, never from what the session said. One iteration may
 advance only one phase of a milestone; the loop just re-invokes. It stops when:
 
@@ -84,22 +84,35 @@ advance only one phase of a milestone; the loop just re-invokes. It stops when:
 | --- | --- |
 | every milestone is `DONE` | 0 |
 | the next milestone (first not `DONE`, as `/harness:implement` picks it) is `BLOCKED`, or has a status implement has no step for | 3 |
-| an iteration changed neither `state.json` nor `HEAD` — e.g. it is waiting on a human live check, or a command was denied | 3 |
+| an iteration changed neither `state.json` nor `HEAD` — e.g. it is waiting on a human live check | 3 |
 | `--until <id>`: that milestone became the next one (it is not run) | 3 |
 | `--max <n>` iterations ran (default 10) | 3 |
-| a `claude` process exited non-zero, or state could not be read | 1 |
+| a session could not start or ended before finishing, or state could not be read | 1 |
 
-Each iteration prints one line — milestone, status before → after, `HEAD`
-before → after — and its full output goes to
-`.harness/evidence/implement-loop/<UTC timestamp>-<n>.log`, which the loop keeps
-out of git. The script also runs directly from a project root:
+**Watching it.** Each session is an ordinary background session
+(`claude --bg`), so it looks exactly like one you started yourself:
+
+```
+claude attach <id>   # open it in this terminal, live; ← leaves it running
+claude agents        # list every session, the loop's included
+```
+
+The loop prints the id as each session starts, and one line as each finishes —
+milestone, status before → after, `HEAD` before → after. Run from
+`/harness:implement-loop`, those lines arrive in the chat that launched it, and
+its output is kept in `.harness/evidence/implement-loop/loop.log` (out of git).
+Finished sessions are stopped, not deleted: `claude attach <id>` reopens one.
+Unlike other background sessions, the loop's sessions work in your checkout itself, not
+a separate worktree — that is where the harness's state and milestone branches
+live — so don't edit the same checkout while it runs.
+The script also runs directly from a project root:
 `python3 /path/to/harness/scripts/implement-loop.py --plugin-dir /path/to/harness`.
 
-**Permissions.** Nobody is there to answer a permission prompt, so the loop
-passes `--permission-prompts none`: anything that would prompt is denied, and the
-iteration that hit it shows up as no progress. The default `--permission-mode`
-is `acceptEdits` — edits inside the project are allowed, and every shell command
-must already be allowed by your settings. Before running unattended, add an
+**Permissions.** A permission prompt waits for you, as in any session: the loop
+prints `is waiting for you (permission prompt) -- claude attach <id>`, and
+carries on once you have attached and answered. The default
+`--permission-mode` is `acceptEdits` — edits inside the project are allowed, and
+any shell command your settings don't allow prompts. To be asked less, add an
 allowlist to the project's `.claude/settings.json` covering `git` (`add`,
 `commit`, `checkout -b`, `rev-parse`, `diff`, `log`, `status`), `python3` for
 the harness's scripts, and your project's test, lint and build commands, e.g.:

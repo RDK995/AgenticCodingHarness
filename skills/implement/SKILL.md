@@ -427,7 +427,7 @@ the system, and it is free precisely because the state file is already required
 to survive it.
 
 `/harness:implement-loop` automates the `/clear`-and-re-invoke: it starts each
-invocation of this skill as a brand-new headless session and decides whether to
+invocation of this skill as a brand-new background session and decides whether to
 start another from `.harness/state.json` and `HEAD`. It changes nothing above —
 every one of those sessions still stops at its boundary exactly as described.
 

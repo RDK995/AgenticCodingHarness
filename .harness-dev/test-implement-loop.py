@@ -5,7 +5,9 @@ A fake `claude` on PATH stands in for the background sessions. `claude --bg`
 takes the next scripted step: set milestone statuses in .harness/state.json,
 optionally commit, and register a session that `claude agents --json` then
 reports -- done at once, or after waiting on a permission prompt for a few
-polls. `claude stop` marks it stopped.
+polls. A step may also take up the waiting answer (recording what it read and
+deleting answer.md and question.md, as the implement skill does) and may ask a
+question by writing question.md. `claude stop` marks it stopped.
 
 The loop runs as a copy beside a stand-in check-state.py, whose --all-done gate
 passes only when every milestone is DONE and current_milestone is null, and
@@ -77,6 +79,14 @@ FAKE_CLAUDE = textwrap.dedent(
         for milestone, status in step["set"].items():
             state["milestones"].setdefault(milestone, {})["status"] = status
         state_path.write_text(json.dumps(state, indent=2))
+    exchange = Path(".harness/evidence/implement-loop")
+    if step.get("take_answer"):
+        with Path(os.environ["FAKE_CLAUDE_ANSWERS"]).open("a") as handle:
+            handle.write((exchange / "answer.md").read_text())
+        (exchange / "answer.md").unlink()
+        (exchange / "question.md").unlink()
+    if step.get("ask"):
+        (exchange / "question.md").write_text(step["ask"])
     if step.get("commit"):
         subprocess.run(["git", "add", "-A"], check=True)
         subprocess.run(["git", "commit", "-qm", "fake step", "--allow-empty"], check=True)
@@ -136,6 +146,7 @@ class ImplementLoopTests(unittest.TestCase):
         self.sessions = base / "sessions.json"
         self.stops = base / "stops.txt"
         self.checks = base / "checks.jsonl"
+        self.answers = base / "answers.txt"
         scripts = base / "scripts"
         scripts.mkdir()
         self.loop = scripts / "implement-loop.py"
@@ -179,6 +190,7 @@ class ImplementLoopTests(unittest.TestCase):
             "FAKE_CLAUDE_SESSIONS": str(self.sessions),
             "FAKE_CLAUDE_STOPS": str(self.stops),
             "FAKE_CHECK_CALLS": str(self.checks),
+            "FAKE_CLAUDE_ANSWERS": str(self.answers),
             "HARNESS_LOOP_POLL_SECONDS": "0.01",
             "PYTHONDONTWRITEBYTECODE": "1",
         }
@@ -431,7 +443,8 @@ class ImplementLoopTests(unittest.TestCase):
         self.run_loop([{"set": {"M1": "DONE"}}], "--plugin-dir", "/plugins/harness")
         argv = json.loads(self.calls.read_text().splitlines()[0])
         self.assertEqual(argv[0], "--bg")
-        self.assertEqual(argv[-1], "/harness:implement")
+        # Told it is unattended, so it writes questions down instead of waiting.
+        self.assertEqual(argv[-1], "/harness:implement unattended")
         self.assertRegex(argv[argv.index("--name") + 1], r"^implement-loop M1 #1 \d{8}T\d{6}Z \d+$")
         self.assertEqual(argv[argv.index("--permission-mode") + 1], "acceptEdits")
         # Works in this checkout, where the loop reads state and HEAD.
@@ -447,6 +460,81 @@ class ImplementLoopTests(unittest.TestCase):
         self.run_loop([{"set": {"M1": "DONE"}}], "--permission-mode", "dontAsk")
         argv = json.loads(self.calls.read_text().splitlines()[0])
         self.assertEqual(argv[argv.index("--permission-mode") + 1], "dontAsk")
+
+    def answer_file(self, text):
+        path = Path(self.temp.name) / "reply.txt"
+        path.write_text(text)
+        return path
+
+    def question(self):
+        return self.project / ".harness/evidence/implement-loop/question.md"
+
+    def test_a_question_stops_the_loop_and_is_printed(self):
+        self.seed({"M1": "TODO", "M2": "TODO"})
+        completed = self.run_loop(
+            [{"set": {"M1": "BLOCKED"}, "commit": True, "ask": "M1 is blocked.\nRetry the review, or stop?\n"}]
+        )
+        self.assertEqual(completed.returncode, 4, completed.stdout + completed.stderr)
+        self.assertEqual(self.call_count(), 1)
+        lines = completed.stdout.splitlines()
+        self.assertIn("[1] M1: TODO -> BLOCKED", lines[1])
+        self.assertEqual(
+            lines[2:5],
+            ["QUESTION -- the loop needs your answer:", "  | M1 is blocked.", "  | Retry the review, or stop?"],
+        )
+        self.assertEqual(
+            lines[-1], "STOP: a session asked you a question; answer it and re-run with --answer-file"
+        )
+
+    def test_an_unanswered_question_is_shown_again_and_nothing_runs(self):
+        self.seed({"M1": "TODO"})
+        self.question().parent.mkdir(parents=True, exist_ok=True)
+        self.question().write_text("Which way?\n")
+        completed = self.run_loop([{"set": {"M1": "DONE"}}])
+        self.assertEqual(completed.returncode, 4)
+        self.assertEqual(self.call_count(), 0)
+        self.assertIn("  | Which way?", completed.stdout)
+
+    def test_answer_reaches_a_session_even_for_a_blocked_milestone_then_the_loop_carries_on(self):
+        self.seed({"M1": "BLOCKED"})
+        self.question().parent.mkdir(parents=True, exist_ok=True)
+        self.question().write_text("Retry the review, or stop?\n")
+        completed = self.run_loop(
+            [{"take_answer": True, "set": {"M1": "REVIEW"}, "commit": True}, {"set": {"M1": "DONE"}, "commit": True}],
+            "--answer-file",
+            self.answer_file("Retry it once more.\n"),
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertEqual(self.answers.read_text(), "Retry it once more.\n")
+        self.assertIn("[1] M1: BLOCKED -> REVIEW", completed.stdout)
+        self.assertFalse(self.question().exists())
+
+    def test_answer_left_unread_is_an_error(self):
+        self.seed({"M1": "BLOCKED"})
+        self.question().parent.mkdir(parents=True, exist_ok=True)
+        self.question().write_text("Retry?\n")
+        completed = self.run_loop([{"set": {"M1": "REVIEW"}}], "--answer-file", self.answer_file("Yes.\n"))
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("did not take up the answer", completed.stdout)
+
+    def test_a_follow_up_question_after_an_answer_stops_again(self):
+        self.seed({"M1": "BLOCKED"})
+        self.question().parent.mkdir(parents=True, exist_ok=True)
+        self.question().write_text("Retry?\n")
+        completed = self.run_loop(
+            [{"take_answer": True, "ask": "Retry with which reviewer tier?\n"}],
+            "--answer-file",
+            self.answer_file("Yes.\n"),
+        )
+        self.assertEqual(completed.returncode, 4)
+        self.assertIn("  | Retry with which reviewer tier?", completed.stdout)
+
+    def test_answer_without_a_waiting_question_is_an_error(self):
+        self.seed({"M1": "TODO"})
+        completed = self.run_loop([], "--answer-file", self.answer_file("Yes.\n"))
+        self.assertEqual(completed.returncode, 1)
+        self.assertEqual(self.call_count(), 0)
+        self.assertIn("no question is waiting", completed.stdout)
 
     def test_missing_state_is_an_error(self):
         completed = self.run_loop([])

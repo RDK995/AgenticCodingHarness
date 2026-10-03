@@ -64,6 +64,27 @@ and planning every milestone up front were both considered and rejected.
 Permission prompts inside loop sessions are answered via `claude attach`; owner
 decided (2026-10-03) this is fine as it is — no permission-mode change.
 
+### Loop questions reach the human's phone (2026-10-03)
+
+Owner: questions about the work asked inside loop sessions can't be seen or
+answered from a phone. Inner sessions now start as
+`/harness:implement unattended`; that mode never asks in-session, but writes
+`.harness/evidence/implement-loop/question.md` and ends its turn. The loop
+prints it (`QUESTION` + `  | ` lines) and exits 4; the launcher skill relays it
+to the chat and relaunches with `--answer-file <reply>`. The loop copies the
+reply to `answer.md`, and the first session (whatever the milestone status,
+since it is usually a BLOCKED decision) records it as `Human decision`, deletes
+both files and acts on it within implement's existing rules (cap still holds).
+An answer left unread → exit 1; re-running past an unanswered question shows it
+again and runs nothing.
+
+Checked live before choosing this: `claude --bg --resume <short bg id>` does
+not resume (it opened a resume picker and blocked), so the answer goes to a
+fresh session rather than back into the one that asked.
+
+Validation: `test-implement-loop.py` 34 tests OK (6 new); all 15 test files OK.
+Not yet exercised against a real loop run.
+
 ## Out-of-milestone addition — `/harness:implement-loop` (2026-10-02)
 
 Owner request, on branch `feat/implement-loop`. Automates the `/clear`-and-re-invoke

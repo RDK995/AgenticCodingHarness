@@ -91,6 +91,7 @@ advance only one phase of a milestone; the loop just re-invokes. It stops when:
 | --- | --- |
 | every milestone is `DONE`, after one more session in which implement runs its all-DONE check and writes the final report, and that check passes | 0 |
 | the next milestone (first not `DONE`, as `/harness:implement` picks it) is `BLOCKED`, or has a status implement has no step for | 3 |
+| a session needs a decision from you — the question is printed in the chat; answer there and the loop restarts with your answer | 4 |
 | the next milestone is `TODO` and its task plan is not agreed — run `/harness:plan-milestone`, then the loop again | 3 |
 | an iteration changed neither `state.json` nor `HEAD` — e.g. it is waiting on a human live check | 3 |
 | `--until <id>`: that milestone became the next one (it is not run) | 3 |
@@ -116,6 +117,14 @@ a separate worktree — that is where the harness's state and milestone branches
 live — so don't edit the same checkout while it runs.
 The script also runs directly from a project root:
 `python3 /path/to/harness/scripts/implement-loop.py --plugin-dir /path/to/harness`.
+
+**Questions.** A session never waits on you for a decision about the work.
+It writes the question down and ends; the loop prints it in the chat that
+launched it and stops, so you can read and answer it from your phone. Your
+reply, word for word, goes to a fresh session, which records it in the
+milestone and acts on it, and the loop carries on. Run directly, the script
+exits 4 with the question printed; answer with
+`--answer-file <file holding your reply>`.
 
 **Permissions.** A permission prompt waits for you, as in any session: the loop
 prints `is waiting for you (permission prompt) -- claude attach <id>`, and

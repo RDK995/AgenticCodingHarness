@@ -26,6 +26,11 @@ substantial work unrelated to the milestone about to run:
     a carried context makes you pay twice for. See "And one
     session per milestone" below.
 
+IF invoked as `unattended` (by /harness:implement-loop):
+    follow "Running unattended" below for the whole of this invocation —
+    including, first, an answer waiting in
+    .harness/evidence/implement-loop/answer.md.
+
 Read .harness/requirements.md
 
 IF missing:
@@ -277,6 +282,51 @@ LOOP:
     continue the LOOP in this context. The LOOP is re-entered from structured
     state on the next invocation and picks up where this one stopped.
 ```
+
+## Running unattended
+
+`/harness:implement-loop` starts this skill as `/harness:implement unattended`
+in a background session nobody is watching. Its output is relayed to wherever
+the human is — often a phone — but a question asked *inside* the session is
+not: it would wait, unseen, until someone attached a terminal to answer it.
+
+**So never ask the human a question in this session, and never wait on one.**
+Do not use `AskUserQuestion`. Wherever this skill would STOP and hand the human
+a decision — an unresolved requirement, a DRAFT architecture, a `BLOCKED`
+milestone's escalation, a dirty tree whose ownership is unclear, anything else
+only they can settle — write the question to
+`.harness/evidence/implement-loop/question.md` and end your turn. The loop
+prints it and stops. Do not write one for a stop that needs no answer: a
+milestone boundary, the all-DONE report, or a plan still to be agreed.
+
+Write it to be answered from a phone, by someone who has not been inside the
+work: which milestone; what happened, in plain words; the decision needed; and
+two or three options, each saying what will happen if chosen. Put file paths
+and ids at the end, for reference, not in the question. Record the full
+escalation in the milestone record as usual — the question file is a pointer to
+a decision, not the record of it.
+
+**When `.harness/evidence/implement-loop/answer.md` exists**, it is the human's
+reply to `question.md` beside it, delivered by the loop because this is a fresh
+session and the one that asked is gone. Read both first. Then:
+
+1. Record the decision in the milestone record, verbatim, as
+   `Human decision (<date>): <their words>` under the escalation it answers (or
+   under `### Follow-ups` if there was none), and commit it with the explicit
+   `.harness/` paths.
+2. Delete `answer.md` and `question.md`. The loop treats an answer still on
+   disk after your session as not taken up.
+3. Act on it exactly as if the human had typed it into an interactive session,
+   under every rule of this skill — it widens nothing. If it decides a
+   `BLOCKED` milestone's way forward and that way is a step this skill has
+   (an implementation phase carrying the change the decision names, or a
+   retried review), return the milestone to the status that step runs from,
+   saying so in the record, and continue the LOOP. The two-cycle cap still
+   holds: an answer cannot buy a third review. If it needs another skill — `roast-requirements`, `plan-milestone`,
+   `architect` — STOP and say which, without a question file: that is a
+   desk task, not a reply.
+4. If the answer is unclear or does not answer the question, ask again
+   through a new `question.md` that quotes it. Never guess at what they meant.
 
 ## Invoking the reviewer
 

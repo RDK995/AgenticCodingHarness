@@ -1,6 +1,6 @@
 ---
 name: implement-loop
-description: Runs /harness:implement over and over, each time in a brand-new background session the user can watch with `claude attach`, so milestones are worked through unattended without the human having to /clear and re-invoke between them. Stops on all DONE, a milestone whose task plan is not yet agreed, a BLOCKED milestone, an iteration that changed nothing, --until <milestone>, --max <n>, or an error. Use when the user asks to loop through the milestones, implement and clear in a loop, run all milestones unattended, or keep going through the milestones without them.
+description: Runs /harness:implement over and over, each time in a brand-new background session the user can watch with `claude attach`, so milestones are worked through unattended without the human having to /clear and re-invoke between them. Questions a session needs answered are relayed into this chat and the answer sent back, never left waiting in the session. Stops on all DONE, a question for the user, a milestone whose task plan is not yet agreed, a BLOCKED milestone, an iteration that changed nothing, --until <milestone>, --max <n>, or an error. Use when the user asks to loop through the milestones, implement and clear in a loop, run all milestones unattended, or keep going through the milestones without them.
 ---
 
 Automate the `/clear`-and-re-invoke step that `/harness:implement` asks the human
@@ -69,7 +69,8 @@ because each one *is* that skill, run fresh.
          It waits as long as it takes. Also send a PushNotification, since
          they may not be looking;
        - a "[n] M: A -> B, HEAD x -> y" line: the milestone moved from A to B,
-         and whether a commit was made.
+         and whether a commit was made;
+       - "QUESTION" and the "  | " lines after it: hold them for step 5.
    Do not poll or sleep otherwise. Read only this launch's log, never a session's
    transcript or `claude logs` output — reading them is what the fresh
    sessions exist to avoid.
@@ -77,11 +78,25 @@ because each one *is* that skill, run fresh.
 5. When the monitor exits, read the last line of the log (STOP: ...) and
    report in plain words why it stopped and what the user should do next
    (see the table).
-   Then STOP. Do not re-run the loop, and do not continue the work yourself.
+   IF it stopped on a question (exit 4, the "asked you a question" line):
+       the "  | " lines above it are the question, written to be answered
+       from a phone. Pass it on whole — do not summarise away an option —
+       send a PushNotification, and ask the user for their answer. Do not
+       answer it, recommend an answer, or look anything up to help: the
+       session that asked had the context; this one must not.
+       When they reply, write their words, verbatim, to a new file under
+       this session's scratchpad (or `mktemp`), and go back to step 3 with
+       `--answer-file <that file>` added to the same arguments. A fresh
+       session receives the answer, records it and acts on it.
+   Otherwise STOP. Do not re-run the loop, and do not continue the work
+   yourself.
 ```
 
 | `STOP:` line | Meaning | What to tell the user |
 | --- | --- | --- |
+| a session asked you a question … | A session needs a decision about the work; the question is printed above this line | The question itself, then wait for their answer and relaunch with it (step 5). |
+| --answer-file given, but no question is waiting | Nothing was asked, or it was already answered | Nothing was started. |
+| … did not take up the answer | The session ended with the answer still unread | Pass it on; the `claude attach` command shows why. The answer is still on disk; re-running with `--answer-file` replaces it. |
 | all milestones are DONE and the all-DONE check passed | Every milestone is `DONE`, and the loop ran the final session in which implement checks that and writes its report | Done; `claude attach` on the "final report" session shows the report. Nothing was pushed or merged. |
 | every milestone is DONE but the all-DONE check failed | The milestones say DONE, but the final check rejects the state | Pass on the reasons; the final-report session explains them. Not finished. |
 | another implement-loop … is already running | A loop is already working in this checkout | Nothing was started. Watch or stop the running one. |
@@ -122,4 +137,6 @@ progress — stalling on a denied command is the safety working.
 - Never read a session's transcript or `claude logs` output into context;
   this launch's log is the only thing to read.
 - Never answer a session's permission prompt for the user, or attach to one.
+- Never answer a loop question for the user, or reword their answer. It goes
+  to the session in their words.
 - Never push, merge, or open a pull request.

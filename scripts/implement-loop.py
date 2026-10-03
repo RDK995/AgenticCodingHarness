@@ -8,6 +8,13 @@ permission prompt waits there for the human to answer. Whether to run again is
 decided from repository state alone -- `.harness/state.json` and
 `git rev-parse HEAD` -- never from what the session said.
 
+A session never waits on the human for a question about the work. It is
+started as `/harness:implement unattended`, writes the question to
+`.harness/evidence/implement-loop/question.md` and ends its turn; the loop
+prints the question and stops, so it reaches wherever the loop's output is
+read. `--answer-file` resumes: the human's words go to `answer.md` beside it,
+and a fresh session acts on them before the loop carries on.
+
 When every milestone is DONE the loop runs one more session -- the one in
 which implement runs its all-DONE gate and writes the final report -- then runs
 that gate itself, and succeeds only if it passes. One loop runs per checkout at
@@ -21,6 +28,7 @@ Run from the project root. Exit status:
   1  error: a session could not start or ended without finishing, state could
      not be read, the all-DONE gate failed, or another loop holds this checkout
   2  bad usage
+  4  a session asked the human a question; re-run with --answer-file
 """
 
 from __future__ import annotations
@@ -41,6 +49,7 @@ sys.dont_write_bytecode = True
 EXIT_ALL_DONE = 0
 EXIT_ERROR = 1
 EXIT_STOPPED = 3
+EXIT_QUESTION = 4
 
 # Statuses the implement skill's LOOP acts on for the selected milestone.
 # Anything else (e.g. DEFERRED) has no branch there, so running it would spend
@@ -54,6 +63,9 @@ MILESTONES = Path(".harness/milestones.md")
 REQUIREMENTS = Path(".harness/requirements.md")
 CHECK_STATE = Path(__file__).resolve().parent / "check-state.py"
 LOG_DIR = Path(".harness/evidence/implement-loop")
+QUESTION = LOG_DIR / "question.md"
+ANSWER = LOG_DIR / "answer.md"
+PROMPT = "/harness:implement unattended"
 POLL_SECONDS = float(os.environ.get("HARNESS_LOOP_POLL_SECONDS", "5"))
 # How long a launched session may take to appear in `claude agents`.
 APPEAR_SECONDS = 60
@@ -133,7 +145,7 @@ def command(args: argparse.Namespace, name: str) -> list[str]:
     argv = ["claude", "--bg", "--name", name, "--settings", IN_PLACE, "--permission-mode", args.permission_mode]
     if args.plugin_dir:
         argv += ["--plugin-dir", str(args.plugin_dir)]
-    return argv + ["/harness:implement"]
+    return argv + [PROMPT]
 
 
 class SessionError(Exception):
@@ -187,6 +199,26 @@ def wait_for(name: str, label: str) -> str:
         session = find_session(name)
         if session is None:
             raise SessionError(f"session {session_id} disappeared before it finished")
+
+
+def show_question(root: Path) -> int:
+    """Print the waiting question, line by line, and stop for the human's answer."""
+    print("QUESTION -- the loop needs your answer:", flush=True)
+    for line in (root / QUESTION).read_text().rstrip("\n").splitlines():
+        print(f"  | {line}", flush=True)
+    return stop("a session asked you a question; answer it and re-run with --answer-file", EXIT_QUESTION)
+
+
+def question_or_unread_answer(root: Path, session_id: str) -> int | None:
+    """After a session: stop if it left the answer unread, or asked a question."""
+    if (root / ANSWER).exists():
+        return stop(
+            f"session {session_id} did not take up the answer in {ANSWER} -- claude attach {session_id} to see why",
+            EXIT_ERROR,
+        )
+    if (root / QUESTION).exists():
+        return show_question(root)
+    return None
 
 
 def stop(reason: str, code: int) -> int:
@@ -269,6 +301,18 @@ def run(args: argparse.Namespace) -> int:
     except StateError as error:
         return stop(str(error), EXIT_ERROR)
 
+    answering = args.answer_file is not None
+    if answering:
+        if not (root / QUESTION).exists():
+            return stop(f"--answer-file given, but no question is waiting in {QUESTION}", EXIT_ERROR)
+        try:
+            (root / ANSWER).write_text(args.answer_file.read_text())
+        except OSError as error:
+            return stop(f"cannot read --answer-file: {error}", EXIT_ERROR)
+    elif (root / QUESTION).exists():
+        # Running past an unanswered question would build on a decision nobody made.
+        return show_question(root)
+
     if args.until is not None:
         if args.until not in state["milestones"]:
             return stop(f"--until {args.until} is not a milestone in {STATE}", EXIT_ERROR)
@@ -298,21 +342,29 @@ def run(args: argparse.Namespace) -> int:
             except (SessionError, StateError) as error:
                 return stop(str(error), EXIT_ERROR)
             print(f"[{iteration}] final report written (session {session_id})", flush=True)
+            answering = False
+            asked = question_or_unread_answer(root, session_id)
+            if asked is not None:
+                return asked
             continue
         milestone_id, status = selected
-        if status == "BLOCKED":
+        if answering:
+            # The answer goes to a session whatever the next milestone's status:
+            # it is usually the decision a BLOCKED milestone was waiting for.
+            answering = False
+        elif status == "BLOCKED":
             return stop(f"{milestone_id} is BLOCKED and needs a human decision", EXIT_STOPPED)
-        if status not in RUNNABLE:
+        elif status not in RUNNABLE:
             return stop(
                 f"{milestone_id} has status {status}, which /harness:implement has no step for",
                 EXIT_STOPPED,
             )
-        if status == "TODO" and not plan_agreed(state, milestone_id):
+        elif status == "TODO" and not plan_agreed(state, milestone_id):
             return stop(
                 f"{milestone_id} needs its task plan agreed: run /harness:plan-milestone, then the loop again",
                 EXIT_STOPPED,
             )
-        if args.until == milestone_id:
+        elif args.until == milestone_id:
             return stop(f"reached --until {milestone_id} ({status}); not running it", EXIT_STOPPED)
         if iteration >= args.max:
             return stop(f"reached --max {args.max} iterations; next is {milestone_id} ({status})", EXIT_STOPPED)
@@ -337,6 +389,9 @@ def run(args: argparse.Namespace) -> int:
             f"HEAD {short(head_before)} -> {short(head_after)} (session {session_id})",
             flush=True,
         )
+        asked = question_or_unread_answer(root, session_id)
+        if asked is not None:
+            return asked
         if after_digest == digest and head_after == head_before:
             return stop(
                 f"iteration {iteration} changed neither {STATE} nor HEAD on {milestone_id}; "
@@ -359,6 +414,11 @@ def main() -> int:
         help=f"passed to claude (default {DEFAULT_PERMISSION_MODE})",
     )
     parser.add_argument("--plugin-dir", type=Path, help="passed to claude, so each session loads this harness")
+    parser.add_argument(
+        "--answer-file",
+        type=Path,
+        help="the human's answer to the waiting question; the first session acts on it",
+    )
     args = parser.parse_args()
     if args.max < 1:
         parser.error("--max must be at least 1")

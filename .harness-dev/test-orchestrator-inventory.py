@@ -23,7 +23,8 @@ class OrchestratorInventoryTests(unittest.TestCase):
     def test_behavioral_seams_remain(self):
         for phrase in (
             "You coordinate; you do not implement",
-            "check its size and shape",
+            "Planning phase",
+            "Staying inside the agreed plan",
             "Creating task packets",
             "Delegate navigation",
             "Routing rule",
@@ -38,6 +39,13 @@ class OrchestratorInventoryTests(unittest.TestCase):
             "Human escalation contract",
         ):
             self.assertIn(phrase, self.text)
+
+    def test_size_and_shape_check_lives_with_planning(self):
+        # Moved out of the core when task planning became its own phase: only a
+        # planning phase sizes a milestone, so only it loads the rules.
+        planning = (ROOT / "agents/references/planning.md").read_text()
+        self.assertIn("check its size and shape", planning)
+        self.assertIn("Writing the task plan", planning)
 
     def test_historical_measurement_narrative_is_not_runtime_prompt(self):
         for phrase in ("54% of every tool call", "Across 63 measured", "On a real milestone"):

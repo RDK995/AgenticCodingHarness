@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Primary workflow entry point — reads agreed requirements, plans milestones, and drives each milestone through implementation, testing, and fresh milestone review until its acceptance criteria are proven. Use when the user asks to implement, build, or continue work on agreed requirements via the harness.
+description: Primary workflow entry point — reads agreed requirements, plans milestones, and drives each milestone whose task plan the human has agreed (via plan-milestone) through implementation, testing, and fresh milestone review until its acceptance criteria are proven. Use when the user asks to implement, build, or continue work on agreed requirements via the harness.
 ---
 
 Drive `.harness/requirements.md` to a fully implemented, reviewed, evidence-backed
@@ -100,17 +100,19 @@ LOOP:
         STOP — report the milestone's escalation contract to the human, do not
         skip ahead to a later milestone
 
+    IF its Status is TODO and its plan in state.json is not AGREED:
+        STOP — tell the human the next milestone needs its task plan agreed
+        first: /clear, then run /harness:plan-milestone. Do not plan it here;
+        sizing, splitting and the task breakdown are that skill's, and its
+        output needs a human's agreement this loop cannot give.
+
     IF its Status is TODO or IN_PROGRESS:
         invoke harness:orchestrator for the IMPLEMENTATION phase
-        (recon, size/shape check, task breakdown, routing by tier,
+        (runs the agreed plan's tasks: routing at their planned tier,
         Red→Green→Refactor, focused validation, evidence recording — see
         ${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md for what it does)
 
-        it returns the milestone at REVIEW, or SPLIT, or CONTINUE, or BLOCKED
-
-        IF SPLIT: continue the LOOP — it found the milestone oversized, split
-        it in milestones.md, and implemented nothing. The loop now picks up
-        the first part.
+        it returns the milestone at REVIEW, or CONTINUE, or BLOCKED
 
         IF CONTINUE: the phase is unfinished and the orchestrator handed off
         at its context ceiling, having recorded what it completed in
@@ -267,7 +269,8 @@ LOOP:
 
     IF BLOCKED: STOP — report the escalation contract to the human
     (BLOCKED means it hit the 2-cycle review/fix cap with unresolved
-    BLOCKER/IMPORTANT findings, or needs a human planning decision)
+    BLOCKER/IMPORTANT findings, needs a human planning decision, or found that
+    the agreed task plan cannot deliver the milestone as written)
 
     A successful finalisation stops this invocation. Report its outcome and tell
     the user to /clear and re-invoke this skill for the next milestone. Do not
@@ -374,7 +377,7 @@ record-only correction:
 
 ## Closing the milestone branch
 
-A milestone runs on the branch the implementation phase opened, with every
+A milestone runs on the branch its planning phase opened, with every
 accepted task and correction committed to it. When the milestone reaches `DONE`:
 
 **Commit the milestone record you just updated** — `git add .harness && git

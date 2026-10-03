@@ -19,6 +19,7 @@ STATUSES = {"TODO", "IN_PROGRESS", "REVIEW", "DONE", "BLOCKED", "DEFERRED"}
 CRITERION_STATUSES = {"PENDING", "PASS", "FAIL", "DEFERRED"}
 BLOCKING_SEVERITIES = {"BLOCKER", "IMPORTANT"}
 TIERS = {"Cheap", "Mid", "Top"}
+PLAN_STATUSES = {"DRAFT", "AGREED"}
 
 
 def load(path: Path) -> dict:
@@ -129,6 +130,21 @@ def validate(
             artifact = as_built.get("artifact")
             if artifact and not (state_path.parent.parent / artifact).exists():
                 errors.append(f"{prefix}.as_built names missing artifact {artifact}")
+
+        plan = milestone.get("plan")
+        if plan is not None:
+            if not isinstance(plan, dict):
+                errors.append(f"{prefix}.plan must be an object")
+            else:
+                if plan.get("status") not in PLAN_STATUSES:
+                    errors.append(f"{prefix}.plan.status is invalid: {plan.get('status')!r}")
+                artifact = plan.get("artifact")
+                if not artifact:
+                    errors.append(f"{prefix}.plan names no artifact")
+                elif not (state_path.parent.parent / artifact).exists():
+                    errors.append(f"{prefix}.plan names missing artifact {artifact}")
+                if plan.get("status") == "AGREED" and not milestone.get("tasks"):
+                    errors.append(f"{prefix}.plan is AGREED with no tasks")
 
         for task in milestone.get("tasks", []):
             if not isinstance(task, dict):

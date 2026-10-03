@@ -23,6 +23,47 @@ firing, not a context wall. The fixes are made and unit-tested on
 test is a static assertion over instruction text. They are unproven until a
 milestone runs against them with a long validation suite.
 
+## Out-of-milestone addition — `/harness:plan-milestone` (2026-10-03)
+
+Owner request, on branch `feat/implement-loop`: break per-milestone task planning
+out of the implementation phase into its own skill, with human agreement before
+anything is built (owner chose per-milestone task breakdown, not project
+milestone generation, and chose an approval gate).
+
+- `skills/plan-milestone/SKILL.md` + `references/plan-template.md` — dispatches a
+  new orchestrator **planning phase** (size/shape check, split, branch +
+  Baseline, task breakdown, routing, packets, `.harness/plans/M<n>.md` at DRAFT,
+  returns `PLANNED`/`SPLIT`/`BLOCKED`); presents it in plain words; revisions go
+  back through a fresh planning phase with the human's words verbatim.
+- `scripts/agree-plan.py` — sets AGREED in state (`plan.status`), the plan
+  file and `### Plan` in `milestones.md`; refuses non-TODO / non-DRAFT / missing
+  packet; validates before writing.
+- `scripts/check-state.py` — optional `plan` object: status DRAFT|AGREED, artifact
+  must exist, AGREED needs tasks. Milestones without `plan` stay valid (legacy).
+- `agents/orchestrator.md` — dispatch table gains the planning phase; the
+  implementation phase runs the agreed plan; new "Staying inside the agreed plan"
+  (split/add-for-correctness recorded, anything else → BLOCKED). Size/shape and
+  splitting moved to `agents/references/planning.md` (673 lines, cap 720).
+- `skills/implement/SKILL.md` — TODO milestone without an AGREED plan → STOP,
+  run plan-milestone; SPLIT branch removed. IN_PROGRESS without a plan (older
+  harness) still runs.
+- `scripts/implement-loop.py` — new exit-3 stop "M<n> needs its task plan
+  agreed". Template, examples, README, runtime-contract, plugin.json updated.
+- Fixtures 02/05/06/14 commands now agree the plan with `agree-plan.py` standing
+  in for the human. **Not re-run live** — follow-up.
+
+Validation: `for f in .harness-dev/test-*.py; do python3 $f; done` → all 15 OK,
+including new `test-plan-agreement.py` (11 tests) and 4 new loop tests
+(`test-implement-loop.py`, 28 tests).
+
+Decision (owner, 2026-10-03): the loop never writes a plan; planning is only
+ever done by `/harness:plan-milestone`, one milestone at a time. The loop
+stopping at an unplanned milestone is intended. Planning in the launcher chat
+and planning every milestone up front were both considered and rejected.
+
+Open: permission prompts inside loop sessions can only be answered from a
+terminal (`claude attach`), not from a phone. Not yet decided.
+
 ## Out-of-milestone addition — `/harness:implement-loop` (2026-10-02)
 
 Owner request, on branch `feat/implement-loop`. Automates the `/clear`-and-re-invoke

@@ -125,6 +125,7 @@ difference is not about size of output.
 | `as-built` | **Cheap** | Draws what one milestone actually built. It issues no verdict, names no severity and suggests no correction; its only write is one file under `.harness/as-built/`, which the milestone reviewer grades. |
 | `reviewer` | **Derived from current diff** | The independent milestone gate runs at `sonnet` by default and `opus` when the current substantive diff contains Opus-routed, architecture, security or difficult-concurrency work. A later correction review does not inherit an earlier diff's tier. Record-only corrections invoke no semantic reviewer. |
 | `roast-requirements`, `architect`, `scope-mvp` | **High** | Their entire value is asking the question nobody had considered — the capability weaker models lack most. `scope-mvp` sits with them because deciding which single outcome is worth shipping first, and what a product can ship without, is the same judgement applied to scope. |
+| `plan-milestone` | **Inherits the session's** | Dispatches the orchestrator's planning phase, which carries the orchestrator's tier, and presents the result. What it adds is the human's agreement, recorded mechanically by `scripts/agree-plan.py`; it judges nothing a weaker tier could get wrong. |
 | `implement-loop` | **None of its own** | A launcher: it starts fresh `/harness:implement` sessions and stops on structured state, never on a model's judgement. Each session it starts carries implement's own tiering. |
 
 A weak reviewer does not fail loudly; it emits a confident, well-formatted,

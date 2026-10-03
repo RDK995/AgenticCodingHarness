@@ -11,6 +11,7 @@
       "status": "TODO",
       "review_cycles": 0,
       "review_override": null,
+      "plan": null,
       "baseline": {
         "commit": "",
         "branch": ""

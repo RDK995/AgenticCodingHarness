@@ -22,11 +22,16 @@ git init -q && git add -A && git commit -qm baseline
 # One invocation per phase, as skills/implement/SKILL.md drives them. The
 # orchestrator returns at a phase boundary, so a single invocation cannot reach
 # a review cycle — drive it until the milestone settles.
-for phase in 1 2 3 4 5; do
+# The first phase plans the milestone; agree-plan.py stands in for the human
+# agreeing it through /harness:plan-milestone, and refuses (harmlessly) once
+# the plan is no longer a DRAFT.
+for phase in 1 2 3 4 5 6; do
   claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
     --allowedTools "Read Write Edit Bash Grep Glob Task Agent" \
     --agent harness:orchestrator \
     -p "Run the next phase of milestone M1, per its Status in .harness/milestones.md."
+  python3 /path/to/this/repo/scripts/agree-plan.py .harness/state.json M1 \
+    --milestones .harness/milestones.md 2>/dev/null || true
   grep -qE '^Status: (DONE|BLOCKED)' .harness/milestones.md && break
 done
 ```

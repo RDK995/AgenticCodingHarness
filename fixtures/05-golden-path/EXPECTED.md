@@ -18,9 +18,18 @@ git init -q && git add -A && git commit -qm baseline
 ## Command
 
 ```bash
-claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
-  --allowedTools "Read Write Edit Bash Grep Glob Task Agent" \
-  -p "/harness:implement"
+run() { claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
+  --allowedTools "Read Write Edit Bash Grep Glob Task Agent" -p "$1"; }
+run "/harness:implement"          # writes the milestones, stops at the plan gate
+run "/harness:plan-milestone"     # writes M1's task plan at DRAFT
+# Stands in for the human agreeing the plan in that session.
+python3 /path/to/this/repo/scripts/agree-plan.py .harness/state.json M1 \
+  --milestones .harness/milestones.md --requirements .harness/requirements.md
+git add .harness && git commit -qm "M1: task plan agreed"
+for phase in 1 2 3 4 5; do
+  run "/harness:implement"
+  grep -qE '^Status: (DONE|BLOCKED)' .harness/milestones.md && break
+done
 ```
 
 ## Expected outcome
@@ -38,8 +47,14 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
   has more than one entry, and `git diff <baseline> HEAD` is the whole
   milestone. **The default branch has no new commits, no remote was contacted,
   and no branch was merged or deleted.** This fixture is the only one that
-  exercises the implementation phase from nothing, so it is the only place the
-  branch is actually opened.
+  exercises a milestone from nothing, so it is the only place the branch is
+  actually opened — by the planning phase, so the plan's commits sit on it too.
+- **Task plan.** `.harness/plans/M1.md` exists, follows
+  `skills/plan-milestone/references/plan-template.md`, and reads `Status:
+  AGREED`; `state.json` records `plan.status` `AGREED`; every task in it names a
+  packet under `.harness/tasks/` that exists, and every acceptance criterion is
+  covered by at least one task. The first `/harness:implement` stopped at the
+  plan gate without routing anything.
 - **Every commit contains only what belongs in it**, because commits are staged
   by path rather than with `git add -A`. This repository has no `.gitignore`, so
   running the suite leaves an untracked `__pycache__/` — **it must still be
@@ -62,9 +77,13 @@ claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
 ## Failure modes worth recognising
 
 - **Skipping `agents/references/planning.md`.** Both the generation invocation and
-  the implementation phase must read it; the size/shape check they run is in
-  `orchestrator.md` itself, so a phase that skipped the reference can still
-  produce a plausible check. Verify from the transcript, not the report.
+  the planning phase must read it — the size/shape check and the plan format are
+  only there — and the implementation phase must not. Verify from the
+  transcript, not the report.
+- **Re-planning during implementation.** The implementation phase routes the
+  agreed plan's tasks at their planned tiers; a task added, dropped or re-routed
+  below its tier without a line under `## Changes during implementation` is the
+  agreed plan quietly replaced.
 - Reporting success while `milestones.md` is still `TODO`, or while `Evidence` and
   `Validation` are empty — a claim without the evidence the gate requires.
 - Demanding an `architecture.md` that this fixture deliberately does not have.

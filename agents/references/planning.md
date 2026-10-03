@@ -1,11 +1,11 @@
 # Planning a milestone
 
-Read this on an **implementation phase**, before you break anything into tasks.
-A fix cycle never needs it: the milestones exist by then, and the one in front of
-it has already been picked up and sized.
+Read this on a **planning phase**, or when generating milestones. An
+implementation phase never needs it — it runs a plan a human already agreed —
+and neither does a fix cycle.
 
-Reconnaissance and the size/shape check run every implementation phase.
-"Generating milestones" runs once per project — only when
+Reconnaissance and the size/shape check run on every milestone's first planning
+phase. "Generating milestones" runs once per project — only when
 `.harness/milestones.md` does not exist yet.
 
 ## Repository reconnaissance
@@ -146,3 +146,133 @@ on its own, the seam is in the wrong place.
 Milestones should still be meaningful outcomes rather than microtasks — but
 "a small number of milestones" is not itself a goal, and buying fewer milestones
 by making each one larger costs far more than it saves.
+
+## When you pick up a milestone: check its size and shape
+
+The budget and the slice rule above are applied when milestones are *generated*.
+A milestone you are picking up may have been planned before those rules existed,
+or by a run that got them wrong. Check it now, before you break it into tasks —
+the alternative is discovering it at turn 250, which is exactly what the budget
+exists to prevent.
+
+This is a **planning-phase** check, run on the first planning phase of a
+milestone that has not started: `Status: TODO`, with no `Baseline` and an empty
+`Evidence`. Never split a
+milestone that is already `IN_PROGRESS` with work recorded against it, and never
+during a review/fix cycle — the diff, the review and the criteria would no longer
+describe the same thing. An oversized milestone discovered mid-flight is a
+`Follow-ups` note, not a split.
+
+Three checks, against the milestone you are about to run, before acceptance work
+or task packets are created:
+
+**Size.** Count its acceptance criteria.
+
+```
+1-5    run it
+6-7    run it; note the size under Follow-ups
+8+     split it before running anything
+```
+
+**Shape.** Does at least one acceptance criterion exercise the behaviour through
+a real entry point — a CLI invocation, an HTTP request, a public API call? If the
+only way to demonstrate the milestone is a unit test of an internal component, it
+is a component milestone, and "Slice thin, end to end" above says it must be
+re-cut. A milestone whose `Architecture` field names exactly one component is the
+usual symptom, not the proof; read the criteria.
+
+**Operational complexity.** From lightweight reconnaissance, count these named
+signals:
+
+- `SUBSYSTEMS_GT_3`: more than three affected subsystems;
+- `CONCURRENCY_LIFECYCLE`: concurrency or lifecycle ownership changes;
+- `IMPLEMENTATION_PLUS_LIVE_PROOF`: implementation and live-environment proof;
+- `PRODUCTION_FILES_GT_8`: more than roughly eight expected production files;
+- `WORKER_TASKS_GT_6`: more than six anticipated worker tasks;
+- `MULTIPLE_OUTCOMES`: multiple independently demonstrable outcomes.
+
+One signal requires an explicit seam check. Two or more require a split, as does
+the combination of `CONCURRENCY_LIFECYCLE` and
+`IMPLEMENTATION_PLUS_LIVE_PROOF`. A small coherent cross-file change with no
+signal is not split merely because it touches several files. Record the signal
+names in structured state and in the first child milestone's outcome.
+
+### Splitting a milestone you did not plan
+
+Split it in `.harness/state.json` and `.harness/milestones.md`, validate that the
+two agree, then **return `SPLIT` without planning any part**. The
+`plan-milestone` skill dispatches a fresh planning phase for the first part.
+Splitting is cheap and planning a part costs a context of its own; do not spend
+the context you just saved by carrying on into it.
+
+Rules for the split:
+
+- **Suffix, do not renumber.** `M6` becomes `M6a`, `M6b`, `M6c`. Renumbering
+  every later milestone invalidates every reference to them — in the archive, in
+  commit messages, in the architecture file, and in whatever the human remembers.
+- **Conserve the criteria exactly.** Every acceptance criterion from the original
+  appears in exactly one part, unchanged in wording. None added, none dropped,
+  none reworded. Count them before and after and confirm the totals match.
+- **Split on the outcome, not the checklist** — the rule in "How big is a
+  milestone" applies unchanged. Each part must be independently implementable,
+  testable and reviewable. If a part cannot be reviewed on its own, the seam is
+  in the wrong place.
+- **Each part gets every template heading**, an `### Outcome` of its own, and its
+  own `### Architecture` field. Carry the original's `### Follow-ups` to the part
+  they belong to.
+- **Record that you split it, and why**, in the first part's `### Outcome` and
+  structured state — one sentence naming the original milestone and every named
+  criterion-count or operational-complexity signal that triggered it.
+  A human reading the file later should not have to work out where `M6a` came
+  from.
+- Say in your return that you split rather than planned, and what the parts
+  are.
+
+A milestone that fails the **shape** check is a re-cut, not a split: its criteria
+have to be reorganised into slices rather than dealt into piles, and that may
+change their wording. That is a planning decision with no obviously correct
+answer, so do not do it silently — set the milestone `BLOCKED`, record the
+problem through the Human Escalation Contract in
+`${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md` with a proposed re-cut, and let a
+human agree it.
+
+## Writing the task plan
+
+The plan is what a human reads to agree the milestone before any of it runs. It
+is written for them, not for you: what will be built, in what order, by which
+tier and why, and what could go wrong — in plain words a busy person can judge
+without opening the code.
+
+After the size and shape check passes and the milestone branch is open (see "Git
+discipline in the target repository" in
+`${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md`):
+
+1. Break the milestone into tasks — normally 3-6; more than six is the
+   `WORKER_TASKS_GT_6` signal and should have been caught above. Each task is
+   independently verifiable and names the acceptance criteria it advances.
+   Every criterion is advanced by at least one task.
+2. Route each task by the Routing rule in
+   `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md`, now rather than at dispatch:
+   the tier and its reason are part of what the human agrees.
+3. Write each task packet to `.harness/tasks/<milestone>-<task>.md`, and record
+   each task in `.harness/state.json` with its `id`, `scope`, `routing` and
+   `artifact` (the packet path).
+4. Write `.harness/plans/<milestone>.md` using exactly
+   `${CLAUDE_PLUGIN_ROOT}/skills/plan-milestone/references/plan-template.md`,
+   at `Status: DRAFT`. Set the milestone's `plan` in structured state to
+   `{"status": "DRAFT", "artifact": ".harness/plans/<milestone>.md"}` and its
+   `### Plan` field in `milestones.md` to `<that path> — DRAFT`.
+5. Run `check-state.py`, commit the explicit `.harness/` paths as
+   `M<n>: task plan (draft)`, and return `PLANNED` with the plan path.
+
+**A revision** arrives with the plan path and the human's requested changes,
+verbatim. Apply them to the plan, the packets and structured state together, so
+the three never describe different work; record nothing under `## Changes during
+implementation`, which is for after agreement. If a requested change would split
+the milestone, split it as above: the first part keeps the branch and
+`Baseline`, and gets the revised plan. If a request contradicts a requirement or
+acceptance criterion, do not apply it — say so in your return, so the human can
+change the requirement through `roast-requirements` instead.
+
+**Never set the plan to `AGREED`.** Only a human agrees a plan, through the
+`plan-milestone` skill.

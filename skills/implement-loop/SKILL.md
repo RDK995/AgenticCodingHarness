@@ -1,6 +1,6 @@
 ---
 name: implement-loop
-description: Runs /harness:implement over and over, each time in a brand-new background session the user can watch with `claude attach`, so milestones are worked through unattended without the human having to /clear and re-invoke between them. Stops on all DONE, a BLOCKED milestone, an iteration that changed nothing, --until <milestone>, --max <n>, or an error. Use when the user asks to loop through the milestones, implement and clear in a loop, run all milestones unattended, or keep going through the milestones without them.
+description: Runs /harness:implement over and over, each time in a brand-new background session the user can watch with `claude attach`, so milestones are worked through unattended without the human having to /clear and re-invoke between them. Stops on all DONE, a milestone whose task plan is not yet agreed, a BLOCKED milestone, an iteration that changed nothing, --until <milestone>, --max <n>, or an error. Use when the user asks to loop through the milestones, implement and clear in a loop, run all milestones unattended, or keep going through the milestones without them.
 ---
 
 Automate the `/clear`-and-re-invoke step that `/harness:implement` asks the human
@@ -85,6 +85,7 @@ because each one *is* that skill, run fresh.
 | all milestones are DONE and the all-DONE check passed | Every milestone is `DONE`, and the loop ran the final session in which implement checks that and writes its report | Done; `claude attach` on the "final report" session shows the report. Nothing was pushed or merged. |
 | every milestone is DONE but the all-DONE check failed | The milestones say DONE, but the final check rejects the state | Pass on the reasons; the final-report session explains them. Not finished. |
 | another implement-loop … is already running | A loop is already working in this checkout | Nothing was started. Watch or stop the running one. |
+| … needs its task plan agreed | The next milestone has not been planned, or its plan is still a draft | Run `/harness:plan-milestone`, agree the plan, then run the loop again. |
 | … is BLOCKED | A milestone needs a human decision | Open `.harness/milestones.md` for that milestone's escalation, decide, then re-run. |
 | changed neither … nor HEAD | A session finished without moving anything | The milestone is waiting on something only a person can do (e.g. a live check), or a permission was refused. The line gives the `claude attach` command that shows which. |
 | reached --until / --max | The limit the user set was reached | Re-run to continue. |

@@ -36,13 +36,20 @@ No database, MCP server, or other external runtime is required.
    they actually wanted, asks you whatever the documents can't answer, and
    records what was deferred and the order it comes back in. Skip it when the
    scope is already minimal, or when nothing short of all of it is usable.
-5. Run implementation: `/harness:implement`
-6. The harness works through milestones on its own — planning them if
-   `.harness/milestones.md` doesn't exist yet, then implementing, testing, and
-   getting each one fresh-reviewed. It stops at each milestone boundary and asks
-   you to `/clear` and re-invoke; `/harness:implement-loop` does that for you
-   (see [Running milestones unattended](#running-milestones-unattended))
-7. When every milestone is `DONE`, the harness mechanically confirms requirement
+5. Run implementation: `/harness:implement`. The first run splits the
+   requirements into milestones (`.harness/milestones.md`), then stops: each
+   milestone's work is planned and agreed before any of it is built.
+6. Plan the next milestone: `/harness:plan-milestone`. It checks the
+   milestone's size (splitting it if it is too big), breaks it into tasks,
+   picks which model tier runs each and why, and walks you through the plan.
+   Ask for changes as often as you like; it records the plan as agreed
+   (`.harness/plans/M<n>.md`) only when you say so.
+7. `/clear`, then `/harness:implement` builds that milestone — implementing,
+   testing, and getting it fresh-reviewed. It stops at each milestone boundary
+   and asks you to `/clear` and re-invoke; `/harness:implement-loop` does that
+   for you (see [Running milestones unattended](#running-milestones-unattended)).
+   Repeat from step 6 for each milestone.
+8. When every milestone is `DONE`, the harness mechanically confirms requirement
    ownership and reports the completed milestones, evidence and follow-ups. It
    does not run an additional project-wide review.
 
@@ -84,6 +91,7 @@ advance only one phase of a milestone; the loop just re-invokes. It stops when:
 | --- | --- |
 | every milestone is `DONE`, after one more session in which implement runs its all-DONE check and writes the final report, and that check passes | 0 |
 | the next milestone (first not `DONE`, as `/harness:implement` picks it) is `BLOCKED`, or has a status implement has no step for | 3 |
+| the next milestone is `TODO` and its task plan is not agreed — run `/harness:plan-milestone`, then the loop again | 3 |
 | an iteration changed neither `state.json` nor `HEAD` — e.g. it is waiting on a human live check | 3 |
 | `--until <id>`: that milestone became the next one (it is not run) | 3 |
 | `--max <n>` iterations ran (default 10) | 3 |
@@ -140,7 +148,7 @@ merge, reviewer independence — still hold, because each iteration is an ordina
 ## What it does to your repository
 
 Each milestone runs on its own branch — `m<n>-<slug>`, created when the
-milestone opens, off whatever `HEAD` was — and every task the harness accepts is
+milestone's task plan is first written, off whatever `HEAD` was — and every task the harness accepts is
 committed to it. Uncommitted work already in your tree comes across to that
 branch and is committed there first, as its own commit, so the branch you were
 on is left exactly as you found it. The result is that a milestone's diff is
@@ -167,6 +175,7 @@ compact Markdown views for people:
 .harness/mvp.md            (only if you carved an MVP)
 .harness/full/             (only if you carved an MVP — the unedited full scope)
 .harness/as-built/         (new projects only — one file per milestone)
+.harness/plans/            (one agreed task plan per milestone)
 .harness/tasks/            (task packets for a milestone in flight — scratch, not status)
 .harness/reviews/          (review reports a fix cycle is answering — scratch, not status)
 .harness/evidence/         (validation artifacts keyed by task/milestone and commit)

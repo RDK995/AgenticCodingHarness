@@ -150,11 +150,20 @@ class ImplementLoopTests(unittest.TestCase):
             ["git", *args], cwd=self.project, check=True, text=True, capture_output=True
         ).stdout.strip()
 
-    def seed(self, statuses, current=None):
+    def seed(self, statuses, current=None, plans=None):
+        # Every milestone carries an agreed plan unless `plans` says otherwise;
+        # a plan of None means the milestone has never been planned.
+        plans = plans or {}
+        milestones = {}
+        for key, value in statuses.items():
+            plan = plans.get(key, "AGREED")
+            milestones[key] = {"status": value}
+            if plan is not None:
+                milestones[key]["plan"] = {"status": plan, "artifact": f".harness/plans/{key}.md"}
         state = {
             "schema_version": 1,
             "current_milestone": current,
-            "milestones": {key: {"status": value} for key, value in statuses.items()},
+            "milestones": milestones,
         }
         (self.project / ".harness" / "state.json").write_text(json.dumps(state, indent=2))
         self.git("add", "-A")
@@ -223,6 +232,43 @@ class ImplementLoopTests(unittest.TestCase):
                 "--all-done",
             ],
         )
+
+    def test_unplanned_todo_milestone_stops_before_any_session(self):
+        self.seed({"M1": "TODO"}, plans={"M1": None})
+        completed = self.run_loop([{"set": {"M1": "REVIEW"}, "commit": True}])
+        self.assertEqual(completed.returncode, 3, completed.stdout + completed.stderr)
+        self.assertEqual(self.call_count(), 0)
+        self.assertEqual(
+            completed.stdout.splitlines()[-1],
+            "STOP: M1 needs its task plan agreed: run /harness:plan-milestone, then the loop again",
+        )
+
+    def test_draft_plan_is_not_agreed(self):
+        self.seed({"M1": "TODO"}, plans={"M1": "DRAFT"})
+        completed = self.run_loop([{"set": {"M1": "REVIEW"}, "commit": True}])
+        self.assertEqual(completed.returncode, 3)
+        self.assertEqual(self.call_count(), 0)
+        self.assertIn("M1 needs its task plan agreed", completed.stdout)
+
+    def test_stops_at_the_next_milestone_that_needs_a_plan(self):
+        self.seed({"M1": "TODO", "M2": "TODO"}, plans={"M2": None})
+        completed = self.run_loop(
+            [
+                {"set": {"M1": "REVIEW"}, "commit": True},
+                {"set": {"M1": "DONE"}, "commit": True},
+                {"set": {"M2": "DONE"}, "commit": True},
+            ]
+        )
+        self.assertEqual(completed.returncode, 3, completed.stdout + completed.stderr)
+        self.assertEqual(self.call_count(), 2)
+        self.assertEqual(self.statuses(), {"M1": "DONE", "M2": "TODO"})
+        self.assertIn("M2 needs its task plan agreed", completed.stdout.splitlines()[-1])
+
+    def test_in_progress_milestone_from_an_older_harness_runs_without_a_plan(self):
+        self.seed({"M1": "IN_PROGRESS"}, plans={"M1": None})
+        completed = self.run_loop([{"set": {"M1": "DONE"}, "commit": True}])
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertEqual(self.statuses(), {"M1": "DONE"})
 
     def test_already_done_runs_only_the_final_report(self):
         self.seed({"M1": "DONE"})

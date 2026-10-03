@@ -16,7 +16,8 @@ a time: a second exits at once.
 Run from the project root. Exit status:
   0  every milestone is DONE and the all-DONE gate passes
   3  stopped by a condition: a BLOCKED milestone, a status the implement skill
-     has no branch for, no progress, --until reached, or --max reached
+     has no branch for, a TODO milestone without an agreed task plan, no
+     progress, --until reached, or --max reached
   1  error: a session could not start or ended without finishing, state could
      not be read, the all-DONE gate failed, or another loop holds this checkout
   2  bad usage
@@ -89,6 +90,12 @@ def status_of(state: dict, milestone_id: str) -> str:
     if not isinstance(milestone, dict):
         return "absent"
     return str(milestone.get("status"))
+
+
+def plan_agreed(state: dict, milestone_id: str) -> bool:
+    """Mirror the implement skill's gate: a TODO milestone runs only on an AGREED plan."""
+    plan = state["milestones"][milestone_id].get("plan")
+    return isinstance(plan, dict) and plan.get("status") == "AGREED"
 
 
 def head(root: Path) -> str | None:
@@ -298,6 +305,11 @@ def run(args: argparse.Namespace) -> int:
         if status not in RUNNABLE:
             return stop(
                 f"{milestone_id} has status {status}, which /harness:implement has no step for",
+                EXIT_STOPPED,
+            )
+        if status == "TODO" and not plan_agreed(state, milestone_id):
+            return stop(
+                f"{milestone_id} needs its task plan agreed: run /harness:plan-milestone, then the loop again",
                 EXIT_STOPPED,
             )
         if args.until == milestone_id:

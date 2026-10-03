@@ -18,6 +18,10 @@ N/A
 - [x] divide(6, 2) returns 3.0
 - [x] divide(1, 0) raises an error
 
+### Plan
+
+`.harness/plans/M1.md` — AGREED
+
 ### Baseline
 
 `a1b2c3d` on `m1-divide-safely`

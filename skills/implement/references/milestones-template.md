@@ -18,6 +18,8 @@ Status: TODO
 ### Acceptance Criteria
 - [ ]
 
+### Plan
+
 ### Baseline
 
 ### Evidence
@@ -131,8 +133,8 @@ carry every template heading — the remaining headings are in its archive file.
   is the only record from which a human can see routing drifting upward over time.
 - `### Baseline` records the commit the milestone started from, and the milestone
   branch it opened (e.g. `8b81cf1 on m0-implementation`). The orchestrator writes
-  it as its first act on the implementation phase, after creating that branch and
-  committing anything the tree already carried. A later phase runs in a fresh
+  it as its first act on the milestone's first planning phase, after creating
+  that branch and committing anything the tree already carried. A later phase runs in a fresh
   context and computes the milestone's diff from it, so a milestone past `TODO`
   without a baseline cannot be reviewed. Every accepted task is committed to the
   branch, so the milestone's diff is `git diff <baseline> HEAD` and nothing else;
@@ -161,6 +163,12 @@ carry every template heading — the remaining headings are in its archive file.
   written once, after the milestone reaches `DONE`. **A path, never a diagram** —
   the picture lives in the file, and copying it here would make every later
   session pay to read it. Write `N/A` when the project has no `architecture.md`.
+- `### Plan` holds the path to this milestone's task plan and its status (e.g.
+  `` `.harness/plans/M2.md` — AGREED ``), mirroring `plan` in
+  `.harness/state.json`. Empty until the `plan-milestone` skill's planning phase
+  writes the plan at `DRAFT`; only `scripts/agree-plan.py`, run when a human
+  agrees it, sets `AGREED`. `/harness:implement` does not start a `TODO`
+  milestone whose plan is not `AGREED`.
 - `### Architecture` lists the component ids from `.harness/architecture.md`
   that this milestone realises (e.g. `C1, C3`). Write `N/A` when the project has
   no `architecture.md` — the field is always present so there is only ever one

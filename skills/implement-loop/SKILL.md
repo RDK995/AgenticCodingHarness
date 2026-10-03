@@ -100,7 +100,7 @@ because each one *is* that skill, run fresh.
 | all milestones are DONE and the all-DONE check passed | Every milestone is `DONE`, and the loop ran the final session in which implement checks that and writes its report | Done; `claude attach` on the "final report" session shows the report. Nothing was pushed or merged. |
 | every milestone is DONE but the all-DONE check failed | The milestones say DONE, but the final check rejects the state | Pass on the reasons; the final-report session explains them. Not finished. |
 | another implement-loop … is already running | A loop is already working in this checkout | Nothing was started. Watch or stop the running one. |
-| … needs its task plan agreed | The next milestone has not been planned, or its plan is still a draft | Run `/harness:plan-milestone`, agree the plan, then run the loop again. |
+| … needs its task plan agreed | The loop has run out of agreed plans: the next milestone has none, or only a draft | Run `/harness:plan-milestone` to plan and agree the coming milestones, then run the loop again. |
 | … is BLOCKED | A milestone needs a human decision | Open `.harness/milestones.md` for that milestone's escalation, decide, then re-run. |
 | changed neither … nor HEAD | A session finished without moving anything | The milestone is waiting on something only a person can do (e.g. a live check), or a permission was refused. The line gives the `claude attach` command that shows which. |
 | reached --until / --max | The limit the user set was reached | Re-run to continue. |

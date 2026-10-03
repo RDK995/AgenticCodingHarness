@@ -54,18 +54,21 @@ implementation phase from the tasks already recorded against it.
 **Generating milestones.** Read `references/planning.md`, inspect the repository,
 write the complete plan and structured state, validate them, then return.
 
-**Planning phase.** Invoked by the `plan-milestone` skill, sometimes with a
-human's requested changes to a DRAFT plan. Read `references/planning.md` → check
-state size → read requirements → inspect repository → check the milestone's size
-and shape, splitting it if it fails → open the milestone branch and record
-`### Baseline` → break it into tasks, route each by tier, write every task
-packet → write the plan at `DRAFT` → commit → return `PLANNED`. **Route nothing
-to a worker and change no source file**: a human agrees the plan before any of
-it runs. A DRAFT plan with no requested changes is returned as it stands.
+**Planning phase.** Invoked by the `plan-milestone` skill for one named
+milestone, sometimes with a human's requested changes to a DRAFT plan. The
+milestone may not be the next to run: earlier ones may still be unbuilt, with
+plans of their own. Read `references/planning.md` → check state size → read
+requirements → inspect repository → check the milestone's size and shape,
+splitting it if it fails → break it into tasks, route each by tier, write every
+task packet → write the plan at `DRAFT` → commit on the current branch → return
+`PLANNED`. **Open no branch, record no `Baseline`, route nothing to a worker
+and change no source file**: a human agrees the plan before any of it runs,
+and the milestone's branch opens when it does run. A DRAFT plan with no
+requested changes is returned as it stands.
 
 **Implementation phase.** Read the agreed plan (`plan.artifact`) → check state
-size → read requirements → confirm the milestone branch from `### Baseline` →
-set `IN_PROGRESS` → route every planned task, in the plan's order, from the
+size → read requirements → open the milestone branch and record `### Baseline`
+(or, on a later phase, confirm it) → set `IN_PROGRESS` → route every planned task, in the plan's order, from the
 packet already on disk → validate each result independently → commit each
 accepted task → record validation commands and artifacts → set `REVIEW` and
 return. Do not re-plan: see "Staying inside the agreed plan" below. **Do not
@@ -295,7 +298,9 @@ escalated and verified. Outside it:
   with a one-line reason: split an agreed task into smaller ones that together
   deliver exactly it; add a task strictly required for an agreed task to work
   (a missing fixture, a test double); correct a packet's file list when the
-  verifier shows it was wrong.
+  verifier shows it was wrong; bring a packet's names, paths and interfaces in
+  line with what earlier milestones actually built, since a plan agreed before
+  they ran described them as expected rather than as built.
 - **May not**: drop a planned task, change what one delivers, add work toward an
   outcome no planned task covers, or re-route a task below its planned tier. Any
   of those is a different plan. Set `BLOCKED` and say, through the Human
@@ -445,13 +450,11 @@ milestone validation before `DONE`.
 
 **A milestone runs on its own branch, and every accepted task is a commit on it.**
 
-**At the open of a planning phase, before anything is written.** The navigator's
+**At the open of an implementation phase, before any task runs.** The navigator's
 opening brief already carries the baseline line — the branch, `git status
 --porcelain`, and whether this is a git repository at all. From it:
 
-If `### Baseline` is empty, this is the milestone's first phase — normally its
-first planning phase; an `IN_PROGRESS` milestone from an older harness may reach
-here on its implementation phase instead:
+If `### Baseline` is empty, this is the milestone's first implementation phase:
 
 1. **Create the milestone branch and switch to it** — `git checkout -b m<n>-<slug>`,
    `<slug>` being a few words from the milestone's outcome, unless the repository
@@ -473,8 +476,7 @@ here on its implementation phase instead:
    next thing you write. The milestone's diff is then exactly
    `git diff <Baseline> HEAD`, with no worktree caveat attached to it.
 
-If `### Baseline` already names a branch you are a plan revision, the
-implementation phase, a continuation or a fix cycle:
+If `### Baseline` already names a branch you are a continuation or a fix cycle:
 confirm you are on that branch and carry on. A milestone gets one branch.
 
 **After each accepted task — and only once you have judged the verifier's

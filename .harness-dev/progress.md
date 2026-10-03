@@ -57,9 +57,22 @@ including new `test-plan-agreement.py` (11 tests) and 4 new loop tests
 (`test-implement-loop.py`, 28 tests).
 
 Decision (owner, 2026-10-03): the loop never writes a plan; planning is only
-ever done by `/harness:plan-milestone`, one milestone at a time. The loop
-stopping at an unplanned milestone is intended. Planning in the launcher chat
-and planning every milestone up front were both considered and rejected.
+ever done by `/harness:plan-milestone`. Planning in the launcher chat was
+rejected.
+
+Revised (owner, later 2026-10-03): plan-milestone plans **several** milestones
+in one sitting (all remaining TODO by default; `--until`/`--next`), each by a
+fresh orchestrator in order, later plans written against earlier ones; the
+human agrees them together so the loop runs through them. Consequences:
+- the milestone branch and `Baseline` move back to the first implementation
+  phase (a branch opened at planning time would start before the earlier
+  milestones' code); plans are committed on a `harness-plans-<first>-<last>`
+  branch the skill opens, never on the human's branch;
+- the implementation phase may bring a packet's names/paths/interfaces in
+  line with what earlier milestones actually built (recorded in the plan);
+- `agree-plan.py` takes several ids, all-or-nothing, and refuses to agree a
+  plan while an earlier TODO milestone's plan is unagreed.
+Validation: `test-plan-agreement.py` 15 OK (4 new).
 
 Permission prompts inside loop sessions are answered via `claude attach`; owner
 decided (2026-10-03) this is fine as it is — no permission-mode change.

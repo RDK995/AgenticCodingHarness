@@ -39,16 +39,19 @@ No database, MCP server, or other external runtime is required.
 5. Run implementation: `/harness:implement`. The first run splits the
    requirements into milestones (`.harness/milestones.md`), then stops: each
    milestone's work is planned and agreed before any of it is built.
-6. Plan the next milestone: `/harness:plan-milestone`. It checks the
-   milestone's size (splitting it if it is too big), breaks it into tasks,
-   picks which model tier runs each and why, and walks you through the plan.
-   Ask for changes as often as you like; it records the plan as agreed
-   (`.harness/plans/M<n>.md`) only when you say so.
-7. `/clear`, then `/harness:implement` builds that milestone — implementing,
-   testing, and getting it fresh-reviewed. It stops at each milestone boundary
-   and asks you to `/clear` and re-invoke; `/harness:implement-loop` does that
-   for you (see [Running milestones unattended](#running-milestones-unattended)).
-   Repeat from step 6 for each milestone.
+6. Plan the coming milestones: `/harness:plan-milestone` (all remaining by
+   default; `--until <id>` or `--next <n>` for fewer). For each, in order, it
+   checks the size (splitting it if it is too big), breaks it into tasks, and
+   picks which model tier runs each and why — later plans written against the
+   earlier ones. Then it walks you through them together. Ask for changes as
+   often as you like; it records plans as agreed (`.harness/plans/M<n>.md`)
+   only when you say so, on a `harness-plans-*` branch rather than yours.
+7. `/clear`, then `/harness:implement-loop` builds the agreed milestones one
+   after another — implementing, testing, and getting each fresh-reviewed — and
+   stops at the first without an agreed plan (see [Running milestones
+   unattended](#running-milestones-unattended)). `/harness:implement` does one
+   milestone phase at a time if you'd rather drive it yourself. Repeat from
+   step 6 when it runs out of plans.
 8. When every milestone is `DONE`, the harness mechanically confirms requirement
    ownership and reports the completed milestones, evidence and follow-ups. It
    does not run an additional project-wide review.
@@ -157,7 +160,7 @@ merge, reviewer independence — still hold, because each iteration is an ordina
 ## What it does to your repository
 
 Each milestone runs on its own branch — `m<n>-<slug>`, created when the
-milestone's task plan is first written, off whatever `HEAD` was — and every task the harness accepts is
+milestone opens, off whatever `HEAD` was — and every task the harness accepts is
 committed to it. Uncommitted work already in your tree comes across to that
 branch and is committed there first, as its own commit, so the branch you were
 on is left exactly as you found it. The result is that a milestone's diff is

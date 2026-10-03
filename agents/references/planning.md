@@ -243,9 +243,15 @@ is written for them, not for you: what will be built, in what order, by which
 tier and why, and what could go wrong — in plain words a busy person can judge
 without opening the code.
 
-After the size and shape check passes and the milestone branch is open (see "Git
-discipline in the target repository" in
-`${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md`):
+**Plan against what will exist, not only what does.** The skill plans several
+milestones in a row before any of them runs, so the one in front of you may
+build on milestones that are planned but not yet built. Read their plans (and
+only the packets your tasks depend on) for the names, files and interfaces
+they will produce, and write your packets against those. Say in the plan's
+`## Risks and open points` which tasks rest on an earlier milestone's planned
+work, so the human sees the dependency.
+
+After the size and shape check passes:
 
 1. Break the milestone into tasks — normally 3-6; more than six is the
    `WORKER_TASKS_GT_6` signal and should have been caught above. Each task is
@@ -263,14 +269,17 @@ discipline in the target repository" in
    `{"status": "DRAFT", "artifact": ".harness/plans/<milestone>.md"}` and its
    `### Plan` field in `milestones.md` to `<that path> — DRAFT`.
 5. Run `check-state.py`, commit the explicit `.harness/` paths as
-   `M<n>: task plan (draft)`, and return `PLANNED` with the plan path.
+   `M<n>: task plan (draft)` on the current branch — the skill has put you on
+   a plans branch; open no other — and return `PLANNED` with the plan path.
 
 **A revision** arrives with the plan path and the human's requested changes,
 verbatim. Apply them to the plan, the packets and structured state together, so
 the three never describe different work; record nothing under `## Changes during
 implementation`, which is for after agreement. If a requested change would split
-the milestone, split it as above: the first part keeps the branch and
-`Baseline`, and gets the revised plan. If a request contradicts a requirement or
+the milestone, split it as above and return `SPLIT`; the skill plans the parts.
+If a revision changes a name, file or interface that a later milestone's DRAFT
+plan relies on, say which in your return, so the skill can have that plan
+revised too. If a request contradicts a requirement or
 acceptance criterion, do not apply it — say so in your return, so the human can
 change the requirement through `roast-requirements` instead.
 

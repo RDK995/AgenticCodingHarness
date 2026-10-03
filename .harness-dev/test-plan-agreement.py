@@ -185,6 +185,59 @@ class PlanTests(unittest.TestCase):
         self.assertIn("index mismatch", completed.stderr)
         self.assertIn("Status: DRAFT", (self.harness / "plans" / "M1.md").read_text())
 
+    # several milestones at once
+
+    def add_m2(self, status="TODO", plan="DRAFT"):
+        import copy
+        m2 = copy.deepcopy(self.state["milestones"]["M1"])
+        m2["status"] = status
+        m2["criteria"][0]["id"] = "M2-AC1"
+        m2["tasks"][0].update(id="M2-T1", artifact=".harness/tasks/M2-T1.md")
+        m2["plan"] = {"status": plan, "artifact": ".harness/plans/M2.md"}
+        self.state["milestones"]["M2"] = m2
+        (self.harness / "plans" / "M2.md").write_text(PLAN.replace("M1", "M2"))
+        (self.harness / "tasks" / "M2-T1.md").write_text("# packet\n")
+        section = INDEX.split("\n", 2)[2].replace("M1", "M2").replace("Status: TODO", f"Status: {status}")
+        self.index.write_text(INDEX + "\n" + section)
+
+    def agree_ids(self, *ids):
+        self.write_state()
+        return self.invoke(
+            AGREE, self.state_path, *ids,
+            "--milestones", self.index, "--requirements", self.requirements,
+        )
+
+    def test_agrees_several_plans_in_one_call(self):
+        self.add_m2()
+        completed = self.agree_ids("M1", "M2")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        state = json.loads(self.state_path.read_text())
+        self.assertEqual([state["milestones"][m]["plan"]["status"] for m in ("M1", "M2")], ["AGREED", "AGREED"])
+        self.assertIn("Status: AGREED", (self.harness / "plans" / "M2.md").read_text())
+        self.assertEqual(self.index.read_text().count("— AGREED"), 2)
+
+    def test_refuses_a_later_plan_ahead_of_an_unagreed_earlier_one(self):
+        self.add_m2()
+        completed = self.agree_ids("M2")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("cannot agree M2 before M1", completed.stderr)
+        self.assertIn("Status: DRAFT", (self.harness / "plans" / "M2.md").read_text())
+
+    def test_a_milestone_already_under_way_does_not_hold_back_later_plans(self):
+        self.state["milestones"]["M1"]["status"] = "IN_PROGRESS"
+        self.add_m2()
+        self.index.write_text(self.index.read_text().replace("Status: TODO", "Status: IN_PROGRESS", 1))
+        completed = self.agree_ids("M2")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_one_bad_milestone_writes_nothing_for_any(self):
+        self.add_m2()
+        (self.harness / "tasks" / "M2-T1.md").unlink()
+        completed = self.agree_ids("M1", "M2")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("Status: DRAFT", (self.harness / "plans" / "M1.md").read_text())
+        self.assertNotIn("AGREED", self.index.read_text())
+
 
 if __name__ == "__main__":
     unittest.main()

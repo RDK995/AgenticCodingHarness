@@ -133,8 +133,8 @@ carry every template heading — the remaining headings are in its archive file.
   is the only record from which a human can see routing drifting upward over time.
 - `### Baseline` records the commit the milestone started from, and the milestone
   branch it opened (e.g. `8b81cf1 on m0-implementation`). The orchestrator writes
-  it as its first act on the milestone's first planning phase, after creating
-  that branch and committing anything the tree already carried. A later phase runs in a fresh
+  it as its first act on the implementation phase, after creating that branch and
+  committing anything the tree already carried. A later phase runs in a fresh
   context and computes the milestone's diff from it, so a milestone past `TODO`
   without a baseline cannot be reviewed. Every accepted task is committed to the
   branch, so the milestone's diff is `git diff <baseline> HEAD` and nothing else;

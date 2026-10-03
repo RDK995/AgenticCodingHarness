@@ -427,7 +427,7 @@ record-only correction:
 
 ## Closing the milestone branch
 
-A milestone runs on the branch its planning phase opened, with every
+A milestone runs on the branch the implementation phase opened, with every
 accepted task and correction committed to it. When the milestone reaches `DONE`:
 
 **Commit the milestone record you just updated** — `git add .harness && git

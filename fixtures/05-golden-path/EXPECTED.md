@@ -48,7 +48,8 @@ done
   milestone. **The default branch has no new commits, no remote was contacted,
   and no branch was merged or deleted.** This fixture is the only one that
   exercises a milestone from nothing, so it is the only place the branch is
-  actually opened — by the planning phase, so the plan's commits sit on it too.
+  actually opened — by the implementation phase, off the plans branch
+  `/harness:plan-milestone` committed the plan to.
 - **Task plan.** `.harness/plans/M1.md` exists, follows
   `skills/plan-milestone/references/plan-template.md`, and reads `Status:
   AGREED`; `state.json` records `plan.status` `AGREED`; every task in it names a

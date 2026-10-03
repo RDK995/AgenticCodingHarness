@@ -61,8 +61,8 @@ ever done by `/harness:plan-milestone`, one milestone at a time. The loop
 stopping at an unplanned milestone is intended. Planning in the launcher chat
 and planning every milestone up front were both considered and rejected.
 
-Open: permission prompts inside loop sessions can only be answered from a
-terminal (`claude attach`), not from a phone. Not yet decided.
+Permission prompts inside loop sessions are answered via `claude attach`; owner
+decided (2026-10-03) this is fine as it is — no permission-mode change.
 
 ## Out-of-milestone addition — `/harness:implement-loop` (2026-10-02)
 

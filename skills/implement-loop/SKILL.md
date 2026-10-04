@@ -32,6 +32,9 @@ because each one *is* that skill, run fresh.
 2. Run, and STOP on any error it reports:
        python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
        --milestones .harness/milestones.md --requirements .harness/requirements.md
+   "requirements missing milestone ownership" means new requirements have no
+   milestones yet: tell the user to run /harness:plan, which adds and plans
+   them.
 
 3. Start the loop DETACHED, from the project root, passing through only the
    arguments the user gave (--until, --max, --permission-mode). It must not

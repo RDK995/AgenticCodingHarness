@@ -38,7 +38,10 @@ No database, MCP server, or other external runtime is required.
    scope is already minimal, or when nothing short of all of it is usable.
 5. Plan: `/harness:plan`. The first time, it splits the
    requirements into milestones (`.harness/milestones.md`) and checks the
-   split with you before going further.
+   split with you before going further. On an existing project, after you've
+   agreed new requirements with `/harness:roast-requirements`, it adds
+   milestones for just those, after the existing ones, and checks those with
+   you the same way.
 6. It then plans the coming milestones (all remaining by default;
    `--until <id>` or `--next <n>` for fewer). For each, in order, it
    checks the size (splitting it if it is too big), breaks it into tasks, and

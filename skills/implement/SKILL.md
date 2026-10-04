@@ -63,7 +63,9 @@ IF `.harness/state.json` or `.harness/milestones.md` is missing:
 
 Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
 --milestones .harness/milestones.md --requirements .harness/requirements.md`
-and STOP on any error rather than guessing.
+and STOP on any error rather than guessing. If the error is "requirements
+missing milestone ownership", requirements were agreed after the milestones
+were made: tell the human to run /harness:plan, which adds milestones for them.
 
 LOOP:
     find the first milestone that is not DONE

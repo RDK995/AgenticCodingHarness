@@ -1,10 +1,11 @@
 ---
 name: plan
-description: Creates the project's milestones from the agreed requirements (when they do not exist yet), then plans upcoming milestones' work before any of it is built — for each, sizes it, breaks it into tasks, routes each to a tier and writes their task packets — then walks the human through the plans and records them as AGREED only once they say so, so /harness:implement-loop can run through all of them. Use before /harness:implement or /harness:implement-loop, or when the user asks to plan, review or change the plans for coming milestones. Optional argument: --until <milestone-id> (plan up to and including it) or --next <n>.
+description: Creates the project's milestones from the agreed requirements — or, on an existing project, adds milestones for newly agreed requirements no milestone covers yet — then plans upcoming milestones' work before any of it is built — for each, sizes it, breaks it into tasks, routes each to a tier and writes their task packets — then walks the human through the plans and records them as AGREED only once they say so, so /harness:implement-loop can run through all of them. Use before /harness:implement or /harness:implement-loop, or when the user asks to plan, review or change the plans for coming milestones. Optional argument: --until <milestone-id> (plan up to and including it) or --next <n>.
 ---
 
-Create the project's milestones if there are none yet, then turn the upcoming
-ones into agreed task plans at `.harness/plans/M<n>.md`. Do not implement
+Create the project's milestones if there are none yet — or add milestones for
+requirements agreed since they were made — then turn the upcoming ones into
+agreed task plans at `.harness/plans/M<n>.md`. Do not implement
 anything from this skill: its only output is the milestones and plans a human
 has agreed, with the task packets they name.
 
@@ -51,14 +52,32 @@ IF neither exists — CREATE THE MILESTONES:
     Ask whether the split looks right before any task planning: a wrong cut
     is cheap to fix now and costs every plan written on top of it.
     IF they want changes: invoke a FRESH harness:orchestrator to revise the
-        milestones, with their words verbatim. It rewrites both files in
-        full. Then present again.
+        milestones, with their words verbatim. It rewrites the milestones it
+        generated in full, and nothing else. Then present again.
     IF they agree: commit the explicit .harness/ paths as
         "Milestones: <first id>-<last id>" and carry on to SCOPE.
 
 Run python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
     --milestones .harness/milestones.md --requirements .harness/requirements.md
-    and STOP on any error.
+    --list-unowned
+    and STOP on any error. (A requirement in state.json that is no longer in
+    requirements.md is an error: removing scope from built milestones is a
+    human decision, not a planning one.)
+
+IF it prints "UNOWNED: <ids>" — ADD MILESTONES FOR NEW REQUIREMENTS:
+    requirements were agreed after the milestones were made, and no
+    milestone delivers them yet. This is the normal way an existing project
+    grows.
+    open the plans branch (BRANCH below) first.
+    invoke a FRESH harness:orchestrator to EXTEND the milestones for exactly
+    those ids, passing the list.
+    IF it returns BLOCKED: STOP and report, as for creation.
+    Confirm check-state.py now passes WITHOUT --list-unowned: every
+    requirement owned, and no existing milestone changed.
+    PRESENT THE NEW MILESTONES exactly as for creation below — only the new
+    ones — and handle changes and agreement the same way, committing as
+    "Milestones: <first new id>-<last new id> for <ids>".
+    Then carry on to SCOPE; the new milestones are TODO and in it.
 
 SCOPE — the milestones to plan, in state.json order:
     every TODO milestone whose plan is not AGREED, starting from the first
@@ -157,6 +176,7 @@ wants them.
 - Never plan two milestones at once. Each plan is written against the ones
   before it, so they are planned in order, each by a fresh orchestrator.
 - Never commit milestones or plans onto the branch the human was on.
-- Never revise the milestones once any of them has started. Splitting one
-  that has not is the planning phase's job; re-cutting one that has is a
-  human decision outside this skill.
+- Never revise a milestone once it has started, and never touch an existing
+  milestone while adding new ones. Splitting one that has not started is the
+  planning phase's job; re-cutting one that has is a human decision outside
+  this skill.

@@ -70,7 +70,12 @@ Write `.harness/requirements.md` using the template. Set:
 None
 ```
 
-only once the requirements gate below has passed. If material ambiguity remains
+only once the requirements gate below has passed. When revising an existing file —
+most often to add requirements to a project already being built — **keep every
+existing requirement id exactly as it is**, number new requirements after the
+highest existing one, and never reuse a retired id. Milestones own requirements
+by id: `/harness:plan` adds milestones for the ids no milestone owns yet, and a
+renumbered requirement would look new while its milestone looked orphaned. If material ambiguity remains
 (the human hasn't confirmed, or a blocking question is unanswered), list the
 open questions there instead and do not claim the gate has passed.
 

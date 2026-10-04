@@ -26,8 +26,8 @@ authority — the invocation prompt should agree with it, and if it does not, sa
 and stop rather than guessing.
 
 ```
-No `.harness/milestones.md` yet, or a human's changes to milestones none of
-which has started
+No `.harness/milestones.md` yet, a list of requirements no milestone owns,
+or a human's changes to milestones you generated that have not started
                              →  generate milestones    → read references/planning.md
                                 and return. Do not carry on into planning or
                                 implementing the first one: those are fresh
@@ -54,10 +54,12 @@ implementation phase from the tasks already recorded against it.
 
 **Generating milestones.** Invoked by the `plan` skill. Read
 `references/planning.md`, inspect the repository, write the complete milestones
-and structured state, validate them, then return. Given a human's changes to
-milestones you generated, rewrite both files in full to take them in — only
-while every milestone is still `TODO` with no plan and no `Baseline`; otherwise
-say so and stop.
+and structured state, validate them, then return. Given a list of unowned
+requirements, **extend**: add milestones for exactly those, after the existing
+ones, and change no existing milestone (see "Extending the milestones" in the
+reference). Given a human's changes to milestones you generated, rewrite those
+milestones in full to take them in — only while each is still `TODO` with no
+plan and no `Baseline`; otherwise say so and stop.
 
 **Planning phase.** Invoked by the `plan` skill for one named
 milestone, sometimes with a human's requested changes to a DRAFT plan. The

@@ -255,6 +255,14 @@ class OwnershipTests(unittest.TestCase):
         self.assertIn("generate\n    milestones", plan)
         self.assertIn("migrate-state.py", plan)
 
+    def test_plan_adds_milestones_for_new_requirements_on_an_existing_project(self):
+        plan = (ROOT / "skills/plan/SKILL.md").read_text()
+        self.assertIn("--list-unowned", plan)
+        self.assertLess(plan.index("ADD MILESTONES FOR NEW REQUIREMENTS"), plan.index("SCOPE —"))
+        planning = (ROOT / "agents/references/planning.md").read_text()
+        self.assertIn("### Extending the milestones", planning)
+        self.assertIn("Append; never rewrite.", planning)
+
 
 if __name__ == "__main__":
     unittest.main()

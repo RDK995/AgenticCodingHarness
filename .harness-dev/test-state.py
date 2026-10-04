@@ -76,6 +76,23 @@ class StateTests(unittest.TestCase):
             0,
         )
 
+    def test_new_unowned_requirements_fail_unless_listed(self):
+        self.requirements.write_text(self.requirements.read_text().replace(
+            "- [FR2] Reject division by zero\n", "- [FR2] Reject division by zero\n- [FR3] Show history\n"
+        ))
+        completed = self.run_check("--requirements", self.requirements)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("requirements missing milestone ownership: FR3", completed.stderr)
+        listed = self.run_check("--requirements", self.requirements, "--list-unowned")
+        self.assertEqual(listed.returncode, 0, listed.stderr)
+        self.assertIn("UNOWNED: FR3", listed.stdout)
+
+    def test_listing_unowned_does_not_hide_other_errors(self):
+        self.state["requirements"]["FR9"] = "M1"
+        listed = self.run_check("--requirements", self.requirements, "--list-unowned")
+        self.assertNotEqual(listed.returncode, 0)
+        self.assertIn("absent from document: FR9", listed.stderr)
+
     def test_all_done_requires_requirement_ownership(self):
         self.state["requirements"] = {}
         self.state["current_milestone"] = None

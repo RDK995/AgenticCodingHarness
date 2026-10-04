@@ -49,6 +49,27 @@ generation is incomplete if they disagree.
 Milestones represent **observable outcomes**, not implementation steps. Tests
 belong inside each milestone, not as a separate milestone.
 
+### Extending the milestones
+
+An existing project grows by new requirements, agreed through
+`roast-requirements` after its milestones were made. The `plan` skill passes you
+the ids no milestone owns. Generate milestones for **exactly those**, by every
+rule below — thin vertical slices, sized, ordered by integration risk — with
+three differences:
+
+- **Append; never rewrite.** Existing milestones, whatever their status, are
+  history or in-flight work, and stay byte-for-byte as they are, archived ones
+  included. Read their headings, outcomes and `### Architecture` fields for what
+  already exists to build on; read an archived milestone only if a new one
+  depends on its detail.
+- **Number after the highest existing milestone**, ignoring split suffixes:
+  after `M19j` and `M36` comes `M37`.
+- **Map only the new ids** in `state.json`'s `requirements`, each to one new
+  milestone, and add the new milestones to `state.json` at `TODO` with no plan.
+
+The coverage gate applies to the new milestones and any architecture components
+they advance; it does not reopen components earlier milestones exercised.
+
 ### Slice thin, end to end
 
 A milestone is a **thin vertical slice**: the narrowest behaviour that runs

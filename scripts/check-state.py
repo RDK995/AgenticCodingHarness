@@ -60,7 +60,14 @@ def validate(
     all_done: bool,
     record_only: tuple[str, str] | None,
     requirements_path: Path | None = None,
+    unowned: list[str] | None = None,
 ) -> list[str]:
+    """Return every inconsistency found.
+
+    Given an `unowned` list, documented requirements no milestone owns are
+    collected into it instead of reported as errors: the plan skill asks for
+    them, because adding milestones for new requirements is its job.
+    """
     errors = []
     if state.get("schema_version") != 1:
         errors.append("schema_version must be 1")
@@ -188,7 +195,9 @@ def validate(
             mapped = set(requirements)
             missing = sorted(documented - mapped)
             extra = sorted(mapped - documented)
-            if missing:
+            if missing and unowned is not None:
+                unowned.extend(missing)
+            elif missing:
                 errors.append("requirements missing milestone ownership: " + ", ".join(missing))
             if extra:
                 errors.append("state maps requirements absent from document: " + ", ".join(extra))
@@ -243,7 +252,13 @@ def main() -> int:
     parser.add_argument("--requirements", type=Path)
     parser.add_argument("--all-done", action="store_true")
     parser.add_argument("--record-only", nargs=2, metavar=("BASE", "HEAD"))
+    parser.add_argument(
+        "--list-unowned",
+        action="store_true",
+        help="print documented requirements no milestone owns as 'UNOWNED: <ids>' instead of failing on them",
+    )
     args = parser.parse_args()
+    unowned: list[str] | None = [] if args.list_unowned else None
     try:
         state = load(args.state)
         errors = validate(
@@ -253,6 +268,7 @@ def main() -> int:
             args.all_done,
             tuple(args.record_only) if args.record_only else None,
             args.requirements,
+            unowned,
         )
     except ValueError as error:
         errors = [str(error)]
@@ -260,6 +276,8 @@ def main() -> int:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
+    if unowned:
+        print("UNOWNED: " + ", ".join(unowned))
     print(f"OK: {len(state['milestones'])} milestone(s), state schema v1")
     return 0
 

@@ -111,6 +111,21 @@ Validation: `test-implement-loop.py` 34 tests OK (6 new); all 15 test files OK.
 Renamed (owner, 2026-10-04): `/harness:plan-milestone` → `/harness:plan`
 (`skills/plan/`), since it now creates milestones as well as planning them.
 Earlier entries in this file were updated to the new name.
+
+Blocker fixed (owner, 2026-10-04): on an existing project, `/harness:plan` made
+no milestones for new requirements, and both plan and implement stopped on
+check-state's "requirements missing milestone ownership". Now:
+- `check-state.py --list-unowned` prints `UNOWNED: <ids>` instead of failing on
+  them (other errors still fail);
+- plan, given unowned ids, has a fresh orchestrator **extend** the milestones
+  for exactly those (appended, numbered after the highest existing integer,
+  no existing milestone touched), presents only the new ones for the split
+  question, then plans them as usual;
+- implement and implement-loop point to `/harness:plan` on that error;
+- roast-requirements keeps existing requirement ids when revising and numbers
+  new ones after the highest.
+Validation: `test-state.py` +2, `test-plan-agreement.py` +1; all 15 test files
+OK.
 Not yet exercised against a real loop run.
 
 ## Out-of-milestone addition — `/harness:implement-loop` (2026-10-02)

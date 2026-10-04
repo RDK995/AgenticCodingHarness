@@ -74,6 +74,17 @@ human agrees them together so the loop runs through them. Consequences:
   plan while an earlier TODO milestone's plan is unagreed.
 Validation: `test-plan-agreement.py` 15 OK (4 new).
 
+Moved (owner, 2026-10-04): creating the milestones moves from implement into
+plan-milestone. plan-milestone now generates milestones (fresh orchestrator)
+when neither `milestones.md` nor `state.json` exists, presents the split for
+the human to confirm or change before any task planning (revisions rewrite
+both files in full, only while nothing has started), and also owns
+`migrate-state.py` for older projects. Implement STOPs and points to
+plan-milestone when either file is missing; it creates no state. Milestones
+and plans are committed on a `harness-plans-<YYYYMMDD-HHMM>` branch.
+Validation: `test-plan-agreement.py` 17 OK (2 new static ownership checks);
+all 15 test files OK.
+
 Permission prompts inside loop sessions are answered via `claude attach`; owner
 decided (2026-10-03) this is fine as it is — no permission-mode change.
 

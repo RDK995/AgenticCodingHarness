@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Primary workflow entry point — reads agreed requirements, plans milestones, and drives each milestone whose task plan the human has agreed (via plan-milestone) through implementation, testing, and fresh milestone review until its acceptance criteria are proven. Use when the user asks to implement, build, or continue work on agreed requirements via the harness.
+description: Primary workflow entry point — reads agreed requirements and the milestones plan-milestone created, and drives each milestone whose task plan the human has agreed (via plan-milestone) through implementation, testing, and fresh milestone review until its acceptance criteria are proven. Use when the user asks to implement, build, or continue work on agreed requirements via the harness.
 ---
 
 Drive `.harness/requirements.md` to a fully implemented, reviewed, evidence-backed
@@ -55,32 +55,15 @@ Read `.harness/state.json` first. It is the workflow authority and identifies th
 one current milestone. Then read only that milestone's section from
 `.harness/milestones.md`, which is the compact human view.
 
-IF `.harness/state.json` is missing but `.harness/milestones.md` exists:
-    run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/migrate-state.py
-    .harness/milestones.md .harness/state.json --requirements
-    .harness/requirements.md` once. If it reports ambiguous ownership, STOP and
-    ask the human for the explicit id-to-milestone JSON map required by
-    `--ownership`; never guess ownership
-    validate it with `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py
-    .harness/state.json --milestones .harness/milestones.md
-    --requirements .harness/requirements.md`
-    STOP on any migration or consistency error rather than guessing
+IF `.harness/state.json` or `.harness/milestones.md` is missing:
+    STOP — tell the human to run /harness:plan-milestone. Creating the
+    milestones (or migrating an older project's milestones.md to
+    state.json) is that skill's job, and so is agreeing their task plans,
+    which this skill needs before it can run any of them.
 
-Read .harness/milestones.md
-
-IF missing:
-    invoke harness:orchestrator to do reconnaissance and generate milestones
-
-    IF it returns BLOCKED: STOP and report to the human. Generation does not
-    hand off — a milestones.md covering half the requirements is
-    indistinguishable downstream from a complete one, so the orchestrator
-    writes the plan in full or writes nothing. BLOCKED here means it could
-    not, and the recon it recorded is what the next attempt starts from.
-
-    Before entering the LOOP, confirm both files exist, every template heading
-    is present, and `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py
-    .harness/state.json --milestones .harness/milestones.md
-    --requirements .harness/requirements.md` passes.
+Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
+--milestones .harness/milestones.md --requirements .harness/requirements.md`
+and STOP on any error rather than guessing.
 
 LOOP:
     find the first milestone that is not DONE

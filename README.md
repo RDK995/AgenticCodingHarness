@@ -36,11 +36,11 @@ No database, MCP server, or other external runtime is required.
    they actually wanted, asks you whatever the documents can't answer, and
    records what was deferred and the order it comes back in. Skip it when the
    scope is already minimal, or when nothing short of all of it is usable.
-5. Run implementation: `/harness:implement`. The first run splits the
-   requirements into milestones (`.harness/milestones.md`), then stops: each
-   milestone's work is planned and agreed before any of it is built.
-6. Plan the coming milestones: `/harness:plan-milestone` (all remaining by
-   default; `--until <id>` or `--next <n>` for fewer). For each, in order, it
+5. Plan: `/harness:plan-milestone`. The first time, it splits the
+   requirements into milestones (`.harness/milestones.md`) and checks the
+   split with you before going further.
+6. It then plans the coming milestones (all remaining by default;
+   `--until <id>` or `--next <n>` for fewer). For each, in order, it
    checks the size (splitting it if it is too big), breaks it into tasks, and
    picks which model tier runs each and why — later plans written against the
    earlier ones. Then it walks you through them together. Ask for changes as

@@ -20,8 +20,8 @@ git init -q && git add -A && git commit -qm baseline
 ```bash
 run() { claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
   --allowedTools "Read Write Edit Bash Grep Glob Task Agent" -p "$1"; }
-run "/harness:implement"          # writes the milestones, stops at the plan gate
-run "/harness:plan-milestone"     # writes M1's task plan at DRAFT
+run "/harness:plan-milestone"     # writes the milestones, asks if the split is right
+run "/harness:plan-milestone"     # milestones exist: writes their task plans at DRAFT
 # Stands in for the human agreeing the plan in that session.
 python3 /path/to/this/repo/scripts/agree-plan.py .harness/state.json M1 \
   --milestones .harness/milestones.md --requirements .harness/requirements.md
@@ -54,8 +54,9 @@ done
   `skills/plan-milestone/references/plan-template.md`, and reads `Status:
   AGREED`; `state.json` records `plan.status` `AGREED`; every task in it names a
   packet under `.harness/tasks/` that exists, and every acceptance criterion is
-  covered by at least one task. The first `/harness:implement` stopped at the
-  plan gate without routing anything.
+  covered by at least one task. The first `/harness:plan-milestone` created
+  the milestones and stopped to ask about the split without planning any
+  tasks.
 - **Every commit contains only what belongs in it**, because commits are staged
   by path rather than with `git add -A`. This repository has no `.gitignore`, so
   running the suite leaves an untracked `__pycache__/` — **it must still be
@@ -77,7 +78,8 @@ done
 
 ## Failure modes worth recognising
 
-- **Skipping `agents/references/planning.md`.** Both the generation invocation and
+- **Skipping `agents/references/planning.md`.** Both the generation invocation
+  (dispatched by `/harness:plan-milestone`, never by `/harness:implement`) and
   the planning phase must read it — the size/shape check and the plan format are
   only there — and the implementation phase must not. Verify from the
   transcript, not the report.

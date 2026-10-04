@@ -25,8 +25,8 @@ because each one *is* that skill, run fresh.
 
 ```
 1. IF .harness/state.json does not exist:
-       STOP — tell the user to run /harness:implement once interactively
-       first. That run plans the milestones and may need to ask them things
+       STOP — tell the user to run /harness:plan-milestone first. It creates
+       the milestones and plans them, and needs to ask them things
        before any loop starts.
 
 2. Run, and STOP on any error it reports:

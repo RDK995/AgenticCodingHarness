@@ -1,11 +1,12 @@
 ---
 name: plan-milestone
-description: Plans upcoming milestones' work before any of it is built — for each, sizes it, breaks it into tasks, routes each to a tier and writes their task packets — then walks the human through the plans and records them as AGREED only once they say so, so /harness:implement-loop can run through all of them. Use before /harness:implement or /harness:implement-loop, or when the user asks to plan, review or change the plans for coming milestones. Optional argument: --until <milestone-id> (plan up to and including it) or --next <n>.
+description: Creates the project's milestones from the agreed requirements (when they do not exist yet), then plans upcoming milestones' work before any of it is built — for each, sizes it, breaks it into tasks, routes each to a tier and writes their task packets — then walks the human through the plans and records them as AGREED only once they say so, so /harness:implement-loop can run through all of them. Use before /harness:implement or /harness:implement-loop, or when the user asks to plan, review or change the plans for coming milestones. Optional argument: --until <milestone-id> (plan up to and including it) or --next <n>.
 ---
 
-Turn the upcoming milestones in `.harness/state.json` into agreed task plans at
-`.harness/plans/M<n>.md`. Do not implement anything from this skill: its only
-output is plans a human has agreed, with the task packets they name.
+Create the project's milestones if there are none yet, then turn the upcoming
+ones into agreed task plans at `.harness/plans/M<n>.md`. Do not implement
+anything from this skill: its only output is the milestones and plans a human
+has agreed, with the task packets they name.
 
 `/harness:implement` will not start a milestone whose plan is not `AGREED`, and
 `/harness:implement-loop` stops at the first one. Plan as far ahead as the human
@@ -25,9 +26,35 @@ Apply the same requirements and architecture gates as /harness:implement:
     Open Questions != None → STOP and say what is unresolved
     .harness/architecture.md present and Status != AGREED → STOP
 
-IF .harness/state.json is missing:
-    STOP — tell them to run /harness:implement once; it writes the milestones
-    this skill plans.
+IF .harness/state.json is missing but .harness/milestones.md exists:
+    an older harness wrote it. Run python3
+    ${CLAUDE_PLUGIN_ROOT}/scripts/migrate-state.py .harness/milestones.md
+    .harness/state.json --requirements .harness/requirements.md once. If it
+    reports ambiguous ownership, STOP and ask the human for the explicit
+    id-to-milestone JSON map required by --ownership; never guess ownership.
+    STOP on any migration error rather than guessing.
+
+IF neither exists — CREATE THE MILESTONES:
+    open the plans branch (BRANCH below) first, so the milestones are
+    committed there too.
+    invoke a FRESH harness:orchestrator to do reconnaissance and generate
+    milestones.
+    IF it returns BLOCKED: STOP and report. Generation does not hand off — a
+        milestones.md covering half the requirements is indistinguishable
+        downstream from a complete one, so the orchestrator writes the
+        milestones in full or writes nothing, and the recon it recorded is
+        what the next attempt starts from.
+    Confirm both files exist, every template heading is present, and
+    check-state.py (below) passes.
+    PRESENT THE MILESTONES: one line each, in order, in plain words — what
+    the project can do once it is done, and how anyone could see it working.
+    Ask whether the split looks right before any task planning: a wrong cut
+    is cheap to fix now and costs every plan written on top of it.
+    IF they want changes: invoke a FRESH harness:orchestrator to revise the
+        milestones, with their words verbatim. It rewrites both files in
+        full. Then present again.
+    IF they agree: commit the explicit .harness/ paths as
+        "Milestones: <first id>-<last id>" and carry on to SCOPE.
 
 Run python3 ${CLAUDE_PLUGIN_ROOT}/scripts/check-state.py .harness/state.json
     --milestones .harness/milestones.md --requirements .harness/requirements.md
@@ -45,9 +72,9 @@ SCOPE — the milestones to plan, in state.json order:
 
 BRANCH — once, before the first dispatch, if this is a git repository and
 the current branch is not already a harness-plans-* branch:
-    git checkout -b harness-plans-<first id>-<last id>
-    Plans are committed here, never onto the branch the human was on, and the
-    first milestone's branch opens from here when it runs.
+    git checkout -b harness-plans-<YYYYMMDD-HHMM>
+    Milestones and plans are committed here, never onto the branch the human
+    was on, and the first milestone's branch opens from here when it runs.
 
 FOR each milestone in scope, in order — one at a time, because each plan is
 written against the plans before it:
@@ -122,11 +149,14 @@ wants them.
 
 - Never set a plan `AGREED` without the human's explicit agreement in this
   conversation. Silence, a question, or "looks fine so far" is not agreement.
-- Never write or edit a plan, a task packet or structured state yourself,
-  apart from `agree-plan.py`. Every change goes through the orchestrator so the
+- Never write or edit the milestones, a plan, a task packet or structured
+  state yourself, apart from `migrate-state.py` and `agree-plan.py`. Every change goes through the orchestrator so the
   three stay consistent.
 - Never run `/harness:implement`, or route a task to a worker, from this
   session.
 - Never plan two milestones at once. Each plan is written against the ones
   before it, so they are planned in order, each by a fresh orchestrator.
-- Never commit plans onto the branch the human was on.
+- Never commit milestones or plans onto the branch the human was on.
+- Never revise the milestones once any of them has started. Splitting one
+  that has not is the planning phase's job; re-cutting one that has is a
+  human decision outside this skill.

@@ -23,14 +23,14 @@ firing, not a context wall. The fixes are made and unit-tested on
 test is a static assertion over instruction text. They are unproven until a
 milestone runs against them with a long validation suite.
 
-## Out-of-milestone addition — `/harness:plan-milestone` (2026-10-03)
+## Out-of-milestone addition — `/harness:plan` (2026-10-03)
 
 Owner request, on branch `feat/implement-loop`: break per-milestone task planning
 out of the implementation phase into its own skill, with human agreement before
 anything is built (owner chose per-milestone task breakdown, not project
 milestone generation, and chose an approval gate).
 
-- `skills/plan-milestone/SKILL.md` + `references/plan-template.md` — dispatches a
+- `skills/plan/SKILL.md` + `references/plan-template.md` — dispatches a
   new orchestrator **planning phase** (size/shape check, split, branch +
   Baseline, task breakdown, routing, packets, `.harness/plans/M<n>.md` at DRAFT,
   returns `PLANNED`/`SPLIT`/`BLOCKED`); presents it in plain words; revisions go
@@ -45,7 +45,7 @@ milestone generation, and chose an approval gate).
   (split/add-for-correctness recorded, anything else → BLOCKED). Size/shape and
   splitting moved to `agents/references/planning.md` (673 lines, cap 720).
 - `skills/implement/SKILL.md` — TODO milestone without an AGREED plan → STOP,
-  run plan-milestone; SPLIT branch removed. IN_PROGRESS without a plan (older
+  run plan; SPLIT branch removed. IN_PROGRESS without a plan (older
   harness) still runs.
 - `scripts/implement-loop.py` — new exit-3 stop "M<n> needs its task plan
   agreed". Template, examples, README, runtime-contract, plugin.json updated.
@@ -57,10 +57,10 @@ including new `test-plan-agreement.py` (11 tests) and 4 new loop tests
 (`test-implement-loop.py`, 28 tests).
 
 Decision (owner, 2026-10-03): the loop never writes a plan; planning is only
-ever done by `/harness:plan-milestone`. Planning in the launcher chat was
+ever done by `/harness:plan`. Planning in the launcher chat was
 rejected.
 
-Revised (owner, later 2026-10-03): plan-milestone plans **several** milestones
+Revised (owner, later 2026-10-03): plan plans **several** milestones
 in one sitting (all remaining TODO by default; `--until`/`--next`), each by a
 fresh orchestrator in order, later plans written against earlier ones; the
 human agrees them together so the loop runs through them. Consequences:
@@ -75,12 +75,12 @@ human agrees them together so the loop runs through them. Consequences:
 Validation: `test-plan-agreement.py` 15 OK (4 new).
 
 Moved (owner, 2026-10-04): creating the milestones moves from implement into
-plan-milestone. plan-milestone now generates milestones (fresh orchestrator)
+plan. plan now generates milestones (fresh orchestrator)
 when neither `milestones.md` nor `state.json` exists, presents the split for
 the human to confirm or change before any task planning (revisions rewrite
 both files in full, only while nothing has started), and also owns
 `migrate-state.py` for older projects. Implement STOPs and points to
-plan-milestone when either file is missing; it creates no state. Milestones
+plan when either file is missing; it creates no state. Milestones
 and plans are committed on a `harness-plans-<YYYYMMDD-HHMM>` branch.
 Validation: `test-plan-agreement.py` 17 OK (2 new static ownership checks);
 all 15 test files OK.
@@ -107,6 +107,10 @@ not resume (it opened a resume picker and blocked), so the answer goes to a
 fresh session rather than back into the one that asked.
 
 Validation: `test-implement-loop.py` 34 tests OK (6 new); all 15 test files OK.
+
+Renamed (owner, 2026-10-04): `/harness:plan-milestone` → `/harness:plan`
+(`skills/plan/`), since it now creates milestones as well as planning them.
+Earlier entries in this file were updated to the new name.
 Not yet exercised against a real loop run.
 
 ## Out-of-milestone addition — `/harness:implement-loop` (2026-10-02)

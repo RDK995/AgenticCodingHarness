@@ -68,7 +68,7 @@ git init -q && git add -A && git commit -qm baseline
 # orchestrator returns at a phase boundary, so a single invocation cannot reach
 # a review cycle — drive it until the milestone settles.
 # The first phase plans the milestone; agree-plan.py stands in for the human
-# agreeing it through /harness:plan-milestone, and refuses (harmlessly) once
+# agreeing it through /harness:plan, and refuses (harmlessly) once
 # the plan is no longer a DRAFT.
 for phase in 1 2 3 4 5 6; do
   claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \

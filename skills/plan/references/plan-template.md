@@ -39,7 +39,7 @@ None
 
 ## Rules
 
-- `Status` is `DRAFT` until the human agrees it through the `plan-milestone`
+- `Status` is `DRAFT` until the human agrees it through the `plan`
   skill, which sets `AGREED` with `scripts/agree-plan.py`. Nothing else sets it.
 - Every acceptance criterion appears under `Criteria` for at least one task.
 - `Tier` and `Why this tier` match the task's `routing` in `.harness/state.json`.

@@ -20,8 +20,8 @@ git init -q && git add -A && git commit -qm baseline
 ```bash
 run() { claude --plugin-dir /path/to/this/repo --permission-mode acceptEdits \
   --allowedTools "Read Write Edit Bash Grep Glob Task Agent" -p "$1"; }
-run "/harness:plan-milestone"     # writes the milestones, asks if the split is right
-run "/harness:plan-milestone"     # milestones exist: writes their task plans at DRAFT
+run "/harness:plan"     # writes the milestones, asks if the split is right
+run "/harness:plan"     # milestones exist: writes their task plans at DRAFT
 # Stands in for the human agreeing the plan in that session.
 python3 /path/to/this/repo/scripts/agree-plan.py .harness/state.json M1 \
   --milestones .harness/milestones.md --requirements .harness/requirements.md
@@ -49,12 +49,12 @@ done
   and no branch was merged or deleted.** This fixture is the only one that
   exercises a milestone from nothing, so it is the only place the branch is
   actually opened — by the implementation phase, off the plans branch
-  `/harness:plan-milestone` committed the plan to.
+  `/harness:plan` committed the plan to.
 - **Task plan.** `.harness/plans/M1.md` exists, follows
-  `skills/plan-milestone/references/plan-template.md`, and reads `Status:
+  `skills/plan/references/plan-template.md`, and reads `Status:
   AGREED`; `state.json` records `plan.status` `AGREED`; every task in it names a
   packet under `.harness/tasks/` that exists, and every acceptance criterion is
-  covered by at least one task. The first `/harness:plan-milestone` created
+  covered by at least one task. The first `/harness:plan` created
   the milestones and stopped to ask about the split without planning any
   tasks.
 - **Every commit contains only what belongs in it**, because commits are staged
@@ -79,7 +79,7 @@ done
 ## Failure modes worth recognising
 
 - **Skipping `agents/references/planning.md`.** Both the generation invocation
-  (dispatched by `/harness:plan-milestone`, never by `/harness:implement`) and
+  (dispatched by `/harness:plan`, never by `/harness:implement`) and
   the planning phase must read it — the size/shape check and the plan format are
   only there — and the implementation phase must not. Verify from the
   transcript, not the report.

@@ -52,14 +52,14 @@ implementation phase from the tasks already recorded against it.
 **Read the one reference your phase names, and only that one**, under
 `${CLAUDE_PLUGIN_ROOT}/agents/references/`.
 
-**Generating milestones.** Invoked by the `plan-milestone` skill. Read
+**Generating milestones.** Invoked by the `plan` skill. Read
 `references/planning.md`, inspect the repository, write the complete milestones
 and structured state, validate them, then return. Given a human's changes to
 milestones you generated, rewrite both files in full to take them in — only
 while every milestone is still `TODO` with no plan and no `Baseline`; otherwise
 say so and stop.
 
-**Planning phase.** Invoked by the `plan-milestone` skill for one named
+**Planning phase.** Invoked by the `plan` skill for one named
 milestone, sometimes with a human's requested changes to a DRAFT plan. The
 milestone may not be the next to run: earlier ones may still be unbuilt, with
 plans of their own. Read `references/planning.md` → check state size → read

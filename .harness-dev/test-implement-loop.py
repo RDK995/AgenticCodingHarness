@@ -252,7 +252,7 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertEqual(self.call_count(), 0)
         self.assertEqual(
             completed.stdout.splitlines()[-1],
-            "STOP: M1 needs its task plan agreed: run /harness:plan-milestone, then the loop again",
+            "STOP: M1 needs its task plan agreed: run /harness:plan, then the loop again",
         )
 
     def test_draft_plan_is_not_agreed(self):

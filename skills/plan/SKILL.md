@@ -1,5 +1,5 @@
 ---
-name: plan-milestone
+name: plan
 description: Creates the project's milestones from the agreed requirements (when they do not exist yet), then plans upcoming milestones' work before any of it is built — for each, sizes it, breaks it into tasks, routes each to a tier and writes their task packets — then walks the human through the plans and records them as AGREED only once they say so, so /harness:implement-loop can run through all of them. Use before /harness:implement or /harness:implement-loop, or when the user asks to plan, review or change the plans for coming milestones. Optional argument: --until <milestone-id> (plan up to and including it) or --next <n>.
 ---
 

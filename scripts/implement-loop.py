@@ -361,7 +361,7 @@ def run(args: argparse.Namespace) -> int:
             )
         elif status == "TODO" and not plan_agreed(state, milestone_id):
             return stop(
-                f"{milestone_id} needs its task plan agreed: run /harness:plan-milestone, then the loop again",
+                f"{milestone_id} needs its task plan agreed: run /harness:plan, then the loop again",
                 EXIT_STOPPED,
             )
         elif args.until == milestone_id:

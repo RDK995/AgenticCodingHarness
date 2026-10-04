@@ -201,7 +201,7 @@ names in structured state and in the first child milestone's outcome.
 
 Split it in `.harness/state.json` and `.harness/milestones.md`, validate that the
 two agree, then **return `SPLIT` without planning any part**. The
-`plan-milestone` skill dispatches a fresh planning phase for the first part.
+`plan` skill dispatches a fresh planning phase for the first part.
 Splitting is cheap and planning a part costs a context of its own; do not spend
 the context you just saved by carrying on into it.
 
@@ -264,7 +264,7 @@ After the size and shape check passes:
    each task in `.harness/state.json` with its `id`, `scope`, `routing` and
    `artifact` (the packet path).
 4. Write `.harness/plans/<milestone>.md` using exactly
-   `${CLAUDE_PLUGIN_ROOT}/skills/plan-milestone/references/plan-template.md`,
+   `${CLAUDE_PLUGIN_ROOT}/skills/plan/references/plan-template.md`,
    at `Status: DRAFT`. Set the milestone's `plan` in structured state to
    `{"status": "DRAFT", "artifact": ".harness/plans/<milestone>.md"}` and its
    `### Plan` field in `milestones.md` to `<that path> — DRAFT`.
@@ -284,4 +284,4 @@ acceptance criterion, do not apply it — say so in your return, so the human ca
 change the requirement through `roast-requirements` instead.
 
 **Never set the plan to `AGREED`.** Only a human agrees a plan, through the
-`plan-milestone` skill.
+`plan` skill.

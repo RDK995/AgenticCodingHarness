@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Primary workflow entry point — reads agreed requirements and the milestones plan-milestone created, and drives each milestone whose task plan the human has agreed (via plan-milestone) through implementation, testing, and fresh milestone review until its acceptance criteria are proven. Use when the user asks to implement, build, or continue work on agreed requirements via the harness.
+description: Primary workflow entry point — reads agreed requirements and the milestones plan created, and drives each milestone whose task plan the human has agreed (via plan) through implementation, testing, and fresh milestone review until its acceptance criteria are proven. Use when the user asks to implement, build, or continue work on agreed requirements via the harness.
 ---
 
 Drive `.harness/requirements.md` to a fully implemented, reviewed, evidence-backed
@@ -56,7 +56,7 @@ one current milestone. Then read only that milestone's section from
 `.harness/milestones.md`, which is the compact human view.
 
 IF `.harness/state.json` or `.harness/milestones.md` is missing:
-    STOP — tell the human to run /harness:plan-milestone. Creating the
+    STOP — tell the human to run /harness:plan. Creating the
     milestones (or migrating an older project's milestones.md to
     state.json) is that skill's job, and so is agreeing their task plans,
     which this skill needs before it can run any of them.
@@ -90,7 +90,7 @@ LOOP:
 
     IF its Status is TODO and its plan in state.json is not AGREED:
         STOP — tell the human the next milestone needs its task plan agreed
-        first: /clear, then run /harness:plan-milestone. Do not plan it here;
+        first: /clear, then run /harness:plan. Do not plan it here;
         sizing, splitting and the task breakdown are that skill's, and its
         output needs a human's agreement this loop cannot give.
 
@@ -305,7 +305,7 @@ session and the one that asked is gone. Read both first. Then:
    (an implementation phase carrying the change the decision names, or a
    retried review), return the milestone to the status that step runs from,
    saying so in the record, and continue the LOOP. The two-cycle cap still
-   holds: an answer cannot buy a third review. If it needs another skill — `roast-requirements`, `plan-milestone`,
+   holds: an answer cannot buy a third review. If it needs another skill — `roast-requirements`, `plan`,
    `architect` — STOP and say which, without a question file: that is a
    desk task, not a reply.
 4. If the answer is unclear or does not answer the question, ask again

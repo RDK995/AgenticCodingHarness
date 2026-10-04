@@ -165,7 +165,7 @@ carry every template heading — the remaining headings are in its archive file.
   session pay to read it. Write `N/A` when the project has no `architecture.md`.
 - `### Plan` holds the path to this milestone's task plan and its status (e.g.
   `` `.harness/plans/M2.md` — AGREED ``), mirroring `plan` in
-  `.harness/state.json`. Empty until the `plan-milestone` skill's planning phase
+  `.harness/state.json`. Empty until the `plan` skill's planning phase
   writes the plan at `DRAFT`; only `scripts/agree-plan.py`, run when a human
   agrees it, sets `AGREED`. `/harness:implement` does not start a `TODO`
   milestone whose plan is not `AGREED`.

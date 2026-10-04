@@ -241,16 +241,16 @@ class PlanTests(unittest.TestCase):
 
 
 class OwnershipTests(unittest.TestCase):
-    """Creating milestones belongs to plan-milestone; implement only runs them."""
+    """Creating milestones belongs to plan; implement only runs them."""
 
     def test_implement_no_longer_creates_milestones(self):
         implement = (ROOT / "skills/implement/SKILL.md").read_text()
         self.assertNotIn("generate milestones", implement)
         self.assertNotIn("migrate-state.py", implement)
-        self.assertIn("STOP — tell the human to run /harness:plan-milestone", implement)
+        self.assertIn("STOP — tell the human to run /harness:plan", implement)
 
     def test_plan_milestone_creates_then_plans(self):
-        plan = (ROOT / "skills/plan-milestone/SKILL.md").read_text()
+        plan = (ROOT / "skills/plan/SKILL.md").read_text()
         self.assertLess(plan.index("CREATE THE MILESTONES"), plan.index("SCOPE —"))
         self.assertIn("generate\n    milestones", plan)
         self.assertIn("migrate-state.py", plan)

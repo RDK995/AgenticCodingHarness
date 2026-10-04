@@ -36,7 +36,7 @@ No database, MCP server, or other external runtime is required.
    they actually wanted, asks you whatever the documents can't answer, and
    records what was deferred and the order it comes back in. Skip it when the
    scope is already minimal, or when nothing short of all of it is usable.
-5. Plan: `/harness:plan-milestone`. The first time, it splits the
+5. Plan: `/harness:plan`. The first time, it splits the
    requirements into milestones (`.harness/milestones.md`) and checks the
    split with you before going further.
 6. It then plans the coming milestones (all remaining by default;
@@ -95,7 +95,7 @@ advance only one phase of a milestone; the loop just re-invokes. It stops when:
 | every milestone is `DONE`, after one more session in which implement runs its all-DONE check and writes the final report, and that check passes | 0 |
 | the next milestone (first not `DONE`, as `/harness:implement` picks it) is `BLOCKED`, or has a status implement has no step for | 3 |
 | a session needs a decision from you — the question is printed in the chat; answer there and the loop restarts with your answer | 4 |
-| the next milestone is `TODO` and its task plan is not agreed — run `/harness:plan-milestone`, then the loop again | 3 |
+| the next milestone is `TODO` and its task plan is not agreed — run `/harness:plan`, then the loop again | 3 |
 | an iteration changed neither `state.json` nor `HEAD` — e.g. it is waiting on a human live check | 3 |
 | `--until <id>`: that milestone became the next one (it is not run) | 3 |
 | `--max <n>` iterations ran (default 10) | 3 |

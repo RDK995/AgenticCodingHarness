@@ -4,12 +4,14 @@
 Sets the plan to AGREED in all three places it is recorded -- structured state,
 the plan file's Status line, and the milestone's ### Plan field in the human
 index -- then runs the normal state check. Refuses anything but a TODO
-milestone with a DRAFT plan whose tasks each name a packet on disk.
+milestone with a DRAFT plan whose tasks each name a packet on disk, and any
+plan in which two tasks free to run at the same time may change the same file.
 """
 
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import importlib.util
 import json
 from pathlib import Path
@@ -44,6 +46,97 @@ def refusal(state: dict, root: Path, milestone_id: str) -> str | None:
         if not packet or not (root / packet).is_file():
             return f"{milestone_id} task {task.get('id') if isinstance(task, dict) else task!r} has no packet on disk"
     return None
+
+
+def plan_after(plan_text: str, milestone_id: str) -> dict[str, list[str]]:
+    """Each task's `After` entries, from the plan's `## Tasks` table."""
+    section = re.search(r"(?ms)^## Tasks\s*$(.*?)(?=^## |\Z)", plan_text)
+    rows = [
+        [cell.strip() for cell in line.strip().strip("|").split("|")]
+        for line in (section.group(1) if section else "").splitlines()
+        if line.strip().startswith("|") and not re.fullmatch(r"[|\s:-]+", line.strip())
+    ]
+    if not rows or "After" not in rows[0] or "Task" not in rows[0]:
+        return {}
+    task_col, after_col = rows[0].index("Task"), rows[0].index("After")
+    after = {}
+    for row in rows[1:]:
+        if len(row) <= max(task_col, after_col):
+            continue
+        ids = re.findall(r"(?:M[^\s,|`]*-)?T\d+[a-z]?", row[after_col])
+        after[row[task_col]] = [i if i.startswith("M") else f"{milestone_id}-{i}" for i in ids]
+    return after
+
+
+def allowed_files(packet_text: str) -> list[str] | None:
+    """The packet's `Files Allowed To Change` list, or None if it has none."""
+    lines = packet_text.splitlines()
+    for index, line in enumerate(lines):
+        if re.fullmatch(r"\s*(?:#+\s*)?Files Allowed To Change:?\s*", line):
+            paths = []
+            for item in lines[index + 1:]:
+                bullet = re.match(r"\s*[-*]\s+`?([^`\s]+)`?", item)
+                if bullet:
+                    paths.append(bullet.group(1).removeprefix("./").rstrip("/"))
+                elif item.strip():
+                    break
+            return paths
+    return None
+
+
+def overlaps(a: str, b: str) -> bool:
+    if any(c in a + b for c in "*?["):
+        return fnmatch.fnmatch(a, b) or fnmatch.fnmatch(b, a)
+    return a == b or a.startswith(b + "/") or b.startswith(a + "/")
+
+
+def parallel_conflicts(state: dict, root: Path, milestone_id: str) -> list[str]:
+    """Tasks free to run at the same time must not share a file they may change.
+
+    The implementation phase starts every task whose `After` tasks are accepted,
+    all in one working tree. Two of them allowed to change the same file would
+    edit it at once and each be blamed for the other's edit, so a shared file
+    must put one task `After` the other.
+    """
+    milestone = state["milestones"][milestone_id]
+    tasks = [task["id"] for task in milestone["tasks"]]
+    if len(tasks) < 2:
+        return []
+    plan_text = (root / milestone["plan"]["artifact"]).read_text()
+    after = plan_after(plan_text, milestone_id)
+    errors = [
+        f"{milestone_id} task {task} is After {dep}, which is not a task in the plan"
+        for task, deps in after.items() for dep in deps if dep not in tasks
+    ]
+
+    def before(task: str) -> set[str]:
+        seen, stack = set(), list(after.get(task, []))
+        while stack:
+            dep = stack.pop()
+            if dep not in seen:
+                seen.add(dep)
+                stack.extend(after.get(dep, []))
+        return seen
+
+    ancestors = {task: before(task) for task in tasks}
+    files = {task["id"]: allowed_files((root / task["artifact"]).read_text()) for task in milestone["tasks"]}
+    for i, first in enumerate(tasks):
+        for second in tasks[i + 1:]:
+            if first in ancestors[second] or second in ancestors[first]:
+                continue
+            for task in (first, second):
+                if files[task] is None:
+                    errors.append(
+                        f"{milestone_id} task {task} can run alongside {second if task == first else first} "
+                        "but its packet names no Files Allowed To Change"
+                    )
+            shared = sorted({a for a in files[first] or [] for b in files[second] or [] if overlaps(a, b)})
+            if shared:
+                errors.append(
+                    f"{milestone_id} tasks {first} and {second} can run at the same time but may both change "
+                    f"{', '.join(shared)}; put one After the other"
+                )
+    return list(dict.fromkeys(errors))
 
 
 def set_plan_field(text: str, milestone_id: str, value: str) -> str:
@@ -92,6 +185,8 @@ def main() -> int:
     parser.add_argument("milestone", nargs="+", help="the milestones whose DRAFT plans the human agreed")
     parser.add_argument("--milestones", type=Path, required=True)
     parser.add_argument("--requirements", type=Path)
+    parser.add_argument("--check", action="store_true",
+                        help="only check which tasks can run together; write nothing")
     args = parser.parse_args()
     root = args.state.resolve().parent.parent
     try:
@@ -100,11 +195,17 @@ def main() -> int:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
     reasons = [reason for reason in (refusal(state, root, m) for m in args.milestone) if reason]
-    reasons += [reason for reason in [out_of_order(state, args.milestone)] if reason]
+    if not args.check:
+        reasons += [reason for reason in [out_of_order(state, args.milestone)] if reason]
+    if not reasons:
+        reasons += [reason for m in args.milestone for reason in parallel_conflicts(state, root, m)]
     if reasons:
         for reason in reasons:
             print(f"ERROR: {reason}", file=sys.stderr)
         return 1
+    if args.check:
+        print(f"OK: tasks that can run at the same time share no file in {', '.join(args.milestone)}")
+        return 0
 
     # Everything is computed before anything is written: all or nothing.
     plan_texts = {}

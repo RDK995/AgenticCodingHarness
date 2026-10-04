@@ -117,6 +117,9 @@ IF they agree to all, or name the ones they agree:
         <ids> --milestones .harness/milestones.md
         --requirements .harness/requirements.md
     git add .harness && git commit -m "Task plans agreed: <ids>"
+    IF it refuses because two tasks that would run together share a file:
+        send that plan back for revision with the error verbatim, and present
+        the revised plan again — what runs at the same time has changed.
     Agree a later plan only if every plan before it in scope is agreed too:
     the loop stops at the first unagreed one, and a later plan rests on the
     earlier ones as written.
@@ -155,6 +158,7 @@ been inside the work can decide in a minute or two:
 - **The tasks, in order**, one line each in plain words. Say which are cheap
   routine work and which get a stronger, more expensive model, and why — a
   task routed to the top tier names a risk, and that risk is worth a sentence.
+  Say which tasks will run at the same time and which wait for another.
 - **Anything they should weigh**: the plan's risks and open points, a size
   signal if one was raised, and which of its tasks rest on an earlier
   milestone's planned work.

@@ -75,9 +75,9 @@ requested changes is returned as it stands.
 
 **Implementation phase.** Read the agreed plan (`plan.artifact`) → check state
 size → read requirements → open the milestone branch and record `### Baseline`
-(or, on a later phase, confirm it) → set `IN_PROGRESS` → route every planned task, in the plan's order, from the
-packet already on disk → validate each result independently → commit each
-accepted task → record validation commands and artifacts → set `REVIEW` and
+(or, on a later phase, confirm it) → set `IN_PROGRESS` → route every planned
+task from the packet already on disk, each as soon as every task in its `After`
+is accepted → validate each result independently → commit each accepted task → record validation commands and artifacts → set `REVIEW` and
 return. Do not re-plan: see "Staying inside the agreed plan" below. **Do not
 invoke the reviewer**, and do not carry on into the review cycle: returning is
 what gives the review a context that is not already carrying the whole
@@ -340,8 +340,10 @@ the dispatch fails and the turn is spent for nothing.
 Load `TaskOutput` once at the opening of the phase with
 `ToolSearch("select:TaskOutput")`. Then, for every dispatch:
 
-1. Dispatch everything that can run at once — the worker, and any navigator
-   questions that do not depend on its result. They run concurrently.
+1. Dispatch everything that can run at once — a worker for every task whose
+   `After` tasks are all accepted, and any navigator questions that do not
+   depend on their results. They run concurrently, in one working tree; the
+   plan was agreed only once no two of them may change the same file.
 2. For each `agentId` you hold, call `TaskOutput(task_id: <agentId>,
    block: true, timeout: 600000)`. It waits without spending tokens and returns
    that agent's final report. If it comes back still running, call it again.
@@ -427,8 +429,10 @@ about a reviewer's findings on already-implemented work.
 ### Verifying a task result
 
 **Do not re-run the task's validation yourself.** Invoke the **verifier**
-subagent with the task packet's **path**, the worker's return, and the diff range
-the task produced; it re-runs the validation, checks the changed files against
+subagent with the task packet's **path**, the worker's return, the diff range
+the task produced, and the packet paths of any tasks still running alongside it
+or accepted since it started — their edits share the tree and are not its own.
+It re-runs the validation, checks the changed files against
 `Files Allowed To Change`, checks that no test was weakened, and returns the
 command, the exit status and the output it actually saw. That return is the
 task's evidence, and it is what you record.
@@ -442,7 +446,11 @@ return rather than a full diff and a test log:
   contradiction, not a verdict.
 - Is every path under `Files Changed` in `Files Allowed To Change`? `.harness/`
   is yours and does not count — if the verifier reports it as a violation, that
-  is a misattribution to correct, not a failed attempt.
+  is a misattribution to correct, not a failed attempt. So is a path in a task
+  running alongside.
+- Did validation fail on a file only a task running alongside may change? That
+  task is mid-edit, not this one wrong: collect it, then verify this task
+  again. It spends no ladder rung.
 - Is `Tests Weakened` `NO`?
 - Does every acceptance criterion have something named against it?
 - Does `Discrepancies With The Worker's Claim` say anything you should act on?

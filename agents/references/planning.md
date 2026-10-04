@@ -278,6 +278,12 @@ After the size and shape check passes:
    `WORKER_TASKS_GT_6` signal and should have been caught above. Each task is
    independently verifiable and names the acceptance criteria it advances.
    Every criterion is advanced by at least one task.
+   Fill each task's `After` with what it really waits on: a task whose code
+   or interface it uses, and any task that may change one of the same files
+   (or writes something its tests read, such as a fixture or a database). Leave
+   everything else out — a task with nothing in `After` starts at once,
+   alongside the others, and chaining tasks that do not need it only makes the
+   milestone slower.
 2. Route each task by the Routing rule in
    `${CLAUDE_PLUGIN_ROOT}/agents/orchestrator.md`, now rather than at dispatch:
    the tier and its reason are part of what the human agrees.
@@ -289,7 +295,9 @@ After the size and shape check passes:
    at `Status: DRAFT`. Set the milestone's `plan` in structured state to
    `{"status": "DRAFT", "artifact": ".harness/plans/<milestone>.md"}` and its
    `### Plan` field in `milestones.md` to `<that path> — DRAFT`.
-5. Run `check-state.py`, commit the explicit `.harness/` paths as
+5. Run `check-state.py` and `agree-plan.py <state> <milestone> --milestones
+   <index> --check`, which reports tasks free to run together that share a
+   file; fix their `After` until it passes. Commit the explicit `.harness/` paths as
    `M<n>: task plan (draft)` on the current branch — the skill has put you on
    a plans branch; open no other — and return `PLANNED` with the plan path.
 

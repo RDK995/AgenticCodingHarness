@@ -88,6 +88,31 @@ all 15 test files OK.
 Permission prompts inside loop sessions are answered via `claude attach`; owner
 decided (2026-10-03) this is fine as it is — no permission-mode change.
 
+### Tasks run in parallel again, guarded by file overlap (2026-10-04)
+
+Owner: parallel task execution had stopped. It ran live on 2026-09-09
+(`2416cad`, fixture 14: T1-T3 dispatched back-to-back) under the "dispatch
+everything that can run at once" rule, but `736ba5c` (2026-10-03) added "route
+every planned task, in the plan's order" (orchestrator) and "tasks run in table
+order" (plan template), which reads as sequential. Owner chose "restore plus
+safety check":
+- orchestrator: a task starts as soon as every task in its `After` is accepted;
+  every ready task's worker is dispatched at once. The verifier is told which
+  tasks run alongside; a validation failure on a sibling's file is re-verified
+  after collecting the sibling, spending no ladder rung.
+- verifier: new `Running Alongside` input; sibling tasks' allowed paths are left
+  out of `Files Changed` (the orchestrator commits by that list), violations and
+  the weakened-test check.
+- planning: `After` holds only real dependencies, shared files, or shared test
+  state; the planner runs `agree-plan.py --check` before returning PLANNED.
+- `agree-plan.py`: refuses a plan where two tasks not ordered by `After`
+  (transitively) may change an overlapping path (equal, directory prefix, or
+  glob), where such a task's packet has no `Files Allowed To Change`, or where
+  `After` names an unknown task. `--check` runs only that and writes nothing.
+  The plan skill sends a refused plan back for revision.
+Validation: `test-plan-agreement.py` 26 OK (8 new); all 15 test files OK.
+Follow-up: not re-run live; fixture 14 is the one to re-run (~$11 last time).
+
 ### Loop questions reach the human's phone (2026-10-03)
 
 Owner: questions about the work asked inside loop sessions can't be seen or

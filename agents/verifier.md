@@ -30,6 +30,10 @@ Diff Range:
 committed only once you have confirmed it, so its output normally sits
 uncommitted on top of the previous task's commit
 
+Running Alongside:
+<packet paths of tasks running in the same tree, or accepted since this one
+started — or None>
+
 Worker's Claim:
 <the worker's Summary, Files Changed, Tests Run and Result>
 ```
@@ -63,6 +67,15 @@ it. Read it last if it helps you avoid anchoring.
    untracked and a diff of committed history alone will show nothing. Every
    earlier task in the milestone is already committed, so what is uncommitted is
    this task and, at worst, an unaccepted attempt at it.
+
+   **Leave out what a task running alongside may change.** Read the
+   `Files Allowed To Change` of each packet under `Running Alongside`: those
+   paths are that task's work, committed or not, and no two tasks running
+   together share one. Do not list them under `Files Changed`, do not count them
+   as violations, and do not check them for weakened tests — the orchestrator
+   commits by your `Files Changed`, so listing them would commit another task's
+   unverified work. If validation fails on one of those files, say so under
+   `Discrepancies`: that task may be mid-edit.
 
    **Exclude `.harness/` from this check.** Those files are the orchestrator's own
    record, written before and after the worker ran; they are never task output and

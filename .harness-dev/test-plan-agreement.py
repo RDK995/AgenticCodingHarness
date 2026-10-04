@@ -185,6 +185,83 @@ class PlanTests(unittest.TestCase):
         self.assertIn("index mismatch", completed.stderr)
         self.assertIn("Status: DRAFT", (self.harness / "plans" / "M1.md").read_text())
 
+    # tasks that run at the same time
+
+    def three_tasks(self, after, files):
+        """M1 with tasks T1-T3; `after` and `files` map a task number to its entries."""
+        import copy
+        template = self.state["milestones"]["M1"]["tasks"][0]
+        self.state["milestones"]["M1"]["tasks"] = []
+        rows = []
+        for n in (1, 2, 3):
+            task = copy.deepcopy(template)
+            task.update(id=f"M1-T{n}", artifact=f".harness/tasks/M1-T{n}.md")
+            self.state["milestones"]["M1"]["tasks"].append(task)
+            listed = "".join(f"- `{path}`\n" for path in files.get(n, []))
+            (self.harness / "tasks" / f"M1-T{n}.md").write_text(
+                f"TASK\n\nFiles Allowed To Change:\n{listed}\nConstraints:\n- none\n"
+            )
+            rows.append(f"| M1-T{n} | step {n} | M1-AC1 | Cheap | — | {after.get(n, '—')} | packet |")
+        table = (
+            "\n## Tasks\n\n| Task | What it does | Criteria | Tier | Why this tier | After | Packet |\n"
+            "| --- | --- | --- | --- | --- | --- | --- |\n" + "\n".join(rows) + "\n\n## Size check\n"
+        )
+        (self.harness / "plans" / "M1.md").write_text(PLAN + table)
+
+    def test_tasks_on_separate_files_may_run_together(self):
+        self.three_tasks({}, {1: ["src/a.py"], 2: ["src/b.py"], 3: ["tests/test_c.py"]})
+        completed = self.agree()
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_refuses_two_unordered_tasks_sharing_a_file_and_writes_nothing(self):
+        self.three_tasks({}, {1: ["src/a.py"], 2: ["src/b.py"], 3: ["src/a.py"]})
+        completed = self.agree()
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("M1-T1 and M1-T3 can run at the same time but may both change src/a.py", completed.stderr)
+        self.assertIn("Status: DRAFT", (self.harness / "plans" / "M1.md").read_text())
+
+    def test_a_shared_file_is_fine_once_one_task_is_after_the_other(self):
+        self.three_tasks({2: "M1-T1", 3: "T2"}, {1: ["src/a.py"], 2: ["src/a.py"], 3: ["src/a.py"]})
+        completed = self.agree()
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_a_directory_overlaps_the_files_inside_it(self):
+        self.three_tasks({}, {1: ["src/"], 2: ["src/b.py"], 3: ["docs/x.md"]})
+        completed = self.agree()
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("M1-T1 and M1-T2", completed.stderr)
+
+    def test_refuses_a_task_with_no_file_list_that_could_run_alongside_another(self):
+        self.three_tasks({}, {1: ["src/a.py"], 2: ["src/b.py"], 3: ["src/c.py"]})
+        (self.harness / "tasks" / "M1-T3.md").write_text("# packet\n")
+        completed = self.agree()
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("M1-T3 can run alongside", completed.stderr)
+
+    def test_check_reports_a_clash_and_writes_nothing(self):
+        self.three_tasks({}, {1: ["src/a.py"], 2: ["src/b.py"], 3: ["src/a.py"]})
+        self.write_state()
+        completed = self.invoke(AGREE, self.state_path, "M1", "--milestones", self.index, "--check")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("may both change src/a.py", completed.stderr)
+        self.three_tasks({}, {1: ["src/a.py"], 2: ["src/b.py"], 3: ["src/c.py"]})
+        completed = self.invoke(AGREE, self.state_path, "M1", "--milestones", self.index, "--check")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("Status: DRAFT", (self.harness / "plans" / "M1.md").read_text())
+        self.assertEqual(self.index.read_text(), INDEX)
+
+    def test_check_ignores_an_earlier_plan_still_in_draft(self):
+        self.add_m2()
+        self.write_state()
+        completed = self.invoke(AGREE, self.state_path, "M2", "--milestones", self.index, "--check")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_refuses_after_naming_a_task_not_in_the_plan(self):
+        self.three_tasks({2: "M1-T9"}, {1: ["a"], 2: ["b"], 3: ["c"]})
+        completed = self.agree()
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("After M1-T9, which is not a task", completed.stderr)
+
     # several milestones at once
 
     def add_m2(self, status="TODO", plan="DRAFT"):

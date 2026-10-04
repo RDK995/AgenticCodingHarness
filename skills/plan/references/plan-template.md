@@ -43,7 +43,11 @@ None
   skill, which sets `AGREED` with `scripts/agree-plan.py`. Nothing else sets it.
 - Every acceptance criterion appears under `Criteria` for at least one task.
 - `Tier` and `Why this tier` match the task's `routing` in `.harness/state.json`.
-- `After` names the tasks that must be accepted first; tasks run in table order.
+- `After` names the tasks that must be accepted first. A task starts as soon as
+  every task in its `After` is accepted, so tasks with nothing outstanding run
+  at the same time, in one working tree. Two tasks that can run at the same time
+  must not share a path in `Files Allowed To Change`; `agree-plan.py` refuses a
+  plan where they do.
 - `## Changes during implementation` stays `None` until the plan is agreed. After
   that, the implementation phase records each permitted change here with a
   one-line reason (see "Staying inside the agreed plan" in

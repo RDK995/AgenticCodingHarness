@@ -97,7 +97,9 @@ implementation.
    read it before you start. That file is the authority on how you work; do not
    rely on your own recollection of the loop.
 4. Run the requested focused validation (the `Tests` command if given, otherwise
-   the most focused command available for what you changed). Save complete output
+   the most focused command available for what you changed). Run only the tests
+   for what you changed — never the project's whole suite; the reviewer runs that
+   once per review. Save complete output
    to `.harness/evidence/<task-id>-worker.log`; return only the command, exit
    status, summary line and failure excerpts. The artifact records the current
    commit.

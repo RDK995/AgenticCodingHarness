@@ -243,8 +243,10 @@ Baseline: is this a git repository, the current branch, git rev-parse HEAD,
   git status --porcelain, and the last few commit messages (for their convention)
 Line range of this milestone's section in milestones.md
 Line ranges of the requirements and acceptance criteria it cites
-Whether the repository's broad validation is green at baseline (command + exit status)
 ```
+
+Do not ask it to run the whole test suite at baseline. The whole suite runs once
+per review, in the reviewer (see "Implementation loop").
 
 **It returns pointers and verbatim excerpts, never summaries.** Discard any
 paraphrased requirement and read the cited range yourself.
@@ -361,6 +363,13 @@ For each task: implement via Red → Green → Refactor (see
 validation for that task through the worker and verifier, then record the
 milestone validation command for the reviewer to run once. Do not run task or
 milestone tests yourself unless two evidence artifacts contradict each other.
+
+**A task packet's `Tests` names only the tests that check that task** — the test
+files or test ids the task adds or touches (`uv run pytest -q tests/test_publish.py`),
+never the project's whole suite (`uv run pytest -q`). The worker and the verifier
+each run it, so a whole-suite `Tests` costs two full runs per attempt and grows with
+the project. The whole suite runs exactly once per review, in the reviewer; that
+run is what catches a task that broke something it did not touch.
 Set `REVIEW` and return. Requesting the review is the *next* invocation's job.
 
 ### Collect what you dispatch — never end your turn to wait
@@ -474,7 +483,8 @@ What stays with you is *judging the evidence*, which costs a short structured
 return rather than a full diff and a test log:
 
 - Does `Command` match the packet's `Tests`? A check that ran something else has
-  not checked this task.
+  not checked this task. A check that ran the whole suite instead of the packet's
+  targeted tests has run something else.
 - Does `Exit Status` agree with `Result`? A `PASS` over a non-zero exit is a
   contradiction, not a verdict.
 - Is every path under `Files Changed` in `Files Allowed To Change`? `.harness/`

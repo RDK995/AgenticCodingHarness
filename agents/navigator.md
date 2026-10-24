@@ -50,7 +50,6 @@ Baseline commit and branch
 Working tree status
 Line range of a named milestone's section
 Line ranges of the requirements and acceptance criteria it cites
-Whether the repository's broad validation is green at baseline
 ```
 
 Use `grep -n` to locate, `wc -l` to size, `git rev-parse` / `git status
@@ -81,7 +80,7 @@ Cited requirements:
 - <id>: <path> lines <a>–<b>
 - ...
 
-Baseline validation:
+Validation (only when a command was given):
 <command> → exit <status>, <the summary line it printed>
 
 Excerpts (only where asked for verbatim):

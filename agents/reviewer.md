@@ -74,6 +74,12 @@ You have `Bash` access. Run the milestone acceptance command and affected
 integration checks once against the current commit rather than trusting reported
 output.
 
+**Run the project's whole test suite once, on every review, including a narrowed
+cycle-2 review.** Workers and verifiers run only the tests for their own task, so
+this run is the only place a change that broke something it did not touch gets
+caught. A failure anywhere in it is a finding, whether or not the failing test
+belongs to this milestone.
+
 **Run a long command as one blocking foreground call with a timeout that fits
 it. Never background it and poll for completion.** Two reviews were lost spending
 roughly twenty of their fifty turns asking a 3m39s test suite whether it had

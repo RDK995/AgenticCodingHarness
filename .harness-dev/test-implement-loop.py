@@ -610,6 +610,7 @@ class ImplementLoopTests(unittest.TestCase):
 
     def test_milestones_file_only_change_counts_as_progress(self):
         self.write_state({"M1": "TODO"})
+        (self.project / ".harness" / "milestones.md").write_text("# milestones\n")  # already planned
         plan = [{"notes": "# milestones\nM1 notes\n"}, {"statuses": {"M1": "DONE"}}]
         self.assertEqual(self.run_to_end(plan), "finished: every milestone is DONE")
         self.assertEqual(len(self.recorded_runs()), 2)
@@ -667,6 +668,105 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertTrue(outcome.startswith("failed steps: two in a row"), outcome)
         self.assertEqual(len(self.recorded_runs()), 2)
 
+    # --- M4-T2: human stops, sign-out and usage-limit stops end the loop at once ---
+    def assert_one_run_stop(self, plan, expected=None, contains=()):
+        outcome = self.run_to_end(plan)
+        self.assertEqual(len(self.recorded_runs()), 1, outcome)
+        if expected is not None:
+            self.assertEqual(outcome, expected)
+        for fragment in contains:
+            self.assertIn(fragment, outcome)
+        return outcome
+
+    def test_blocked_milestone_stops_for_the_human(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        self.assert_one_run_stop(
+            [{"statuses": {"M1": "BLOCKED", "M2": "TODO"}}],
+            "stopped for the human: milestone M1 is BLOCKED",
+        )
+
+    def test_first_session_planning_milestones_is_a_human_stop(self):
+        self.assertFalse((self.project / ".harness" / "milestones.md").exists())
+        self.assert_one_run_stop(
+            [{"notes": "# milestones\n", "statuses": {"M1": "TODO", "M2": "TODO"}}],
+            "stopped for the human: milestones planned; review the plan",
+        )
+
+    def test_human_marker_stops_even_when_state_progressed(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        self.assert_one_run_stop(
+            [{"statuses": {"M1": "REVIEW", "M2": "TODO"},
+              "print": "work\nHARNESS_LOOP_RESULT: HUMAN \u2014 review-cycle cap spent; decide on M2"}],
+            "stopped for the human: review-cycle cap spent; decide on M2",
+        )
+
+    def test_human_marker_without_state_change_is_not_a_failed_step(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        outcome = self.assert_one_run_stop(
+            [{"print": "HARNESS_LOOP_RESULT: HUMAN \u2014 a decision is needed on M1"}],
+            "stopped for the human: a decision is needed on M1",
+        )
+        self.assertNotIn("failed step", outcome)
+
+    def test_human_marker_without_a_sentence_and_last_marker_wins(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        self.assert_one_run_stop([{"print": "HARNESS_LOOP_RESULT: HUMAN"}], "stopped for the human")
+
+    def test_last_result_line_wins(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        self.assert_one_run_stop(
+            [{"print": "HARNESS_LOOP_RESULT: BOUNDARY\nHARNESS_LOOP_RESULT: HUMAN \u2014 pick one"}],
+            "stopped for the human: pick one",
+        )
+
+    def test_boundary_marker_alone_is_not_progress(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        outcome = self.run_to_end([{"print": "HARNESS_LOOP_RESULT: BOUNDARY"}])
+        self.assertEqual(outcome, TWO + "failed step: no state progress")
+        self.assertEqual(len(self.recorded_runs()), 2)
+
+    def test_signed_out_output_stops_at_once_without_retry(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        self.assert_one_run_stop(
+            [{"print": "Not logged in \u00b7 Please run /login", "exit": 1}], "signed out of Claude"
+        )
+
+    def test_usage_limit_with_reset_text_stops_and_reports_the_reset(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        self.assert_one_run_stop(
+            [{"print": "You've hit your limit \u00b7 resets 3pm (Europe/London)", "exit": 1}],
+            "usage limit reached (resets 3pm (Europe/London))",
+        )
+
+    def test_usage_limit_with_epoch_suffix_renders_a_local_time(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        outcome = self.assert_one_run_stop(
+            [{"print": "Claude AI usage limit reached|1762531200", "exit": 1}], contains=("usage limit reached (resets ",)
+        )
+        self.assertRegex(outcome, r"\(resets \d{4}-\d\d-\d\d \d\d:\d\d \S+\)$")
+
+    def test_usage_limit_without_reset_time_has_no_parenthesis(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        self.assert_one_run_stop([{"print": "Usage limit reached", "exit": 1}], "usage limit reached")
+
+    def test_account_stop_wins_over_state_progress_and_human_marker(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        self.assert_one_run_stop(
+            [{"statuses": {"M1": "BLOCKED", "M2": "TODO"}, "print": "Not logged in"}], "signed out of Claude"
+        )
+
+    def test_step_command_carries_the_result_instruction(self):
+        module = load_script()
+        command, _ = module.session_command("claude", "/harness:implement", {})
+        self.assertEqual(command[command.index("--append-system-prompt") + 1], module.RESULT_INSTRUCTION)
+        self.assertIn("HARNESS_LOOP_RESULT: BOUNDARY", module.RESULT_INSTRUCTION)
+        self.assertIn("HARNESS_LOOP_RESULT: HUMAN", module.RESULT_INSTRUCTION)
+        self.write_state({"M1": "TODO"})
+        self.run_to_end([{"statuses": {"M1": "DONE"}}])
+        argv = self.recorded_runs()[0]["argv"]
+        self.assert_prompt_argument(argv)
+        self.assertEqual(argv[argv.index("--append-system-prompt") + 1], module.RESULT_INSTRUCTION)
+
     def test_judge_step_branches(self):
         judge = load_script().judge_step
 
@@ -683,7 +783,12 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertEqual(judge(todo, snap({"M1": "TODO", "M2": "TODO", "M3": "TODO"}), 0, False), "progress")
         self.assertEqual(judge(todo, snap({"M1": "TODO"}), 0, False), "progress")
         self.assertEqual(judge(todo, snap({"M1": "TODO", "M2": "TODO"}, current="M2"), 0, False), "progress")
-        self.assertEqual(judge(todo, snap({"M1": "TODO", "M2": "TODO"}, notes="abc"), 0, False), "progress")
+        planned = snap({"M1": "TODO", "M2": "TODO"}, notes="old")
+        self.assertEqual(judge(planned, snap({"M1": "TODO", "M2": "TODO"}, notes="abc"), 0, False), "progress")
+        self.assertEqual(
+            judge(todo, snap({"M1": "TODO", "M2": "TODO"}, notes="abc"), 0, False),
+            "stopped for the human: milestones planned; review the plan",
+        )
         self.assertEqual(judge(todo, snap({"M1": "REVIEW", "M2": "TODO"}), 1, False), "progress")
         self.assertEqual(judge(todo, todo, 0, False), "failed step: no state progress")
         self.assertEqual(judge(todo, todo, 1, False), "failed step: no state progress")

@@ -19,6 +19,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import subprocess
@@ -42,6 +43,21 @@ CHECK_PROMPT = (
     "If a skill named harness:implement is available to you, reply with exactly "
     f"{CHECK_OK}; otherwise reply with exactly {CHECK_MISSING}. Use no tools."
 )
+
+RESULT_MARKER = "HARNESS_LOOP_RESULT:"
+RESULT_INSTRUCTION = (
+    "When you finish, end your final message with exactly one line: "
+    f"`{RESULT_MARKER} BOUNDARY` if you stopped at a normal milestone or phase boundary "
+    "(for example a milestone set to REVIEW, DONE or SPLIT, or a phase handed off), or "
+    f"`{RESULT_MARKER} HUMAN \u2014 <one plain sentence saying what the owner must decide or do>` "
+    "if you stopped for the human for any other reason (a milestone BLOCKED, an escalation, "
+    "a decision needed, an exhausted continuation, retry or review-cycle cap, a planning stop, "
+    "or anything else)."
+)
+SIGNED_OUT_PHRASES = (
+    "not logged in", "please run /login", "invalid api key", "oauth token has expired", "authentication_error",
+)
+USAGE_LIMIT_PHRASES = ("usage limit", "hit your limit", "limit reached")
 
 # The only parent environment names a session may see. Each passes through only
 # when set in the parent; GIT_TERMINAL_PROMPT is always forced to "0".
@@ -164,6 +180,8 @@ def session_command(claude: str, prompt: str, parent_env=None) -> tuple[list[str
         json.dumps({"permissions": {"deny": rules}}),
         "--disallowedTools",
         *rules,
+        "--append-system-prompt",
+        RESULT_INSTRUCTION,
         "-p",
         prompt,
     ]
@@ -302,16 +320,61 @@ def take_snapshot(project: Path) -> dict:
     }
 
 
+def reset_time(output: str) -> str | None:
+    """The usage-limit reset time the output gives (text after resets / reset at, or a |epoch suffix)."""
+    found = re.search(r"resets?(?: at)?[ \t]+([^\n\u00b7|]*)", output, re.IGNORECASE)
+    if found and found.group(1).strip():
+        return found.group(1).strip()
+    epoch = re.search(r"\|\s*(\d{9,11})\b", output)
+    if epoch:
+        return datetime.fromtimestamp(int(epoch.group(1))).astimezone().strftime("%Y-%m-%d %H:%M %Z")
+    return None
+
+
+def account_stop(output: str) -> str | None:
+    """Return the outcome when the output says Claude is signed out or the usage limit is reached."""
+    lowered = output.lower()
+    if any(phrase in lowered for phrase in SIGNED_OUT_PHRASES):
+        return "signed out of Claude"
+    if any(phrase in lowered for phrase in USAGE_LIMIT_PHRASES):
+        reset = reset_time(output)
+        return "usage limit reached" + (f" (resets {reset})" if reset else "")
+    return None
+
+
+def human_stop(before: dict, after: dict, output: str) -> str | None:
+    """Return the outcome when the session stopped for the human, from state first, then its result line."""
+    for identifier, status in (after["statuses"] or {}).items():
+        if status == "BLOCKED":
+            return f"stopped for the human: milestone {identifier} is BLOCKED"
+    if before["notes"] is None and after["notes"] is not None:
+        return "stopped for the human: milestones planned; review the plan"
+    results = [line.strip() for line in output.splitlines() if line.strip().startswith(RESULT_MARKER)]
+    if results:
+        verdict = results[-1][len(RESULT_MARKER):].strip()
+        if verdict.upper().startswith("HUMAN"):
+            sentence = verdict[len("HUMAN"):].lstrip(" \t\u2014-\u2013:").strip()
+            return f"stopped for the human: {sentence}" if sentence else "stopped for the human"
+    return None
+
+
 def judge_step(before: dict, after: dict, returncode: int | None, stopped: bool,
-               timed_out: bool = False, step_timeout: float = DEFAULT_STEP_TIMEOUT) -> str:
+               timed_out: bool = False, step_timeout: float = DEFAULT_STEP_TIMEOUT,
+               output: str = "") -> str:
     """Decide what follows a step from recorded state; the exit code never decides progress."""
     if stopped:
         return "stopped by owner"
+    account = account_stop(output)
+    if account:
+        return account
     if timed_out:  # a step that overran its limit failed, whatever state it changed
         return f"failed step: time limit {step_timeout:g}s exceeded"
     statuses = after["statuses"]
     if statuses and all(status == "DONE" for status in statuses.values()):
         return FINISHED
+    human = human_stop(before, after, output)
+    if human:
+        return human
     if before != after:
         return PROGRESS
     return FAILED_STEP
@@ -330,6 +393,7 @@ class Driver:
         self.caffeinate: subprocess.Popen | None = None
         self.step: subprocess.Popen | None = None
         self.milestone: str | None = None
+        self.output = ""
 
     def request_stop(self, signum, _frame) -> None:
         self.stop_requested = True
@@ -391,7 +455,9 @@ class Driver:
         claude = self.config.get("claude") or "claude"
         command, env = session_command(claude, STEP_PROMPT)
         log(self.project, f"step {number} started: milestone {self.milestone}, attempt {attempt}")
-        with open(self.loop / f"step-{number}.out", "ab") as output:
+        out_path = self.loop / f"step-{number}.out"
+        offset = out_path.stat().st_size if out_path.exists() else 0  # an earlier start may have used this name
+        with open(out_path, "ab") as output:
             self.step = self.spawn(
                 command,
                 cwd=self.project,
@@ -424,6 +490,9 @@ class Driver:
             time.sleep(POLL)
         returncode = self.step.returncode
         log(self.project, f"step {number} ended: exit {returncode}")
+        with open(out_path, "rb") as handle:
+            handle.seek(offset)
+            self.output = handle.read().decode("utf-8", errors="replace")
         return returncode, self.stop_requested, timed_out
 
     def finish(self, outcome: str) -> None:
@@ -466,7 +535,8 @@ class Driver:
                 before = take_snapshot(self.project)
                 returncode, stopped, timed_out = self.run_step(number, failures + 1)
                 outcome = judge_step(
-                    before, take_snapshot(self.project), returncode, stopped, timed_out, self.step_timeout
+                    before, take_snapshot(self.project), returncode, stopped, timed_out, self.step_timeout,
+                    self.output,
                 )
                 log(self.project, f"step {number} outcome: {outcome}")
                 if outcome == PROGRESS:

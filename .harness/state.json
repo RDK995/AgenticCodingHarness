@@ -24,7 +24,7 @@
   "milestones": {
     "M1": {
       "outcome": "The loop starts in the background, reports its status, and stops cleanly",
-      "status": "IN_PROGRESS",
+      "status": "REVIEW",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {

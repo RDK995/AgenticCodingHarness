@@ -2,7 +2,7 @@
 
 ## M1 — The loop starts in the background, reports its status, and stops cleanly
 
-Status: IN_PROGRESS
+Status: REVIEW
 
 ### Outcome
 
@@ -47,8 +47,22 @@ N/A
 5eccdccf677779cbe92a845bcd4ca76da6dd70b4 on m1-loop-background-start-stop
 
 ### Evidence
+Tasks (entry tier, rungs):
+- M1-T1 skill file — Cheap, attempt 1, PASS (`.harness/evidence/M1-T1-verifier.log`), commit dd277a5
+- M1-T2 detached driver start/status/stop — Top, attempt 4, PASS — routed Top: DIFFICULT_CONCURRENCY (`.harness/evidence/M1-T2-verifier.log`, `-run2.log`), commit b1b3188
+- M1-T3 loop/commands log content, loop state unstaged — Cheap, attempt 1, PASS (`.harness/evidence/M1-T3-verifier.log`), commit 5f8c1ef
+
+Per criterion:
+- M1-AC1: `.harness/evidence/M1-AC1-plugin-listing.log` — `claude --plugin-dir <repo> -p ...` EXIT_STATUS=0, `SKILL:harness:implement-loop`, `PLUGIN_ERRORS: none`; skill test 3/3 OK.
+- M1-AC2: `test_start_detaches_driver_and_status_reports_it`.
+- M1-AC3: `test_stop_ends_step_and_driver_leaving_log_and_git_untouched`, `test_stop_kills_step_that_ignores_sigterm_after_grace`.
+- M1-AC4: `test_status_and_stop_report_not_running_without_live_driver`.
+- M1-AC5: `test_loop_log_records_step_lifecycle_with_timestamps`, `test_loop_log_records_unsent_notification_without_notify_file`, `test_commands_log_records_children_with_prompt_by_length`, `test_git_add_stages_fixture_changes_but_never_loop_state`.
 
 ### Validation
+For the reviewer to run once:
+- `python3 .harness-dev/test-implement-loop.py` (10 tests; verifier run exit 0)
+- `python3 .harness-dev/test-implement-loop-skill.py` (3 tests; verifier run exit 0)
 
 ### Review
 
@@ -56,6 +70,9 @@ N/A
 0
 
 ### Follow-ups
+- Interface defaults untested: `HARNESS_LOOP_CLAUDE` fallback and `--grace` default 20 s; the `stop` timeout branch (exit 1 after grace+10 s) is untested and neither force-kills nor notifies.
+- `step N outcome:` is logged on the normal path only; a step stopped mid-run is recorded by the SIGTERM/SIGKILL lines and `final outcome: stopped by owner`, not a per-step outcome line.
+- `run()` hardcodes step 1 / attempt 1; M2 adds the step counter.
 
 ## M2 — Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state
 

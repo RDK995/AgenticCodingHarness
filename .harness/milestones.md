@@ -82,7 +82,7 @@ Permitted pre-existing failure (F1): `python3 .harness-dev/test-orchestrator-inv
 
 ## M2 — Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state
 
-Status: REVIEW
+Status: DONE
 
 ### Outcome
 
@@ -108,11 +108,11 @@ N/A
 N/A
 
 ### Acceptance Criteria
-- [ ] M2-AC1 Driven through `start` by a fake implement session that advances a fixture `.harness/state.json`, the driver runs successive fresh `claude` processes, one per step, in the project directory, each invoking `/harness:implement`, and decides each step's result from `state.json` / `milestones.md` rather than from the session's output alone (FR5).
-- [ ] M2-AC2 A session ending at a normal phase boundary (for example a milestone left at REVIEW) with state progress counts as progress and the next fresh session starts; when every milestone is DONE the loop stops as finished (FR5, FR6(a), Edge Cases).
-- [ ] M2-AC3 The step command line carries `--permission-mode bypassPermissions`, the setting that denies anything that would still prompt, `--plugin-dir <harness root>`, and deny rules for push, merge, commit on main and history rewrite both as `--disallowedTools` values and inside `--settings` `permissions.deny`; the driver itself runs no push or merge (AC7, FR11).
-- [ ] M2-AC4 The step environment contains only the allowed names (PATH, HOME, USER, GIT_TERMINAL_PROMPT, and the named sign-in variables when set); a fake secret seeded in the parent environment appears in neither the child environment, `commands.log` nor `loop.log` (AC7, FR12, FR13).
-- [ ] M2-AC5 A step that exceeds the step time limit (3 hours by default, overridable per start) is terminated, killed after the grace period if still alive, and recorded in the loop log as a failed step (FR5, Edge Cases).
+- [x] M2-AC1 Driven through `start` by a fake implement session that advances a fixture `.harness/state.json`, the driver runs successive fresh `claude` processes, one per step, in the project directory, each invoking `/harness:implement`, and decides each step's result from `state.json` / `milestones.md` rather than from the session's output alone (FR5).
+- [x] M2-AC2 A session ending at a normal phase boundary (for example a milestone left at REVIEW) with state progress counts as progress and the next fresh session starts; when every milestone is DONE the loop stops as finished (FR5, FR6(a), Edge Cases).
+- [x] M2-AC3 The step command line carries `--permission-mode bypassPermissions`, the setting that denies anything that would still prompt, `--plugin-dir <harness root>`, and deny rules for push, merge, commit on main and history rewrite both as `--disallowedTools` values and inside `--settings` `permissions.deny`; the driver itself runs no push or merge (AC7, FR11).
+- [x] M2-AC4 The step environment contains only the allowed names (PATH, HOME, USER, GIT_TERMINAL_PROMPT, and the named sign-in variables when set); a fake secret seeded in the parent environment appears in neither the child environment, `commands.log` nor `loop.log` (AC7, FR12, FR13).
+- [x] M2-AC5 A step that exceeds the step time limit (3 hours by default, overridable per start) is terminated, killed after the grace period if still alive, and recorded in the loop log as a failed step (FR5, Edge Cases).
 
 ### Baseline
 8c676453196d66e83d2810645cf1490176967854 on m2-fresh-locked-down-steps
@@ -135,11 +135,13 @@ N/A
 Permitted pre-existing failure (cycle-1 F2): `python3 .harness-dev/test-orchestrator-inventory.py` fails `test_core_stays_compact` — `agents/orchestrator.md` is 730 lines against a 720-line cap. It was already 730 lines at baseline 8c67645 (last changed in 94cfccd); the M2 diff does not touch `agents/`. Not an M2 regression; tracked under Follow-ups (.harness/evidence/M2-review.log).
 
 ### Review
-- Cycle 1 — tier Top (opus), reason SECURITY (reviewer tier not stated in the report; recorded after M2-T1's SECURITY routing), diff 8c676453196d66e83d2810645cf1490176967854..02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5. Verdict CHANGES REQUIRED, scope SUBSTANTIVE; per-criterion M2-AC1..AC5 all PASS. Report `.harness/reviews/M2-cycle1.md`. Findings: F1 IMPORTANT, F2 IMPORTANT, F3 OPTIONAL.
+- Cycle 1 — tier Top (opus), reason SECURITY (confirmed: the implement skill dispatched the cycle-1 reviewer at opus), diff 8c676453196d66e83d2810645cf1490176967854..02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5. Verdict CHANGES REQUIRED, scope SUBSTANTIVE; per-criterion M2-AC1..AC5 all PASS. Report `.harness/reviews/M2-cycle1.md`. Findings: F1 IMPORTANT, F2 IMPORTANT, F3 OPTIONAL.
 - Pre-correction: 02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5
 - F2: resolved record-only (permitted pre-existing failure, see Validation and Follow-ups).
 - F1: resolved by M2-C1-F1 (a677a80). F3: resolved by M2-C1-F3 (607442d).
 - Cycle 1 corrections: commits 19721a9 (record), a677a80, 607442d. Correction diff: `git diff 02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5 HEAD`. Files changed outside `.harness/`: scripts/implement-loop.py, .harness-dev/test-implement-loop.py — both named by cycle-1 findings (F1, F3); no file changed that no finding named.
+- Cycle 1 report save: the reviewer's final write was refused by the auto-mode safety check; with the human's explicit approval the complete draft `.harness/reviews/M2-cycle1.md.partial.md` was renamed to the report path unread.
+- Cycle 2 — tier Top (opus), reason SECURITY (correction diff contains M2-C1-F1), diff 02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5..f5783f6 (correction diff only). Verdict PASS; per-criterion M2-AC1..AC5 all PASS; 0 BLOCKER, 0 IMPORTANT, 0 OPTIONAL. No report written (PASS).
 
 ### Review Cycles
 1

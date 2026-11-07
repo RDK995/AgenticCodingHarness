@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_milestone": "M2",
+  "current_milestone": "M3",
   "requirements": {
     "FR1": "M1",
     "FR2": "M1",
@@ -206,7 +206,7 @@
     },
     "M2": {
       "outcome": "Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state",
-      "status": "REVIEW",
+      "status": "DONE",
       "review_cycles": 1,
       "review_override": null,
       "baseline": {
@@ -223,42 +223,47 @@
       "criteria": [
         {
           "id": "M2-AC1",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "Driven through `start` by a fake implement session that advances a fixture `.harness/state.json`, the driver runs successive fresh `claude` processes, one per step, in the project directory, each invoking `/harness:implement`, and decides each step's result from `state.json` / `milestones.md` rather than from the session's output alone (FR5).",
           "evidence": [
-            ".harness/evidence/M2-T2-verifier.log: test_loop_runs_successive_fresh_steps_until_every_milestone_is_done (4 runs, 4 distinct pids, cwd == project, -p /harness:implement each); test_state_not_output_decides_the_step_result"
+            ".harness/evidence/M2-T2-verifier.log: test_loop_runs_successive_fresh_steps_until_every_milestone_is_done (4 runs, 4 distinct pids, cwd == project, -p /harness:implement each); test_state_not_output_decides_the_step_result",
+            "Cycle-2 review (opus) per-criterion PASS at f5783f6"
           ]
         },
         {
           "id": "M2-AC2",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "A session ending at a normal phase boundary (for example a milestone left at REVIEW) with state progress counts as progress and the next fresh session starts; when every milestone is DONE the loop stops as finished (FR5, FR6(a), Edge Cases).",
           "evidence": [
-            ".harness/evidence/M2-T2-verifier.log: same 4-run test (M1 REVIEW -> 'step 1 outcome: progress' -> step 2 started; ends 'finished: every milestone is DONE', one notification); test_nonzero_exit_with_state_advanced_to_all_done_is_finished; test_milestones_file_only_change_counts_as_progress"
+            ".harness/evidence/M2-T2-verifier.log: same 4-run test (M1 REVIEW -> 'step 1 outcome: progress' -> step 2 started; ends 'finished: every milestone is DONE', one notification); test_nonzero_exit_with_state_advanced_to_all_done_is_finished; test_milestones_file_only_change_counts_as_progress",
+            "Cycle-2 review (opus) per-criterion PASS at f5783f6"
           ]
         },
         {
           "id": "M2-AC3",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "The step command line carries `--permission-mode bypassPermissions`, the setting that denies anything that would still prompt, `--plugin-dir <harness root>`, and deny rules for push, merge, commit on main and history rewrite both as `--disallowedTools` values and inside `--settings` `permissions.deny`; the driver itself runs no push or merge (AC7, FR11).",
           "evidence": [
-            ".harness/evidence/M2-T1-verifier.log: test_builder_returns_locked_down_command, test_step_runs_locked_down_with_minimal_environment (bypassPermissions, --permission-prompts none, --plugin-dir, DENY_RULES in --disallowedTools and --settings permissions.deny); test_driver_source_runs_no_push_or_merge"
+            ".harness/evidence/M2-T1-verifier.log: test_builder_returns_locked_down_command, test_step_runs_locked_down_with_minimal_environment (bypassPermissions, --permission-prompts none, --plugin-dir, DENY_RULES in --disallowedTools and --settings permissions.deny); test_driver_source_runs_no_push_or_merge",
+            "Cycle-2 review (opus) per-criterion PASS at f5783f6"
           ]
         },
         {
           "id": "M2-AC4",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "The step environment contains only the allowed names (PATH, HOME, USER, GIT_TERMINAL_PROMPT, and the named sign-in variables when set); a fake secret seeded in the parent environment appears in neither the child environment, `commands.log` nor `loop.log` (AC7, FR12, FR13).",
           "evidence": [
-            ".harness/evidence/M2-T1-verifier.log: test_step_runs_locked_down_with_minimal_environment (env names subset of allowed, GIT_TERMINAL_PROMPT=0); test_parent_secret_reaches_neither_step_nor_logs"
+            ".harness/evidence/M2-T1-verifier.log: test_step_runs_locked_down_with_minimal_environment (env names subset of allowed, GIT_TERMINAL_PROMPT=0); test_parent_secret_reaches_neither_step_nor_logs",
+            "Cycle-2 review (opus) per-criterion PASS at f5783f6"
           ]
         },
         {
           "id": "M2-AC5",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "A step that exceeds the step time limit (3 hours by default, overridable per start) is terminated, killed after the grace period if still alive, and recorded in the loop log as a failed step (FR5, Edge Cases).",
           "evidence": [
-            ".harness/evidence/M2-T3-verifier.log: test_step_over_time_limit_is_terminated_and_recorded_as_failed, test_step_over_time_limit_ignoring_sigterm_is_killed_after_grace, test_timed_out_step_is_failed_even_if_state_advanced, test_step_timeout_defaults_to_three_hours_and_is_listed_in_help"
+            ".harness/evidence/M2-T3-verifier.log: test_step_over_time_limit_is_terminated_and_recorded_as_failed, test_step_over_time_limit_ignoring_sigterm_is_killed_after_grace, test_timed_out_step_is_failed_even_if_state_advanced, test_step_timeout_defaults_to_three_hours_and_is_listed_in_help",
+            "Cycle-2 review (opus) per-criterion PASS at f5783f6"
           ]
         }
       ],
@@ -360,7 +365,7 @@
           "tier": "Top",
           "model": "opus",
           "reason_code": "SECURITY",
-          "detail": "Reviewer tier is not stated in the report; recorded as Top/SECURITY after the milestone's SECURITY task (M2-T1)",
+          "detail": "Confirmed: the implement skill dispatched the cycle-1 reviewer at opus",
           "diff_range": "8c676453196d66e83d2810645cf1490176967854..02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5",
           "verdict": "CHANGES REQUIRED (scope SUBSTANTIVE; M2-AC1..AC5 PASS; 0 BLOCKER, 2 IMPORTANT, 1 OPTIONAL)",
           "artifact": ".harness/reviews/M2-cycle1.md",
@@ -378,7 +383,17 @@
               ".harness-dev/test-implement-loop.py"
             ],
             "files_not_named_by_a_finding": []
-          }
+          },
+          "report_save": "Reviewer final write refused by auto-mode safety check; human approved renaming the complete partial to the report path, unread"
+        },
+        {
+          "cycle": 2,
+          "tier": "Top",
+          "model": "opus",
+          "reason_code": "SECURITY",
+          "diff_range": "02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5..f5783f6",
+          "verdict": "PASS (M2-AC1..AC5 PASS; 0 BLOCKER, 0 IMPORTANT, 0 OPTIONAL)",
+          "artifact": null
         }
       ],
       "findings": [

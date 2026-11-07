@@ -1,0 +1,16 @@
+commit: dd277a59df1e5dd114e3178913d73e8da1365208
+command: python3 .harness-dev/test-implement-loop.py -v
+run: 2 of 2
+started: 2026-11-07T18:32:53Z
+test_driver_ends_by_itself_after_one_step (__main__.ImplementLoopTests.test_driver_ends_by_itself_after_one_step) ... ok
+test_no_sink_records_unsent_notification_in_log (__main__.ImplementLoopTests.test_no_sink_records_unsent_notification_in_log) ... ok
+test_start_detaches_driver_and_status_reports_it (__main__.ImplementLoopTests.test_start_detaches_driver_and_status_reports_it) ... ok
+test_status_and_stop_report_not_running_without_live_driver (__main__.ImplementLoopTests.test_status_and_stop_report_not_running_without_live_driver) ... ok
+test_stop_ends_step_and_driver_leaving_log_and_git_untouched (__main__.ImplementLoopTests.test_stop_ends_step_and_driver_leaving_log_and_git_untouched) ... ok
+test_stop_kills_step_that_ignores_sigterm_after_grace (__main__.ImplementLoopTests.test_stop_kills_step_that_ignores_sigterm_after_grace) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 5.048s
+
+OK
+EXIT_STATUS=0

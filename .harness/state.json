@@ -98,6 +98,24 @@
             "reason_code": "DIFFICULT_CONCURRENCY",
             "detail": "Detached sessions, signal handling across driver/step/caffeinate, pid liveness races"
           },
+          "attempts": [
+            {
+              "attempt": 4,
+              "tier": "Top",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M1-T2-verifier.log"
+            }
+          ]
+        },
+        {
+          "id": "M1-T3",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Cheap",
+            "model": "haiku",
+            "reason_code": "BOUNDED_LOW_RISK",
+            "detail": "Log lines through existing helpers plus tests of stated assertions"
+          },
           "attempts": []
         }
       ],

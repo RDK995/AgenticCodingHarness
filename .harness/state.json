@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_milestone": "M5",
+  "current_milestone": "M6",
   "requirements": {
     "FR1": "M1",
     "FR2": "M1",
@@ -710,7 +710,7 @@
     },
     "M5": {
       "outcome": "Notifications reach the owner's phone through ntfy without ever revealing the topic",
-      "status": "REVIEW",
+      "status": "DONE",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
@@ -725,7 +725,7 @@
       "criteria": [
         {
           "id": "M5-AC1",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "A loop run through `start` and `stop` with the alert config path pointed at a test config sends its stop notification through the ntfy sender, which reads the config at send time and POSTs the body to `<ntfy_server>/<ntfy_topic>` on a local stub; no test touches the external network (AC6, FR7).",
           "evidence": [
             "test_stop_notification_is_posted_to_ntfy_reading_the_config_at_send_time; test_alert_config_path_comes_from_option_then_env_then_default; test_sink_posts_the_body_and_reports_status_only (.harness/evidence/M5-T1-verifier.log)"
@@ -733,7 +733,7 @@
         },
         {
           "id": "M5-AC2",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "The topic never appears in stdout, stderr, `loop.log`, `commands.log`, `outcome.json`, or any error or exception text, including when the POST fails (AC6, FR7).",
           "evidence": [
             "test_topic_never_appears_in_output_or_loop_files; test_sink_failure_reason_never_carries_the_topic; test_refused_start_posts_to_ntfy_or_says_why_not_without_the_topic (.harness/evidence/M5-T1-verifier.log)"
@@ -741,7 +741,7 @@
         },
         {
           "id": "M5-AC3",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "A missing or invalid config, a network failure, or an HTTP error status is recorded in `loop.log` as \"not sent\" with a reason, and the loop keeps running (AC6, Edge Cases).",
           "evidence": [
             "test_failed_ntfy_send_is_logged_and_the_driver_still_finishes; test_refused_start_posts_to_ntfy_or_says_why_not_without_the_topic; test_without_notify_file_missing_alert_config_records_unsent_notification (.harness/evidence/M5-T1-verifier.log)"
@@ -749,7 +749,7 @@
         },
         {
           "id": "M5-AC4",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "Every message names the project it comes from, and a body over ntfy's 4096-byte limit is truncated to fit with a visible truncation marker (AC5, FR7).",
           "evidence": [
             "test_stop_notification_names_the_project; test_refused_start_notification_names_the_project; test_prepare_message_labels_a_short_message_and_leaves_it_otherwise_unchanged; test_prepare_message_cuts_an_over_long_ascii_body_to_the_limit_with_a_marker; test_prepare_message_cuts_multibyte_text_at_a_character_boundary; test_a_labelled_message_of_exactly_the_limit_is_not_truncated (.harness/evidence/M5-T2-verifier.log)"
@@ -794,7 +794,18 @@
           ]
         }
       ],
-      "reviews": [],
+      "reviews": [
+        {
+          "cycle": 1,
+          "tier": "Top",
+          "model": "opus",
+          "reason_code": "SECURITY",
+          "diff_range": "76ba78510cc492d0fed1e3aaa9f50ffbf3243422..3d69447",
+          "verdict": "CHANGES REQUIRED, Scope RECORD_ONLY (M5-AC1..AC4 PASS; 0 BLOCKER, 1 IMPORTANT, 1 OPTIONAL); F1 resolved by record-only correction (pre-correction 3d69447); gate PASS",
+          "artifact": ".harness/reviews/M5-cycle1.md",
+          "validation_log": ".harness/evidence/M5-review.log"
+        }
+      ],
       "findings": [],
       "validation": [
         {
@@ -810,7 +821,8 @@
       ],
       "follow_ups": [
         "ntfy_sink uses urllib default urlopen, which follows HTTP redirects; a redirecting ntfy_server would receive-and-forward the body (verifier note, not in M5 criteria)",
-        "Truncation is tested at prepare_message level and wired before every sink in notify/refuse; no end-to-end test sends an over-4096-byte body through the ntfy stub (verifier coverage note)"
+        "Truncation is tested at prepare_message level and wired before every sink in notify/refuse; no end-to-end test sends an over-4096-byte body through the ntfy stub (verifier coverage note)",
+        "Cycle-1 F2 (OPTIONAL): stop's STOP_EXTRA_WAIT (10s) does not exceed NTFY_TIMEOUT (10s/op, DNS unbounded); a slow ntfy can make stop report 'did not exit'."
       ]
     },
     "M6": {

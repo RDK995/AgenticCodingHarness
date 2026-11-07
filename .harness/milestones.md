@@ -132,7 +132,7 @@ Per criterion:
 
 ## M5 — Notifications reach the owner's phone through ntfy without ever revealing the topic
 
-Status: REVIEW
+Status: DONE
 
 ### Outcome
 
@@ -153,10 +153,10 @@ N/A
 N/A
 
 ### Acceptance Criteria
-- [ ] M5-AC1 A loop run through `start` and `stop` with the alert config path pointed at a test config sends its stop notification through the ntfy sender, which reads the config at send time and POSTs the body to `<ntfy_server>/<ntfy_topic>` on a local stub; no test touches the external network (AC6, FR7).
-- [ ] M5-AC2 The topic never appears in stdout, stderr, `loop.log`, `commands.log`, `outcome.json`, or any error or exception text, including when the POST fails (AC6, FR7).
-- [ ] M5-AC3 A missing or invalid config, a network failure, or an HTTP error status is recorded in `loop.log` as "not sent" with a reason, and the loop keeps running (AC6, Edge Cases).
-- [ ] M5-AC4 Every message names the project it comes from, and a body over ntfy's 4096-byte limit is truncated to fit with a visible truncation marker (AC5, FR7).
+- [x] M5-AC1 A loop run through `start` and `stop` with the alert config path pointed at a test config sends its stop notification through the ntfy sender, which reads the config at send time and POSTs the body to `<ntfy_server>/<ntfy_topic>` on a local stub; no test touches the external network (AC6, FR7).
+- [x] M5-AC2 The topic never appears in stdout, stderr, `loop.log`, `commands.log`, `outcome.json`, or any error or exception text, including when the POST fails (AC6, FR7).
+- [x] M5-AC3 A missing or invalid config, a network failure, or an HTTP error status is recorded in `loop.log` as "not sent" with a reason, and the loop keeps running (AC6, Edge Cases).
+- [x] M5-AC4 Every message names the project it comes from, and a body over ntfy's 4096-byte limit is truncated to fit with a visible truncation marker (AC5, FR7).
 
 ### Baseline
 76ba78510cc492d0fed1e3aaa9f50ffbf3243422 on m5-ntfy-notifications
@@ -178,12 +178,16 @@ Permitted pre-existing failure (cycle-1 F1): `python3 .harness-dev/test-orchestr
 
 ### Review
 Pre-correction: 3d69447a9b7b37d092e803ab4c5c96458824f385 (record-only correction of cycle-1 F1)
+Cycle 1 — Top (opus), reason SECURITY, diff 76ba785..3d69447: CHANGES REQUIRED, Scope RECORD_ONLY (M5-AC1..AC4 PASS; 0 BLOCKER, 1 IMPORTANT, 1 OPTIONAL) — .harness/reviews/M5-cycle1.md, .harness/evidence/M5-review.log. Resolved by record-only correction: F1. check-state --record-only 3d69447 HEAD: OK.
+Verdict: PASS (gate applied: all four criteria PASS, no open BLOCKER/IMPORTANT).
 
 ### Review Cycles
 0
 
 ### Follow-ups
 - ntfy_sink uses urllib's default urlopen, which follows HTTP redirects; a redirecting ntfy_server would forward the body (verifier note; outside M5 criteria).
+- Cycle-1 F2 (OPTIONAL): `stop` waits grace + STOP_EXTRA_WAIT (10s), but the driver may spend up to NTFY_TIMEOUT (10s per operation, DNS unbounded) sending the stop notification after ending the step, so a slow ntfy can make `stop` report "did not exit". Make STOP_EXTRA_WAIT comfortably exceed NTFY_TIMEOUT.
+- Reviewer correction to the redirect note above: urlopen turns a redirected POST (301/302/303) into a body-less GET and refuses 307/308 for POST, so the body is not forwarded as stated.
 - Truncation is tested at prepare_message level; no end-to-end test sends an over-4096-byte body through the ntfy stub.
 Size/shape check at pickup: 4 criteria; M5-AC1 runs through `start`/`stop`; complexity signals: none (one production file, two tasks, no lifecycle change, no live proof).
 

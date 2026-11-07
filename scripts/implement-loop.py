@@ -25,6 +25,8 @@ import signal
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 
 sys.dont_write_bytecode = True
 
@@ -36,6 +38,8 @@ DEFAULT_STEP_TIMEOUT = 3 * 60 * 60
 START_WAIT = 4.0
 STOP_EXTRA_WAIT = 10.0
 POLL = 0.1
+DEFAULT_ALERT_CONFIG = "~/.config/harness-e2e/alert.json"
+NTFY_TIMEOUT = 10  # seconds one ntfy POST may take
 CHECK_TIMEOUT = 120  # seconds the sign-in check session may run (2 minutes)
 CHECK_OK = "HARNESS_LOOP_CHECK_OK"
 CHECK_MISSING = "HARNESS_LOOP_CHECK_MISSING"
@@ -211,21 +215,101 @@ def file_sink(path: str):
     return send
 
 
+class NotSent(Exception):
+    """An ntfy send that failed; carries only a sanitized reason, never the server or topic."""
+
+
+def alert_config_path(option: str | None) -> str:
+    """The alert config path: --alert-config, else $HARNESS_LOOP_ALERT_CONFIG, else the default."""
+    chosen = option or os.environ.get("HARNESS_LOOP_ALERT_CONFIG") or DEFAULT_ALERT_CONFIG
+    return os.path.abspath(os.path.expanduser(chosen))
+
+
+def config_problem(text: str | None) -> tuple[str | None, str, str]:
+    """Return (reason, server, topic) for the alert config text; reason is None when it is valid."""
+    if text is None:
+        return "alert config missing", "", ""
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return "alert config is not valid JSON", "", ""
+    if not isinstance(value, dict):
+        return "alert config is not a JSON object", "", ""
+    server, topic = value.get("ntfy_server"), value.get("ntfy_topic")
+    if not (isinstance(server, str) and server.startswith(("http://", "https://"))):
+        return "alert config has no valid ntfy_server", "", ""
+    if not (isinstance(topic, str) and topic and not re.search(r"[/?#\s]", topic)):
+        return "alert config has no valid ntfy_topic", "", ""
+    return None, server, topic
+
+
+def ntfy_sink(path: str, opener=urllib.request.urlopen):
+    """POST the message to <ntfy_server>/<ntfy_topic>, reading the config file afresh on every send.
+
+    Every reason is built from fixed text, status codes and class names, never from an
+    exception's text or the URL, and is raised outside any except block so no chained
+    exception (which would carry the URL) is attached.
+    """
+
+    def attempt(message: str) -> tuple[str | None, str]:
+        try:
+            text = Path(path).read_text(encoding="utf-8")
+        except FileNotFoundError:
+            text = None
+        except (OSError, ValueError):
+            return "alert config unreadable", ""
+        reason, server, topic = config_problem(text)
+        if reason:
+            return reason, topic
+        request = urllib.request.Request(
+            server.rstrip("/") + "/" + topic,
+            data=message.encode("utf-8"),
+            method="POST",
+            headers={"Content-Type": "text/plain; charset=utf-8"},
+        )
+        try:
+            with opener(request, timeout=NTFY_TIMEOUT) as response:
+                status = getattr(response, "status", None)
+        except urllib.error.HTTPError as error:
+            code = error.code if isinstance(error.code, int) else "error"
+            error.close()
+            return f"HTTP {code}", topic
+        except urllib.error.URLError as error:
+            cause = error.reason if isinstance(error.reason, BaseException) else error
+            return f"network error: {type(cause).__name__}", topic
+        except Exception as error:
+            return f"network error: {type(error).__name__}", topic
+        if isinstance(status, int) and 200 <= status < 300:
+            return None, f"ntfy HTTP {status}"
+        return f"HTTP {status if isinstance(status, int) else 'status unknown'}", topic
+
+    def send(message: str) -> str:
+        reason, detail = attempt(message)
+        if reason is None:
+            return detail
+        if detail:  # final guard: the topic never leaves the sink
+            reason = reason.replace(detail, "<topic>")
+        raise NotSent(reason) from None
+
+    return send
+
+
 def choose_sink(config: dict):
     if config.get("notify_file"):
         return file_sink(config["notify_file"])
-    return None
+    return ntfy_sink(config.get("alert_config") or alert_config_path(None))
+
+
+def not_sent_reason(error: Exception) -> str:
+    """The loggable reason for a failed send: the sink's own text, else only the class name."""
+    return str(error) if isinstance(error, (NotSent, OSError)) else type(error).__name__
 
 
 def notify(project: Path, config: dict, message: str) -> None:
-    sink = choose_sink(config)
-    if sink is None:
-        log(project, f"notification not sent: no sink configured: {message}")
-        return
     try:
-        where = sink(message)
-    except OSError as error:
-        log(project, f"notification not sent: {error}: {message}")
+        where = choose_sink(config)(message)
+    except Exception as error:
+        log(project, f"notification not sent: {not_sent_reason(error)}: {message}")
         return
     log(project, f"notification sent ({where}): {message}")
 
@@ -718,17 +802,13 @@ def pre_start_gate(project: Path, claude: str) -> str | None:
     return check_documents(project) or check_branch(project) or check_sign_in(project, claude)
 
 
-def refuse(reason: str, notify_file: str | None) -> int:
+def refuse(reason: str, notify_file: str | None, alert_config: str) -> int:
     """Refuse to start: say why on stderr, send one notification, write nothing under .harness/loop."""
     print(f"cannot start: {reason}", file=sys.stderr)
-    sink = choose_sink({"notify_file": notify_file})
-    if sink is None:
-        print("notification not sent: no sink configured", file=sys.stderr)
-    else:
-        try:
-            sink(f"loop did not start: {reason}")
-        except OSError as error:
-            print(f"notification not sent: {error}", file=sys.stderr)
+    try:
+        choose_sink({"notify_file": notify_file, "alert_config": alert_config})(f"loop did not start: {reason}")
+    except Exception as error:
+        print(f"notification not sent: {not_sent_reason(error)}", file=sys.stderr)
     return 1
 
 
@@ -741,15 +821,19 @@ def command_start(args, project: Path) -> int:
         print("cannot start: claude executable not found", file=sys.stderr)
         return 2
     notify_file = str(Path(args.notify_file).expanduser().resolve()) if args.notify_file else None
+    alert_config = alert_config_path(args.alert_config)
     reason = pre_start_gate(project, claude)
     if reason is not None:
-        return refuse(reason, notify_file)
+        return refuse(reason, notify_file, alert_config)
     loop = state_dir(project)
     loop.mkdir(parents=True, exist_ok=True)
     (loop / ".gitignore").write_text("*\n")
     write_json(
         loop / "config.json",
-        {"claude": claude, "notify_file": notify_file, "grace": args.grace, "step_timeout": args.step_timeout},
+        {
+            "claude": claude, "notify_file": notify_file, "alert_config": alert_config,
+            "grace": args.grace, "step_timeout": args.step_timeout,
+        },
     )
     for stale in ("current-step.json", "outcome.json"):
         (loop / stale).unlink(missing_ok=True)
@@ -826,7 +910,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     commands = parser.add_subparsers(dest="command", required=True)
     start = commands.add_parser("start", help="launch the background driver")
     start.add_argument("--claude", help="claude executable (default: $HARNESS_LOOP_CLAUDE or claude on PATH)")
-    start.add_argument("--notify-file", help="append notifications to this file")
+    start.add_argument("--notify-file", help="append notifications to this file instead of sending them to ntfy")
+    start.add_argument(
+        "--alert-config",
+        help="ntfy alert config JSON, read at each send "
+        "(default: $HARNESS_LOOP_ALERT_CONFIG or ~/.config/harness-e2e/alert.json)",
+    )
     start.add_argument("--grace", type=float, default=DEFAULT_GRACE, help="seconds between SIGTERM and SIGKILL")
     start.add_argument(
         "--step-timeout", type=float, default=DEFAULT_STEP_TIMEOUT, help="seconds a step may run (default: 10800)"

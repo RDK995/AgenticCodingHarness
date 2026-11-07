@@ -710,12 +710,12 @@
     },
     "M5": {
       "outcome": "Notifications reach the owner's phone through ntfy without ever revealing the topic",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
-        "commit": "",
-        "branch": ""
+        "commit": "76ba78510cc492d0fed1e3aaa9f50ffbf3243422",
+        "branch": "m5-ntfy-notifications"
       },
       "as_built": {
         "artifact": null,
@@ -727,19 +727,25 @@
           "id": "M5-AC1",
           "status": "PENDING",
           "text": "A loop run through `start` and `stop` with the alert config path pointed at a test config sends its stop notification through the ntfy sender, which reads the config at send time and POSTs the body to `<ntfy_server>/<ntfy_topic>` on a local stub; no test touches the external network (AC6, FR7).",
-          "evidence": []
+          "evidence": [
+            "test_stop_notification_is_posted_to_ntfy_reading_the_config_at_send_time; test_alert_config_path_comes_from_option_then_env_then_default; test_sink_posts_the_body_and_reports_status_only (.harness/evidence/M5-T1-verifier.log)"
+          ]
         },
         {
           "id": "M5-AC2",
           "status": "PENDING",
           "text": "The topic never appears in stdout, stderr, `loop.log`, `commands.log`, `outcome.json`, or any error or exception text, including when the POST fails (AC6, FR7).",
-          "evidence": []
+          "evidence": [
+            "test_topic_never_appears_in_output_or_loop_files; test_sink_failure_reason_never_carries_the_topic; test_refused_start_posts_to_ntfy_or_says_why_not_without_the_topic (.harness/evidence/M5-T1-verifier.log)"
+          ]
         },
         {
           "id": "M5-AC3",
           "status": "PENDING",
           "text": "A missing or invalid config, a network failure, or an HTTP error status is recorded in `loop.log` as \"not sent\" with a reason, and the loop keeps running (AC6, Edge Cases).",
-          "evidence": []
+          "evidence": [
+            "test_failed_ntfy_send_is_logged_and_the_driver_still_finishes; test_refused_start_posts_to_ntfy_or_says_why_not_without_the_topic; test_without_notify_file_missing_alert_config_records_unsent_notification (.harness/evidence/M5-T1-verifier.log)"
+          ]
         },
         {
           "id": "M5-AC4",
@@ -748,11 +754,43 @@
           "evidence": []
         }
       ],
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "M5-T1",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Top",
+            "model": "opus",
+            "reason_code": "SECURITY",
+            "detail": "ntfy sender handles a private topic; a leak via exception text or logs is expensive and easy to miss"
+          },
+          "attempts": [
+            {
+              "attempt": 4,
+              "tier": "Top",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M5-T1-verifier.log"
+            }
+          ]
+        },
+        {
+          "id": "M5-T2",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Cheap",
+            "model": "haiku",
+            "reason_code": "BOUNDED_LOW_RISK",
+            "detail": "Small isolated label-and-truncate function at the seam with stated input/output"
+          },
+          "attempts": []
+        }
+      ],
       "reviews": [],
       "findings": [],
       "validation": [],
-      "follow_ups": []
+      "follow_ups": [
+        "ntfy_sink uses urllib default urlopen, which follows HTTP redirects; a redirecting ntfy_server would receive-and-forward the body (verifier note, not in M5 criteria)"
+      ]
     },
     "M6": {
       "outcome": "Each milestone's start and finish reach the owner as a full summary and a worker-tier report",

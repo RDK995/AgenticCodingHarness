@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
 """Black-box tests for the unattended loop driver's start/status/stop lifecycle."""
 
+import http.server
 import importlib.util
 import json
 import os
 from pathlib import Path
 import re
+import secrets
+import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+import traceback
 import unittest
+from unittest import mock
+import urllib.error
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -112,6 +120,47 @@ def group_alive(pgid):
     return True
 
 
+class StubNtfy:
+    """A local HTTP server on 127.0.0.1 recording each POST's path and body."""
+
+    def __init__(self, status=200):
+        self.status = status
+        self.requests = []
+        stub = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length") or 0)
+                stub.requests.append((self.path, self.rfile.read(length).decode("utf-8")))
+                self.send_response(stub.status)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+
+    def close(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+
+def dead_port_url():
+    """A 127.0.0.1 URL with nothing listening on its port."""
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    return f"http://127.0.0.1:{port}"
+
+
+def new_topic():
+    return "harness-test-topic-" + secrets.token_hex(8)
+
+
 def process_table():
     output = subprocess.run(
         ["ps", "-axo", "pid=,ppid=,command="], text=True, capture_output=True, check=True
@@ -136,6 +185,7 @@ class ImplementLoopTests(unittest.TestCase):
         self.loop = self.project / ".harness" / "loop"
         self.notify = self.tools / "notifications.txt"
         self.args_file = self.tools / "claude-args.txt"
+        self.alert = self.tools / "alert.json"  # absent unless a test writes it
         (self.project / ".harness").mkdir()
         (self.project / ".harness" / "state.json").write_text(json.dumps(STATE, indent=2))
         (self.project / ".harness" / "requirements.md").write_text("## Open Questions\n\nNone\n")
@@ -174,6 +224,8 @@ class ImplementLoopTests(unittest.TestCase):
     def run_loop(self, command, *extra, timeout=60, extra_env=None):
         env = os.environ.copy()
         env.pop("HARNESS_LOOP_CLAUDE", None)
+        # Never let a test reach the owner's real alert config: point at a temp path.
+        env["HARNESS_LOOP_ALERT_CONFIG"] = str(self.alert)
         env.update(extra_env or {})
         return subprocess.run(
             [sys.executable, str(SCRIPT), command, "--project", str(self.project), *extra],
@@ -391,14 +443,14 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertEqual(status.returncode, 0)
         self.assertIn("not running", status.stdout)
 
-    def test_no_sink_records_unsent_notification_in_log(self):
+    def test_without_notify_file_missing_alert_config_records_unsent_notification(self):
         claude = self.fake_claude(QUICK_CLAUDE)
         result = self.run_loop("start", "--claude", str(claude))
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(
             wait_for(lambda: (self.loop / "outcome.json").exists() and not (self.loop / "driver.pid").exists())
         )
-        self.assertIn("not sent: no sink configured", (self.loop / "loop.log").read_text())
+        self.assertIn("notification not sent: alert config missing: ", (self.loop / "loop.log").read_text())
 
     def run_quick_step(self, notify=True):
         claude = self.fake_claude(QUICK_CLAUDE)
@@ -1075,6 +1127,249 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertIn("check failed", result.stdout)
         self.assertFalse((self.project / ".harness" / "loop").exists())
         self.assertEqual(self.notifications(), [])
+
+
+    # --- M5-T1: the ntfy sender ---
+    def write_alert(self, server, topic, path=None):
+        path = path or self.alert
+        path.write_text(json.dumps({"ntfy_server": server, "ntfy_topic": topic}))
+        return path
+
+    def stub(self, status=200):
+        server = StubNtfy(status)
+        self.addCleanup(server.close)
+        return server
+
+    def start_ntfy(self, claude, alert=None):
+        result = self.run_loop("start", "--claude", str(claude), "--alert-config", str(alert or self.alert))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result
+
+    def wait_finished(self):
+        finished = wait_for(
+            lambda: (self.loop / "outcome.json").exists() and not (self.loop / "driver.pid").exists(),
+            timeout=30,
+        )
+        self.assertTrue(finished, "driver did not finish")
+
+    def stop_message(self):
+        record = json.loads((self.loop / "outcome.json").read_text())
+        return (
+            f"implement loop stopped: {record['outcome']}. Stopped on milestone {record['milestone']}, "
+            f"branch {record['branch']}. {record['ask']}"
+        ).rstrip()
+
+    def assert_topic_hidden(self, topic, results):
+        for result in results:
+            self.assertNotIn(topic, result.stdout)
+            self.assertNotIn(topic, result.stderr)
+        for name in ("loop.log", "commands.log", "outcome.json", "config.json"):
+            path = self.loop / name
+            self.assertTrue(path.exists(), name)
+            self.assertNotIn(topic, path.read_text(), f"the topic leaked into {name}")
+
+    def run_ntfy_start_stop(self, server_url, topic):
+        """start (sleeping step) with --alert-config, then status, stop and status; return the results."""
+        self.write_alert(server_url, topic)
+        started = self.start_ntfy(self.fake_claude(SLEEPING_CLAUDE))
+        self.driver_pid()
+        self.assertTrue(wait_for(self.current_step), "current-step.json never appeared")
+        status = self.run_loop("status")
+        stop = self.run_loop("stop")
+        self.assertEqual(stop.returncode, 0, stop.stdout + stop.stderr)
+        self.wait_finished()
+        return [started, status, stop, self.run_loop("status")]
+
+    def test_stop_notification_is_posted_to_ntfy_reading_the_config_at_send_time(self):
+        server = self.stub()
+        first, second = new_topic(), new_topic()
+        self.write_alert(server.url, first)
+        self.start_ntfy(self.fake_claude(SLEEPING_CLAUDE))
+        self.driver_pid()
+        self.assertTrue(wait_for(self.current_step), "current-step.json never appeared")
+        config = json.loads((self.loop / "config.json").read_text())
+        self.assertEqual(config["alert_config"], str(self.alert))
+        self.assertIsNone(config["notify_file"])
+        self.write_alert(server.url, second)  # the driver must read the file afresh when it sends
+
+        stop = self.run_loop("stop")
+        self.assertEqual(stop.returncode, 0, stop.stdout + stop.stderr)
+        self.wait_finished()
+        self.assertTrue(wait_for(lambda: server.requests, 5))
+        self.assertEqual(len(server.requests), 1, server.requests)
+        path, body = server.requests[0]
+        self.assertEqual(path, "/" + second)
+        self.assertEqual(body, self.stop_message())
+        self.loop_log_matches("notification sent (ntfy HTTP 200): implement loop stopped: stopped by owner")
+        self.assert_topic_hidden(first, [stop])
+        self.assert_topic_hidden(second, [stop])
+
+    def test_alert_config_option_is_in_start_help(self):
+        result = self.run_loop("start", "--help")
+        self.assertIn("--alert-config", result.stdout)
+
+    def test_alert_config_path_comes_from_option_then_env_then_default(self):
+        module = load_script()
+        home = self.tools / "home"
+        with mock.patch.dict(os.environ, {"HOME": str(home)}):
+            os.environ.pop("HARNESS_LOOP_ALERT_CONFIG", None)
+            self.assertEqual(module.alert_config_path(None), str(home / ".config" / "harness-e2e" / "alert.json"))
+            os.environ["HARNESS_LOOP_ALERT_CONFIG"] = str(self.tools / "env.json")
+            self.assertEqual(module.alert_config_path(None), str(self.tools / "env.json"))
+            self.assertEqual(module.alert_config_path("~/x.json"), str(home / "x.json"))
+
+    def test_topic_never_appears_in_output_or_loop_files(self):
+        cases = [("sent", 200, "notification sent (ntfy HTTP 200)"),
+                 ("http 500", 500, "notification not sent: HTTP 500: "),
+                 ("http 403", 403, "notification not sent: HTTP 403: "),
+                 ("network failure", None, "notification not sent: network error: ")]
+        for label, status, logged in cases:
+            with self.subTest(case=label):
+                shutil.rmtree(self.loop, ignore_errors=True)
+                self.args_file.unlink(missing_ok=True)
+                topic = new_topic()
+                url = self.stub(status).url if status else dead_port_url()
+                results = self.run_ntfy_start_stop(url, topic)
+                self.loop_log_matches(logged)
+                self.assert_topic_hidden(topic, results)
+
+    def test_refused_start_posts_to_ntfy_or_says_why_not_without_the_topic(self):
+        (self.project / ".harness" / "requirements.md").unlink()
+        claude = self.fake_claude(QUICK_CLAUDE)
+        server = self.stub()
+        topic = new_topic()
+        self.write_alert(server.url, topic)
+        result = self.run_loop("start", "--claude", str(claude), "--alert-config", str(self.alert))
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(len(server.requests), 1, server.requests)
+        self.assertEqual(server.requests[0][0], "/" + topic)
+        self.assertIn("loop did not start: requirements are missing", server.requests[0][1])
+        self.assertNotIn(topic, result.stdout + result.stderr)
+
+        server.status = 403
+        result = self.run_loop("start", "--claude", str(claude), "--alert-config", str(self.alert))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("cannot start: requirements are missing", result.stderr)
+        self.assertIn("notification not sent: HTTP 403", result.stderr)
+        self.assertNotIn(topic, result.stdout + result.stderr)
+
+        self.alert.unlink()
+        result = self.run_loop("start", "--claude", str(claude))  # path from HARNESS_LOOP_ALERT_CONFIG
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("cannot start: requirements are missing", result.stderr)
+        self.assertIn("notification not sent: alert config missing", result.stderr)
+        self.assertFalse(self.loop.exists())
+
+    def test_failed_ntfy_send_is_logged_and_the_driver_still_finishes(self):
+        server = self.stub(500)
+        cases = [
+            ("missing", None, "alert config missing"),
+            ("not json", "{not json", "alert config is not valid JSON"),
+            ("not an object", "[1, 2]", "alert config is not a JSON object"),
+            ("no topic", json.dumps({"ntfy_server": server.url}), "alert config has no valid ntfy_topic"),
+            ("topic with a slash", json.dumps({"ntfy_server": server.url, "ntfy_topic": "a/b"}),
+             "alert config has no valid ntfy_topic"),
+            ("non-http server", json.dumps({"ntfy_server": "ftp://127.0.0.1", "ntfy_topic": "t1"}),
+             "alert config has no valid ntfy_server"),
+            ("network failure", json.dumps({"ntfy_server": dead_port_url(), "ntfy_topic": "t1"}), "network error: "),
+            ("http error", json.dumps({"ntfy_server": server.url, "ntfy_topic": "t1"}), "HTTP 500"),
+        ]
+        for label, text, reason in cases:
+            with self.subTest(case=label):
+                shutil.rmtree(self.loop, ignore_errors=True)
+                (self.tools / "runs.jsonl").unlink(missing_ok=True)
+                self.alert.unlink(missing_ok=True)
+                if text is not None:
+                    self.alert.write_text(text)
+                self.write_state({"M1": "TODO"})
+                self.start_ntfy(self.scripted_claude([{"statuses": {"M1": "DONE"}}]))
+                self.wait_finished()
+                record = json.loads((self.loop / "outcome.json").read_text())
+                self.assertEqual(record["outcome"], "finished: every milestone is DONE")
+                lines = self.loop_log_matches("notification not sent: " + reason)
+                self.assertRegex(lines[0], r"notification not sent: \S.*?: implement loop stopped: finished")
+                log_lines = (self.loop / "loop.log").read_text().splitlines()
+                self.assertIn("final outcome: finished", log_lines[-2])
+                self.assertIn("notification not sent", log_lines[-1])
+
+    def test_sink_failure_reason_never_carries_the_topic(self):
+        module = load_script()
+        topic = "leakytopic" + secrets.token_hex(6)
+        server = "http://127.0.0.1:9"
+        url = f"{server}/{topic}"
+        alert = self.write_alert(server, topic)
+        named_after_topic = type(topic + "Error", (Exception,), {})
+        raised = [
+            urllib.error.URLError(f"cannot reach {url}"),
+            urllib.error.URLError(OSError(f"refused {url}")),
+            urllib.error.HTTPError(url, 502, f"bad gateway at {url}", {}, None),
+            OSError(f"socket error for {url}"),
+            TimeoutError(f"timed out {url}"),
+            ValueError(f"odd value {url}"),
+            named_after_topic(url),
+        ]
+        self.loop.mkdir(parents=True)
+        for error in raised:
+            with self.subTest(error=type(error).__name__):
+                urls = []
+
+                def opener(request, timeout=None, error=error):
+                    urls.append(request.full_url)
+                    raise error
+
+                sink = module.ntfy_sink(str(alert), opener=opener)
+                with self.assertRaises(module.NotSent) as caught:
+                    sink("hello")
+                self.assertEqual(urls, [url])
+                failure = caught.exception
+                self.assertTrue(str(failure))
+                chain, seen = [], failure
+                while seen is not None:
+                    chain.append(seen)
+                    seen = seen.__cause__ or seen.__context__
+                self.assertEqual(len(chain), 1, chain)
+                text = str(failure) + repr(failure) + "".join(traceback.format_exception(failure))
+                self.assertNotIn(topic, text)
+
+                (self.loop / "loop.log").unlink(missing_ok=True)
+                with mock.patch.object(module, "choose_sink", lambda config, sink=sink: sink):
+                    module.notify(self.project, {}, "hello")
+                logged = (self.loop / "loop.log").read_text()
+                self.assertIn("notification not sent: ", logged)
+                self.assertNotIn(topic, logged)
+
+    def test_sink_posts_the_body_and_reports_status_only(self):
+        module = load_script()
+        topic = new_topic()
+        alert = self.write_alert("https://ntfy.example.invalid/", topic)
+        seen = []
+
+        class Response:
+            def __init__(self, status):
+                self.status = status
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        for status, sent in ((200, True), (204, True), (302, False)):
+            with self.subTest(status=status):
+                def opener(request, timeout=None, status=status):
+                    seen.append((request.full_url, request.get_method(), request.data, timeout))
+                    return Response(status)
+
+                sink = module.ntfy_sink(str(alert), opener=opener)
+                if sent:
+                    self.assertEqual(sink("hi — there"), f"ntfy HTTP {status}")
+                else:
+                    with self.assertRaises(module.NotSent) as caught:
+                        sink("hi — there")
+                    self.assertEqual(str(caught.exception), f"HTTP {status}")
+                self.assertEqual(
+                    seen[-1], (f"https://ntfy.example.invalid/{topic}", "POST", "hi — there".encode(), 10)
+                )
 
 
 if __name__ == "__main__":

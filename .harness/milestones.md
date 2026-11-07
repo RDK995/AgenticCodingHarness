@@ -132,7 +132,7 @@ Per criterion:
 
 ## M5 — Notifications reach the owner's phone through ntfy without ever revealing the topic
 
-Status: TODO
+Status: IN_PROGRESS
 
 ### Outcome
 
@@ -159,6 +159,7 @@ N/A
 - [ ] M5-AC4 Every message names the project it comes from, and a body over ntfy's 4096-byte limit is truncated to fit with a visible truncation marker (AC5, FR7).
 
 ### Baseline
+76ba78510cc492d0fed1e3aaa9f50ffbf3243422 on m5-ntfy-notifications
 
 ### Evidence
 
@@ -170,6 +171,7 @@ N/A
 0
 
 ### Follow-ups
+Size/shape check at pickup: 4 criteria; M5-AC1 runs through `start`/`stop`; complexity signals: none (one production file, two tasks, no lifecycle change, no live proof).
 
 ## M6 — Each milestone's start and finish reach the owner as a full summary and a worker-tier report
 

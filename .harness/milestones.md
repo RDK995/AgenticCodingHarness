@@ -224,7 +224,7 @@ Per criterion:
 
 ## M4 — The loop stops for the right reason and tells the owner in one plain message
 
-Status: IN_PROGRESS
+Status: REVIEW
 
 ### Outcome
 
@@ -253,8 +253,19 @@ N/A
 42a92681650c6bb746926531474a64023412991f on m4-loop-stops-right-reason
 
 ### Evidence
+Tasks (all entered Mid, ORDINARY_IMPLEMENTATION; packets in .harness/tasks/):
+- M4-T1 — AC1 cap + AC3 two failed steps   Mid, attempt 3, PASS (.harness/evidence/M4-T1-verifier.log) — be449b3
+- M4-T2 — AC2 human stops + AC4 account stops   Mid, attempt 3, PASS (.harness/evidence/M4-T2-verifier.log) — 0850382
+- M4-T3 — AC5 outcome record + stop message   Mid, attempt 3, PASS (.harness/evidence/M4-T3-verifier.log)
+Per criterion:
+- M4-AC1: test_cap_stops_after_ten_milestones_reach_done_this_start; test_split_milestone_parts_do_not_count_toward_the_cap
+- M4-AC2: test_blocked_milestone_stops_for_the_human; test_first_session_planning_milestones_is_a_human_stop; test_human_marker_stops_even_when_state_progressed; test_human_marker_without_state_change_is_not_a_failed_step
+- M4-AC3: test_two_failed_steps_in_a_row_stop_the_loop; test_a_crash_then_another_failure_stops_after_two_steps; test_one_failed_step_then_progress_keeps_the_loop_running; check_time_limit
+- M4-AC4: test_signed_out_output_stops_at_once_without_retry; test_usage_limit_with_reset_text_stops_and_reports_the_reset; test_usage_limit_with_epoch_suffix_renders_a_local_time; test_usage_limit_without_reset_time_has_no_parenthesis
+- M4-AC5: test_every_stop_condition_writes_a_full_record_and_one_message; test_owner_stop_writes_a_full_record_and_one_message; test_unexpected_driver_error_writes_a_full_record_and_one_message
 
 ### Validation
+- python3 .harness-dev/test-implement-loop.py — PASS, 58 tests (verifier exit 0, .harness/evidence/M4-T3-verifier.log); milestone validation command for the reviewer. Diff: git diff 42a92681650c6bb746926531474a64023412991f HEAD
 
 ### Review
 
@@ -262,6 +273,9 @@ N/A
 0
 
 ### Follow-ups
+- Design decision (M4-T2): human stops other than BLOCKED/planning are recognised from a `HARNESS_LOOP_RESULT:` line the driver requests through `--append-system-prompt`; the prompt stays `/harness:implement`.
+- Account-stop detection is a plain substring match: a final message that merely contains "limit reached" (e.g. a continuation cap) would be labelled a usage-limit stop. The loop still stops; only the label and ask would be wrong.
+- Test gaps noted by verifiers (not criterion failures): cap test does not assert the notification count; the AC5 table's notification branch check is `assertIn("work")`, which the cap ask also contains; the planning-stop ask has no AC5 table row; existing command-line tests were not extended for `--append-system-prompt` (a new test covers it).
 
 ## M5 — Notifications reach the owner's phone through ntfy without ever revealing the topic
 

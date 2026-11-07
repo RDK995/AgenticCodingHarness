@@ -572,7 +572,7 @@
     },
     "M4": {
       "outcome": "The loop stops for the right reason and tells the owner in one plain message",
-      "status": "IN_PROGRESS",
+      "status": "REVIEW",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
@@ -589,38 +589,113 @@
           "id": "M4-AC1",
           "status": "PENDING",
           "text": "Driven through `start` by a fake session that completes a milestone per step, the loop stops after 10 milestones reach DONE during this start; milestones that were already DONE before the start, and milestones split into parts that are not yet DONE, do not count (AC4, FR6(b), Edge Cases).",
-          "evidence": []
+          "evidence": [
+            "test_cap_stops_after_ten_milestones_reach_done_this_start; test_split_milestone_parts_do_not_count_toward_the_cap (.harness/evidence/M4-T1-verifier.log)"
+          ]
         },
         {
           "id": "M4-AC2",
           "status": "PENDING",
           "text": "A session that stops for the human \u2014 a milestone BLOCKED, an escalation, a decision needed, an exhausted continuation/retry/review-cycle cap, a planning stop (including the first session when `milestones.md` does not yet exist), or any other STOP that is not a normal phase boundary \u2014 stops the loop without another session (AC4, FR6(c), Edge Cases).",
-          "evidence": []
+          "evidence": [
+            "test_blocked_milestone_stops_for_the_human; test_first_session_planning_milestones_is_a_human_stop; test_human_marker_stops_even_when_state_progressed; test_human_marker_without_state_change_is_not_a_failed_step (.harness/evidence/M4-T2-verifier.log)"
+          ]
         },
         {
           "id": "M4-AC3",
           "status": "PENDING",
           "text": "Two consecutive failed steps (crash, no recognisable result, no state progress, or the time limit) stop the loop; a single failed step followed by a step that makes progress does not (AC4, FR6(d)).",
-          "evidence": []
+          "evidence": [
+            "test_two_failed_steps_in_a_row_stop_the_loop; test_a_crash_then_another_failure_stops_after_two_steps; test_one_failed_step_then_progress_keeps_the_loop_running; check_time_limit (.harness/evidence/M4-T1-verifier.log)"
+          ]
         },
         {
           "id": "M4-AC4",
           "status": "PENDING",
           "text": "Session output reporting that Claude is signed out or that the plan's usage limit is reached stops the loop at once with no second session, and the stop message includes the reset time when the output gives one (AC4, FR6(e)).",
-          "evidence": []
+          "evidence": [
+            "test_signed_out_output_stops_at_once_without_retry; test_usage_limit_with_reset_text_stops_and_reports_the_reset; test_usage_limit_with_epoch_suffix_renders_a_local_time; test_usage_limit_without_reset_time_has_no_parenthesis (.harness/evidence/M4-T2-verifier.log)"
+          ]
         },
         {
           "id": "M4-AC5",
           "status": "PENDING",
           "text": "Every stop \u2014 including the owner's `stop` and an unexpected driver error \u2014 writes `.harness/loop/outcome.json` and sends exactly one stop notification naming which condition occurred, the milestone and branch it stopped on, and what the owner is asked to decide or do, if anything (FR6, FR6(f), FR6(g), FR10).",
-          "evidence": []
+          "evidence": [
+            "test_every_stop_condition_writes_a_full_record_and_one_message; test_owner_stop_writes_a_full_record_and_one_message; test_unexpected_driver_error_writes_a_full_record_and_one_message (.harness/evidence/M4-T3-verifier.log)"
+          ]
         }
       ],
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "M4-T1",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Mid",
+            "model": "sonnet",
+            "reason_code": "ORDINARY_IMPLEMENTATION",
+            "detail": "Run-loop change: per-start DONE cap and two-consecutive-failure stop; clear oracle via start"
+          },
+          "attempts": [
+            {
+              "attempt": 3,
+              "tier": "Mid",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M4-T1-verifier.log"
+            }
+          ]
+        },
+        {
+          "id": "M4-T2",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Mid",
+            "model": "sonnet",
+            "reason_code": "ORDINARY_IMPLEMENTATION",
+            "detail": "Human-stop and account-stop detection with settled rules; clear oracle via start"
+          },
+          "attempts": [
+            {
+              "attempt": 3,
+              "tier": "Mid",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M4-T2-verifier.log"
+            }
+          ]
+        },
+        {
+          "id": "M4-T3",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Mid",
+            "model": "sonnet",
+            "reason_code": "ORDINARY_IMPLEMENTATION",
+            "detail": "Stop record and plain-words stop message per condition; clear oracle via start/stop"
+          },
+          "attempts": [
+            {
+              "attempt": 3,
+              "tier": "Mid",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M4-T3-verifier.log"
+            }
+          ]
+        }
+      ],
       "reviews": [],
       "findings": [],
-      "validation": [],
-      "follow_ups": []
+      "validation": [
+        {
+          "command": "python3 .harness-dev/test-implement-loop.py",
+          "result": "PASS (58 tests, verifier exit 0)",
+          "artifact": ".harness/evidence/M4-T3-verifier.log"
+        }
+      ],
+      "follow_ups": [
+        "Design decision (orchestrator, M4-T2): human stops other than BLOCKED/planning are recognised from a HARNESS_LOOP_RESULT line requested via --append-system-prompt; the prompt stays /harness:implement.",
+        "Account-stop detection is a plain substring match: a session whose final message merely contains 'limit reached' (e.g. a continuation cap) would be labelled a usage-limit stop. It still stops the loop; only the label/ask would be wrong.",
+        "Test gaps noted by verifiers (not criterion failures): cap test does not assert the notification count; AC5 table test's notification branch check uses assertIn('work') which the cap ask also contains; planning-stop ask has no AC5 table row; existing command-line tests were not extended for --append-system-prompt (new test covers it)."
+      ]
     },
     "M5": {
       "outcome": "Notifications reach the owner's phone through ntfy without ever revealing the topic",

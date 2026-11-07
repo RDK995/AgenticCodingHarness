@@ -28,57 +28,7 @@ proof, so it is not split further).
 Tests follow the repository convention: stdlib `unittest` scripts under
 `.harness-dev/`, run as `python3 .harness-dev/test-<name>.py`.
 
-### Architecture
-
-N/A
-
-### As-Built
-
-N/A
-
-### Acceptance Criteria
-- [x] M1-AC1 `/harness:implement-loop` exists as a plugin skill under `skills/implement-loop/`, and `claude --plugin-dir <this repository>` lists it with no plugin load errors (AC1, FR1).
-- [x] M1-AC2 With a fake `claude` binary and a file notification sink, `scripts/implement-loop.py start` returns promptly while a detached driver (in its own session, not a child of the invoking shell, with `caffeinate -w <driver pid>` running) writes its pid and current step under `.harness/loop/`; `status` prints running, the pid, the current step and the milestone being worked on (AC2, FR2, FR3).
-- [x] M1-AC3 `stop` terminates the running step (SIGTERM, then SIGKILL after the grace period) and the driver, clears the pid file, leaves committed work and `.harness/loop/loop.log` in place, and produces exactly one stop notification in the sink (AC2, FR3).
-- [x] M1-AC4 `stop` and `status` with no driver, or with a stale pid file whose process is gone, print "not running" and exit 0 (Edge Cases).
-- [x] M1-AC5 `.harness/loop/loop.log` records each step started (time, milestone, attempt), its outcome, each notification and whether it was sent, and the final outcome; every child process is logged with its pid and command line, a prompt shown by length only; nothing under `.harness/loop/` is staged by `git add .harness` (FR13).
-
-### Baseline
-5eccdccf677779cbe92a845bcd4ca76da6dd70b4 on m1-loop-background-start-stop
-
-### Evidence
-Tasks (entry tier, rungs):
-- M1-T1 skill file — Cheap, attempt 1, PASS (`.harness/evidence/M1-T1-verifier.log`), commit dd277a5
-- M1-T2 detached driver start/status/stop — Top, attempt 4, PASS — routed Top: DIFFICULT_CONCURRENCY (`.harness/evidence/M1-T2-verifier.log`, `-run2.log`), commit b1b3188
-- M1-T3 loop/commands log content, loop state unstaged — Cheap, attempt 1, PASS (`.harness/evidence/M1-T3-verifier.log`), commit 5f8c1ef
-
-Per criterion:
-- M1-AC1: `.harness/evidence/M1-AC1-plugin-listing.log` — `claude --plugin-dir <repo> -p ...` EXIT_STATUS=0, `SKILL:harness:implement-loop`, `PLUGIN_ERRORS: none`; skill test 3/3 OK.
-- M1-AC2: `test_start_detaches_driver_and_status_reports_it`.
-- M1-AC3: `test_stop_ends_step_and_driver_leaving_log_and_git_untouched`, `test_stop_kills_step_that_ignores_sigterm_after_grace`.
-- M1-AC4: `test_status_and_stop_report_not_running_without_live_driver`.
-- M1-AC5: `test_loop_log_records_step_lifecycle_with_timestamps`, `test_loop_log_records_unsent_notification_without_notify_file`, `test_commands_log_records_children_with_prompt_by_length`, `test_git_add_stages_fixture_changes_but_never_loop_state`.
-
-### Validation
-For the reviewer to run once:
-- `python3 .harness-dev/test-implement-loop.py` (10 tests; verifier run exit 0)
-- `python3 .harness-dev/test-implement-loop-skill.py` (3 tests; verifier run exit 0)
-
-Permitted pre-existing failure (F1): `python3 .harness-dev/test-orchestrator-inventory.py` fails `test_core_stays_compact` — `agents/orchestrator.md` is 730 lines against a 720-line cap. It was already 730 lines at baseline 5eccdcc; the M1 diff does not touch `agents/`. Not an M1 regression; tracked under Follow-ups.
-
-### Review
-- Cycle 1 — tier Top (opus), reason DIFFICULT_CONCURRENCY, diff 5eccdcc..53b8390. Verdict CHANGES REQUIRED, scope RECORD_ONLY; per-criterion M1-AC1..AC5 all PASS. Report `.harness/reviews/M1-cycle1.md`. Findings: F1 IMPORTANT, F2 OPTIONAL.
-- Review attempts: 4. Attempts 1–3 were interrupted (attempt 3 reached its verdict, but the report save failed). The human authorised attempt 4, beyond the 2-retry cap.
-- Record-only correction: pre-correction 53b8390; F1 and F2 resolved by `.harness/` edits; `check-state.py --record-only 53b8390 HEAD` and the consistency check both OK.
-
-### Review Cycles
-0
-
-### Follow-ups
-- Interface defaults untested: `HARNESS_LOOP_CLAUDE` fallback and `--grace` default 20 s; the `stop` timeout branch (exit 1 after grace+10 s) is untested and neither force-kills nor notifies.
-- `step N outcome:` is logged whenever a step ran, including a step stopped mid-run (`scripts/implement-loop.py` L320-322); it is absent only when `stop` arrives before the step starts.
-- `run()` hardcodes step 1 / attempt 1; M2 adds the step counter.
-- Pre-existing, outside M1: `agents/orchestrator.md` exceeds the 720-line cap in `test-orchestrator-inventory.py::test_core_stays_compact` (730 lines since baseline 5eccdcc); fix separately.
+Detail: `.harness/archive/M1.md`
 
 ## M2 — Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state
 
@@ -99,62 +49,7 @@ Settled at planning: the per-step time limit is 3 hours (the v2 build-step
 limit), overridable per start; a step past it is terminated, then killed after
 the grace period, and counts as a failed step.
 
-### Architecture
-
-N/A
-
-### As-Built
-
-N/A
-
-### Acceptance Criteria
-- [x] M2-AC1 Driven through `start` by a fake implement session that advances a fixture `.harness/state.json`, the driver runs successive fresh `claude` processes, one per step, in the project directory, each invoking `/harness:implement`, and decides each step's result from `state.json` / `milestones.md` rather than from the session's output alone (FR5).
-- [x] M2-AC2 A session ending at a normal phase boundary (for example a milestone left at REVIEW) with state progress counts as progress and the next fresh session starts; when every milestone is DONE the loop stops as finished (FR5, FR6(a), Edge Cases).
-- [x] M2-AC3 The step command line carries `--permission-mode bypassPermissions`, the setting that denies anything that would still prompt, `--plugin-dir <harness root>`, and deny rules for push, merge, commit on main and history rewrite both as `--disallowedTools` values and inside `--settings` `permissions.deny`; the driver itself runs no push or merge (AC7, FR11).
-- [x] M2-AC4 The step environment contains only the allowed names (PATH, HOME, USER, GIT_TERMINAL_PROMPT, and the named sign-in variables when set); a fake secret seeded in the parent environment appears in neither the child environment, `commands.log` nor `loop.log` (AC7, FR12, FR13).
-- [x] M2-AC5 A step that exceeds the step time limit (3 hours by default, overridable per start) is terminated, killed after the grace period if still alive, and recorded in the loop log as a failed step (FR5, Edge Cases).
-
-### Baseline
-8c676453196d66e83d2810645cf1490176967854 on m2-fresh-locked-down-steps
-
-### Evidence
-- M2-T1 (Top, attempt 4, PASS; routed Top: SECURITY): step-session builder `session_command` - .harness/evidence/M2-T1-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 15 tests OK)
-- M2-T2 (Mid, attempt 3, PASS; routed Mid: ORDINARY_IMPLEMENTATION): loop advances on recorded state via pure `judge_step` - .harness/evidence/M2-T2-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 20 tests OK)
-- M2-T3 (Mid, attempt 3, PASS; routed Mid: ORDINARY_IMPLEMENTATION): step time limit, --step-timeout - .harness/evidence/M2-T3-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 24 tests OK)
-- M2-C1-F1 (Top, attempt 4, PASS; routed Top: SECURITY): deny-list gaps (cycle-1 F1), commit a677a80 - .harness/evidence/M2-C1-F1-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 25 tests OK)
-- M2-C1-F3 (Cheap, attempt 1, PASS): --step-timeout must be finite and positive (cycle-1 F3), commit 607442d - .harness/evidence/M2-C1-F3-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 26 tests OK)
-- M2-AC1: .harness/evidence/M2-T2-verifier.log: test_loop_runs_successive_fresh_steps_until_every_milestone_is_done (4 runs, 4 distinct pids, cwd == project, -p /harness:implement each); test_state_not_output_decides_the_step_result
-- M2-AC2: .harness/evidence/M2-T2-verifier.log: same 4-run test (M1 REVIEW -> 'step 1 outcome: progress' -> step 2 started; ends 'finished: every milestone is DONE', one notification); test_nonzero_exit_with_state_advanced_to_all_done_is_finished; test_milestones_file_only_change_counts_as_progress
-- M2-AC3: .harness/evidence/M2-T1-verifier.log: test_builder_returns_locked_down_command, test_step_runs_locked_down_with_minimal_environment (bypassPermissions, --permission-prompts none, --plugin-dir, DENY_RULES in --disallowedTools and --settings permissions.deny); test_driver_source_runs_no_push_or_merge
-- M2-AC4: .harness/evidence/M2-T1-verifier.log: test_step_runs_locked_down_with_minimal_environment (env names subset of allowed, GIT_TERMINAL_PROMPT=0); test_parent_secret_reaches_neither_step_nor_logs
-- M2-AC5: .harness/evidence/M2-T3-verifier.log: test_step_over_time_limit_is_terminated_and_recorded_as_failed, test_step_over_time_limit_ignoring_sigterm_is_killed_after_grace, test_timed_out_step_is_failed_even_if_state_advanced, test_step_timeout_defaults_to_three_hours_and_is_listed_in_help
-
-### Validation
-- python3 .harness-dev/test-implement-loop.py — PASS, 26 tests after cycle-1 corrections (.harness/evidence/M2-C1-F3-verifier.log); earlier 24 tests (.harness/evidence/M2-T3-verifier.log); milestone validation command for the reviewer. Diff: git diff 8c676453196d66e83d2810645cf1490176967854 HEAD
-
-Permitted pre-existing failure (cycle-1 F2): `python3 .harness-dev/test-orchestrator-inventory.py` fails `test_core_stays_compact` — `agents/orchestrator.md` is 730 lines against a 720-line cap. It was already 730 lines at baseline 8c67645 (last changed in 94cfccd); the M2 diff does not touch `agents/`. Not an M2 regression; tracked under Follow-ups (.harness/evidence/M2-review.log).
-
-### Review
-- Cycle 1 — tier Top (opus), reason SECURITY (confirmed: the implement skill dispatched the cycle-1 reviewer at opus), diff 8c676453196d66e83d2810645cf1490176967854..02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5. Verdict CHANGES REQUIRED, scope SUBSTANTIVE; per-criterion M2-AC1..AC5 all PASS. Report `.harness/reviews/M2-cycle1.md`. Findings: F1 IMPORTANT, F2 IMPORTANT, F3 OPTIONAL.
-- Pre-correction: 02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5
-- F2: resolved record-only (permitted pre-existing failure, see Validation and Follow-ups).
-- F1: resolved by M2-C1-F1 (a677a80). F3: resolved by M2-C1-F3 (607442d).
-- Cycle 1 corrections: commits 19721a9 (record), a677a80, 607442d. Correction diff: `git diff 02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5 HEAD`. Files changed outside `.harness/`: scripts/implement-loop.py, .harness-dev/test-implement-loop.py — both named by cycle-1 findings (F1, F3); no file changed that no finding named.
-- Cycle 1 report save: the reviewer's final write was refused by the auto-mode safety check; with the human's explicit approval the complete draft `.harness/reviews/M2-cycle1.md.partial.md` was renamed to the report path unread.
-- Cycle 2 — tier Top (opus), reason SECURITY (correction diff contains M2-C1-F1), diff 02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5..f5783f6 (correction diff only). Verdict PASS; per-criterion M2-AC1..AC5 all PASS; 0 BLOCKER, 0 IMPORTANT, 0 OPTIONAL. No report written (PASS).
-
-### Review Cycles
-1
-
-### Follow-ups
-- Size check at pickup: 5 criteria; shape OK (start entry point); one signal CONCURRENCY_LIFECYCLE (step time limit) - seam check: reuses M1 terminate_step, same outward outcome, kept whole.
-- M2-T1: deny rules (Bash(<cmd>:*) prefix rules) are checked only against a fake claude; whether the real CLI matches them, and variants such as `git -C . push`, an alias, or a script, is unproven. Live check belongs with M3-AC5/M7.
-- M2-T1: verifier flagged an unauthorised assertion loosening in test_start_detaches_driver_and_status_reports_it (exact argv -> -p followed by /harness:implement); forced by M2-AC3, packet amended to authorise it, accepted.
-- M2-T2: interim rule - one failed step (no state progress) stops the loop; M4-AC3 replaces it with two consecutive failed steps.
-- Pre-existing, outside M2: agents/orchestrator.md exceeds the 720-line cap in test-orchestrator-inventory.py::test_core_stays_compact (730 lines, unchanged since 94cfccd); accepted for M2's gate (cycle-1 F2), fix separately.
-- Cycle-1 F1: the new deny rules are checked as strings only; the matching behaviour (`:*` needs a following space; mid-pattern `*` becomes `.*`) was read from the installed CLI 2.1.319 binary by the worker, not observed live. The live M3-AC5/M7 check should try `git branch -m main`, `git commit -a --amend` and `git reset HEAD~1`.
-- Cycle-1 F1: still not denied (outside F1's list): `git reset <sha>`, `git reset origin/main`, `git reset HEAD@{n}`; the amend rule also denies a commit whose message contains ` --amend` (safe side).
-- Cycle-1 F3: `--step-timeout -inf` in the space form is rejected by argparse (multi-line usage, exit 2, no driver) before the new check; the test covers only the `--step-timeout=VALUE` form and asserts the `--step-timeout` substring, not the full message wording.
+Detail: `.harness/archive/M2.md`
 
 ## M3 — `start` refuses to begin when the project is not safe to run
 
@@ -177,50 +72,7 @@ the live proof is a single read-only check-session run with no lifecycle or
 concurrency change, kept here because it retires the highest integration risk
 first).
 
-### Architecture
-
-N/A
-
-### As-Built
-
-N/A
-
-### Acceptance Criteria
-- [x] M3-AC1 With `.harness/requirements.md` missing or with `Open Questions` other than `None` (or an `architecture.md` that is not AGREED), `start` refuses: no pid file, no step session, a printed plain reason, and exactly one notification saying what to fix (AC3, FR4(a)).
-- [x] M3-AC2 When the sign-in check session fails (a fake `claude` reporting signed out, or not seeing `harness:implement`), `start` refuses the same way; the check session is built by the same builder as step sessions (same permission flags, plugin dir and environment) with a 2-minute limit (AC3, FR4(b)).
-- [x] M3-AC3 On `main`, `master` or the repository's default branch, `start` refuses the same way (AC3, FR4(c)).
-- [x] M3-AC4 When the pid file names a live driver, `start` refuses the same way and leaves the existing driver running and its state untouched (AC3, FR4(d)).
-- [x] M3-AC5 The sign-in check, run through the driver's entry point against the real installed `claude` on the owner's Mac, passes and confirms `harness:implement` is visible; the exact command (prompt by length) and its result are recorded (FR4(b)).
-
-### Baseline
-121fbe5fd3c1982abdbfdb1cf5ba0eda0becc76e on m3-start-refuses-unsafe
-
-### Evidence
-Tasks:
-- M3-T1 — pre-start gate + `check` subcommand   Mid (sonnet, ORDINARY_IMPLEMENTATION), attempt 3, PASS — commit d9558a9; .harness/evidence/M3-T1-verifier.log
-- M3-T2 — live sign-in proof (M3-AC5)           Cheap (haiku, BOUNDED_LOW_RISK), attempt 1, PASS — .harness/evidence/M3-AC5-live-check.log, .harness/evidence/M3-T2-verifier.log
-
-Per criterion:
-- M3-AC1: test_missing_requirements_refuse_start, test_open_questions_refuse_start, test_architecture_must_be_agreed (M3-T1-verifier.log)
-- M3-AC2: test_signed_out_check_refuses_start, test_check_that_cannot_see_the_skill_refuses_start, test_check_session_is_built_like_a_step_session, test_check_session_over_the_limit_is_killed_and_refused (M3-T1-verifier.log)
-- M3-AC3: test_protected_branches_refuse_start (main, master, origin/HEAD default `trunk`) (M3-T1-verifier.log)
-- M3-AC4: test_live_driver_refuses_second_start_and_is_untouched (M3-T1-verifier.log)
-- M3-AC5: real installed claude 2.1.319 via `check` entry point -> exit 0, `check passed: harness:implement is visible`, prompt shown as `-p <prompt: 168 chars>` (M3-AC5-live-check.log, M3-T2-verifier.log)
-
-### Validation
-- `python3 .harness-dev/test-implement-loop.py` — PASS, 36 tests (verifier, at d9558a9) — .harness/evidence/M3-T1-verifier.log
-- `python3 scripts/implement-loop.py check --project /Users/ryankenny/Tools/AgenticCodingHarness --claude "$(command -v claude)"` — PASS, exit 0 (verifier, real claude) — .harness/evidence/M3-T2-verifier.log
-- Whole suite: for the reviewer to run once.
-
-### Review
-- Cycle 1 (full milestone, diff 121fbe5..a26e3db): PASS — reviewer tier Mid (sonnet), reason ORDINARY_IMPLEMENTATION (highest routed task M3-T1 Mid). M3-AC1..AC5 PASS; 0 BLOCKER, 0 IMPORTANT, 0 OPTIONAL. No report file (passing review). Suite log: `.harness/evidence/M3-review.log` (36 tests OK).
-
-### Review Cycles
-0
-
-### Follow-ups
-- SKILL.md does not yet mention the new `check` subcommand (out of M3 scope).
-- Pre-existing permitted failure from M2 (test-orchestrator-inventory.py core-size limit) untouched by M3.
+Detail: `.harness/archive/M3.md`
 
 ## M4 — The loop stops for the right reason and tells the owner in one plain message
 

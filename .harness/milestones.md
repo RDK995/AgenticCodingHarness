@@ -119,6 +119,7 @@ N/A
 
 ### Evidence
 - M2-T1 (Top, attempt 4, PASS; routed Top: SECURITY): step-session builder `session_command` - .harness/evidence/M2-T1-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 15 tests OK)
+- M2-T2 (Mid, attempt 3, PASS; routed Mid: ORDINARY_IMPLEMENTATION): loop advances on recorded state via pure `judge_step` - .harness/evidence/M2-T2-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 20 tests OK)
 
 ### Validation
 
@@ -131,6 +132,7 @@ N/A
 - Size check at pickup: 5 criteria; shape OK (start entry point); one signal CONCURRENCY_LIFECYCLE (step time limit) - seam check: reuses M1 terminate_step, same outward outcome, kept whole.
 - M2-T1: deny rules (Bash(<cmd>:*) prefix rules) are checked only against a fake claude; whether the real CLI matches them, and variants such as `git -C . push`, an alias, or a script, is unproven. Live check belongs with M3-AC5/M7.
 - M2-T1: verifier flagged an unauthorised assertion loosening in test_start_detaches_driver_and_status_reports_it (exact argv -> -p followed by /harness:implement); forced by M2-AC3, packet amended to authorise it, accepted.
+- M2-T2: interim rule - one failed step (no state progress) stops the loop; M4-AC3 replaces it with two consecutive failed steps.
 
 ## M3 — `start` refuses to begin when the project is not safe to run
 

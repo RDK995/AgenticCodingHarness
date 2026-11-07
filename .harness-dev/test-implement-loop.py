@@ -356,14 +356,14 @@ class ImplementLoopTests(unittest.TestCase):
             "driver did not finish by itself",
         )
         outcome = json.loads((self.loop / "outcome.json").read_text())
-        self.assertEqual(outcome["outcome"], "finished one step")
+        self.assertEqual(outcome["outcome"], "failed step: no state progress")
         self.assertEqual(outcome["milestone"], "M2")
         self.assertIn("time", outcome)
         self.assert_prompt_argument(self.args_file.read_text().split())
         self.assertTrue(wait_for(lambda: len(self.notifications()) == 1, 2))
         self.assertEqual(len(self.notifications()), 1, self.notifications())
         self.assertTrue((self.loop / "step-1.out").exists())
-        self.assertIn("finished one step", (self.loop / "loop.log").read_text())
+        self.assertIn("failed step: no state progress", (self.loop / "loop.log").read_text())
 
         status = self.run_loop("status")
         self.assertEqual(status.returncode, 0)
@@ -401,9 +401,9 @@ class ImplementLoopTests(unittest.TestCase):
         self.run_quick_step()
 
         self.loop_log_matches("step 1 started: milestone M2, attempt 1")
-        self.loop_log_matches("step 1 outcome: finished one step")
+        self.loop_log_matches("step 1 outcome: failed step: no state progress")
         self.loop_log_matches("notification sent")
-        self.loop_log_matches("final outcome: finished one step")
+        self.loop_log_matches("final outcome: failed step: no state progress")
 
     def test_loop_log_records_unsent_notification_without_notify_file(self):
         self.run_quick_step(notify=False)
@@ -486,6 +486,127 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertTrue("DENY_RULES" in source, "deny rules constant not found")
         self.assertNotRegex(without_rules, r"""["'](push|merge)["']""")
         self.assertNotRegex(without_rules, r"git\s+(push|merge)")
+
+    # --- M2-T2: successive fresh steps judged from recorded state ---
+    def write_state(self, statuses, current=None):
+        state = {
+            "schema_version": 1,
+            "current_milestone": current or next(iter(statuses)),
+            "milestones": {name: {"outcome": name, "status": status} for name, status in statuses.items()},
+        }
+        (self.project / ".harness" / "state.json").write_text(json.dumps(state, indent=2))
+
+    def scripted_claude(self, plan):
+        """A fake claude that records each run, then applies plan[run] (the last entry repeats)."""
+        runs = self.tools / "runs.jsonl"
+        body = (
+            f"#!{sys.executable}\n"
+            "import json, os, sys\n"
+            "from pathlib import Path\n"
+            f"runs = Path({str(runs)!r})\n"
+            f"plan = {plan!r}\n"
+            "with open(runs, 'a') as handle:\n"
+            "    handle.write(json.dumps({'pid': os.getpid(), 'cwd': os.getcwd(), 'argv': sys.argv[1:]}) + '\\n')\n"
+            "number = len(runs.read_text().splitlines())\n"
+            "step = plan[min(number, len(plan)) - 1]\n"
+            "if 'statuses' in step:\n"
+            "    names = list(step['statuses'])\n"
+            "    state = {'schema_version': 1, 'current_milestone': step.get('current', names[0]),\n"
+            "             'milestones': {n: {'outcome': n, 'status': step['statuses'][n]} for n in names}}\n"
+            "    Path('.harness/state.json').write_text(json.dumps(state, indent=2))\n"
+            "if 'notes' in step:\n"
+            "    Path('.harness/milestones.md').write_text(step['notes'])\n"
+            "print(step.get('print', ''))\n"
+            "sys.exit(step.get('exit', 0))\n"
+        )
+        path = self.tools / "claude"
+        path.write_text(body)
+        path.chmod(0o755)
+        return path
+
+    def recorded_runs(self):
+        path = self.tools / "runs.jsonl"
+        if not path.exists():
+            return []
+        return [json.loads(line) for line in path.read_text().splitlines()]
+
+    def run_to_end(self, plan):
+        self.start(self.scripted_claude(plan))
+        finished = wait_for(
+            lambda: (self.loop / "outcome.json").exists() and not (self.loop / "driver.pid").exists(),
+            timeout=30,
+        )
+        self.assertTrue(finished, "driver did not finish by itself")
+        outcome = json.loads((self.loop / "outcome.json").read_text())["outcome"]
+        self.assertTrue(wait_for(lambda: len(self.notifications()) == 1, 2))
+        self.assertEqual(len(self.notifications()), 1, self.notifications())
+        return outcome
+
+    def test_loop_runs_successive_fresh_steps_until_every_milestone_is_done(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        plan = [
+            {"statuses": {"M1": "REVIEW", "M2": "TODO"}},
+            {"statuses": {"M1": "DONE", "M2": "TODO"}, "current": "M2"},
+            {"statuses": {"M1": "DONE", "M2": "REVIEW"}, "current": "M2"},
+            {"statuses": {"M1": "DONE", "M2": "DONE"}, "current": "M2"},
+        ]
+        self.assertEqual(self.run_to_end(plan), "finished: every milestone is DONE")
+
+        runs = self.recorded_runs()
+        self.assertEqual(len(runs), 4)
+        self.assertEqual(len({run["pid"] for run in runs}), 4, "each step must be a fresh process")
+        for run in runs:
+            self.assertEqual(run["cwd"], str(self.project))
+            self.assert_prompt_argument(run["argv"])
+        log = (self.loop / "loop.log").read_text().splitlines()
+        self.assertEqual(len([line for line in log if re.search(r"step \d+ started", line)]), 4)
+        for number in (1, 2, 3):
+            self.loop_log_matches(f"step {number} outcome: progress")
+        self.loop_log_matches("step 4 outcome: finished: every milestone is DONE")
+        self.loop_log_matches("step 2 started: milestone M1, attempt 1")
+
+    def test_state_not_output_decides_the_step_result(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        outcome = self.run_to_end([{"print": "milestone DONE, all complete", "exit": 0}])
+        self.assertEqual(outcome, "failed step: no state progress")
+        self.assertEqual(len(self.recorded_runs()), 1)
+
+    def test_nonzero_exit_with_state_advanced_to_all_done_is_finished(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        outcome = self.run_to_end([{"statuses": {"M1": "DONE", "M2": "DONE"}, "exit": 1}])
+        self.assertEqual(outcome, "finished: every milestone is DONE")
+        self.assertEqual(len(self.recorded_runs()), 1)
+
+    def test_milestones_file_only_change_counts_as_progress(self):
+        self.write_state({"M1": "TODO"})
+        plan = [{"notes": "# milestones\nM1 notes\n"}, {"statuses": {"M1": "DONE"}}]
+        self.assertEqual(self.run_to_end(plan), "finished: every milestone is DONE")
+        self.assertEqual(len(self.recorded_runs()), 2)
+
+    def test_judge_step_branches(self):
+        judge = load_script().judge_step
+
+        def snap(statuses, current="M1", notes=None):
+            return {"statuses": statuses, "current": current, "notes": notes}
+
+        todo = snap({"M1": "TODO", "M2": "TODO"})
+        self.assertEqual(judge(todo, todo, None, True), "stopped by owner")
+        self.assertEqual(judge(todo, snap({"M1": "DONE", "M2": "DONE"}), 0, True), "stopped by owner")
+        self.assertEqual(
+            judge(todo, snap({"M1": "DONE", "M2": "DONE"}), 1, False), "finished: every milestone is DONE"
+        )
+        self.assertEqual(judge(todo, snap({"M1": "REVIEW", "M2": "TODO"}), 0, False), "progress")
+        self.assertEqual(judge(todo, snap({"M1": "TODO", "M2": "TODO", "M3": "TODO"}), 0, False), "progress")
+        self.assertEqual(judge(todo, snap({"M1": "TODO"}), 0, False), "progress")
+        self.assertEqual(judge(todo, snap({"M1": "TODO", "M2": "TODO"}, current="M2"), 0, False), "progress")
+        self.assertEqual(judge(todo, snap({"M1": "TODO", "M2": "TODO"}, notes="abc"), 0, False), "progress")
+        self.assertEqual(judge(todo, snap({"M1": "REVIEW", "M2": "TODO"}), 1, False), "progress")
+        self.assertEqual(judge(todo, todo, 0, False), "failed step: no state progress")
+        self.assertEqual(judge(todo, todo, 1, False), "failed step: no state progress")
+        empty = snap({})
+        self.assertEqual(judge(empty, empty, 0, False), "failed step: no state progress")
+        missing = snap(None, current=None)
+        self.assertEqual(judge(missing, missing, 0, False), "failed step: no state progress")
 
 
 if __name__ == "__main__":

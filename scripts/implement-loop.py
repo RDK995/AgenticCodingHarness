@@ -3,7 +3,8 @@
 
 `start` launches a detached driver process (its own session, not a child of the
 caller) and returns. The driver keeps the Mac awake with `caffeinate -w <pid>`,
-runs one `/harness:implement` step, decides what happens next in `judge_step`,
+runs successive fresh `/harness:implement` steps, decides after each in `judge_step`
+from the recorded state,
 and ends with exactly one stop notification. `status` and `stop` find the driver
 through `.harness/loop/driver.pid`.
 """
@@ -12,6 +13,8 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
+import itertools
 import json
 import os
 from pathlib import Path
@@ -236,11 +239,42 @@ def running_driver(project: Path) -> int | None:
 
 
 # The driver.
-def judge_step(returncode: int | None, stopped: bool) -> str:
-    """Decide what follows a step. M1: one step, then the driver ends."""
+PROGRESS = "progress"
+FINISHED = "finished: every milestone is DONE"
+FAILED_STEP = "failed step: no state progress"
+
+
+def take_snapshot(project: Path) -> dict:
+    """Record what the judge compares: milestone statuses, current milestone, milestones.md hash."""
+    state = read_json(project / ".harness" / "state.json")
+    milestones = state.get("milestones") if state else None
+    statuses = None
+    if isinstance(milestones, dict):
+        statuses = {
+            identifier: milestone.get("status") if isinstance(milestone, dict) else None
+            for identifier, milestone in milestones.items()
+        }
+    try:
+        notes = hashlib.sha256((project / ".harness" / "milestones.md").read_bytes()).hexdigest()
+    except OSError:
+        notes = None
+    return {
+        "statuses": statuses,
+        "current": state.get("current_milestone") if state else None,
+        "notes": notes,
+    }
+
+
+def judge_step(before: dict, after: dict, returncode: int | None, stopped: bool) -> str:
+    """Decide what follows a step from recorded state; the exit code never decides progress."""
     if stopped:
         return "stopped by owner"
-    return "finished one step"
+    statuses = after["statuses"]
+    if statuses and all(status == "DONE" for status in statuses.values()):
+        return FINISHED
+    if before != after:
+        return PROGRESS
+    return FAILED_STEP  # interim for M2: one failed step stops the loop
 
 
 class Driver:
@@ -375,12 +409,16 @@ class Driver:
         outcome = "driver error"
         try:
             self.start_caffeinate()
-            if self.stop_requested:
-                outcome = judge_step(None, True)
-            else:
-                returncode, stopped = self.run_step(1, 1)
-                outcome = judge_step(returncode, stopped)
-                log(self.project, f"step 1 outcome: {outcome}")
+            for number in itertools.count(1):
+                if self.stop_requested:
+                    outcome = "stopped by owner"
+                    break
+                before = take_snapshot(self.project)
+                returncode, stopped = self.run_step(number, 1)
+                outcome = judge_step(before, take_snapshot(self.project), returncode, stopped)
+                log(self.project, f"step {number} outcome: {outcome}")
+                if outcome != PROGRESS:
+                    break
         except Exception as error:  # the driver must always end with its notification
             outcome = f"driver error: {error}"
             log(self.project, outcome)

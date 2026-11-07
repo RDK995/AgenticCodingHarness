@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_milestone": "M3",
+  "current_milestone": "M4",
   "requirements": {
     "FR1": "M1",
     "FR2": "M1",
@@ -446,7 +446,7 @@
     },
     "M3": {
       "outcome": "`start` refuses to begin when the project is not safe to run",
-      "status": "REVIEW",
+      "status": "DONE",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
@@ -463,7 +463,7 @@
       "criteria": [
         {
           "id": "M3-AC1",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "With `.harness/requirements.md` missing or with `Open Questions` other than `None` (or an `architecture.md` that is not AGREED), `start` refuses: no pid file, no step session, a printed plain reason, and exactly one notification saying what to fix (AC3, FR4(a)).",
           "evidence": [
             ".harness/evidence/M3-T1-verifier.log: test_missing_requirements_refuse_start, test_open_questions_refuse_start, test_architecture_must_be_agreed (assert_refused: non-zero exit, stderr reason, no driver.pid, no step args, exactly one notification)"
@@ -471,7 +471,7 @@
         },
         {
           "id": "M3-AC2",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "When the sign-in check session fails (a fake `claude` reporting signed out, or not seeing `harness:implement`), `start` refuses the same way; the check session is built by the same builder as step sessions (same permission flags, plugin dir and environment) with a 2-minute limit (AC3, FR4(b)).",
           "evidence": [
             ".harness/evidence/M3-T1-verifier.log: test_signed_out_check_refuses_start, test_check_that_cannot_see_the_skill_refuses_start, test_check_session_is_built_like_a_step_session (argv == session_command(CHECK_PROMPT), lockdown flags, env within ALLOWED_ENV, CHECK_TIMEOUT == 120), test_check_session_over_the_limit_is_killed_and_refused"
@@ -479,7 +479,7 @@
         },
         {
           "id": "M3-AC3",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "On `main`, `master` or the repository's default branch, `start` refuses the same way (AC3, FR4(c)).",
           "evidence": [
             ".harness/evidence/M3-T1-verifier.log: test_protected_branches_refuse_start (main, master, origin/HEAD default trunk)"
@@ -487,7 +487,7 @@
         },
         {
           "id": "M3-AC4",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "When the pid file names a live driver, `start` refuses the same way and leaves the existing driver running and its state untouched (AC3, FR4(d)).",
           "evidence": [
             ".harness/evidence/M3-T1-verifier.log: test_live_driver_refuses_second_start_and_is_untouched (first driver alive, .harness/loop/ byte-identical, one notification)"
@@ -495,7 +495,7 @@
         },
         {
           "id": "M3-AC5",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "The sign-in check, run through the driver's entry point against the real installed `claude` on the owner's Mac, passes and confirms `harness:implement` is visible; the exact command (prompt by length) and its result are recorded (FR4(b)).",
           "evidence": [
             ".harness/evidence/M3-AC5-live-check.log and .harness/evidence/M3-T2-verifier.log: `python3 scripts/implement-loop.py check --project /Users/ryankenny/Tools/AgenticCodingHarness --claude \"$(command -v claude)\"` against claude 2.1.319 -> exit 0, `check passed: harness:implement is visible`, prompt shown as `-p <prompt: 168 chars>`"
@@ -540,7 +540,18 @@
           ]
         }
       ],
-      "reviews": [],
+      "reviews": [
+        {
+          "cycle": 1,
+          "tier": "Mid",
+          "model": "sonnet",
+          "reason_code": "ORDINARY_IMPLEMENTATION",
+          "diff_range": "121fbe5fd3c1982abdbfdb1cf5ba0eda0becc76e..a26e3db",
+          "verdict": "PASS (M3-AC1..AC5 PASS; 0 BLOCKER, 0 IMPORTANT, 0 OPTIONAL)",
+          "artifact": null,
+          "validation_log": ".harness/evidence/M3-review.log"
+        }
+      ],
       "findings": [],
       "validation": [
         {

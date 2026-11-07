@@ -158,7 +158,7 @@ Permitted pre-existing failure (cycle-1 F2): `python3 .harness-dev/test-orchestr
 
 ## M3 — `start` refuses to begin when the project is not safe to run
 
-Status: REVIEW
+Status: DONE
 
 ### Outcome
 
@@ -186,11 +186,11 @@ N/A
 N/A
 
 ### Acceptance Criteria
-- [ ] M3-AC1 With `.harness/requirements.md` missing or with `Open Questions` other than `None` (or an `architecture.md` that is not AGREED), `start` refuses: no pid file, no step session, a printed plain reason, and exactly one notification saying what to fix (AC3, FR4(a)).
-- [ ] M3-AC2 When the sign-in check session fails (a fake `claude` reporting signed out, or not seeing `harness:implement`), `start` refuses the same way; the check session is built by the same builder as step sessions (same permission flags, plugin dir and environment) with a 2-minute limit (AC3, FR4(b)).
-- [ ] M3-AC3 On `main`, `master` or the repository's default branch, `start` refuses the same way (AC3, FR4(c)).
-- [ ] M3-AC4 When the pid file names a live driver, `start` refuses the same way and leaves the existing driver running and its state untouched (AC3, FR4(d)).
-- [ ] M3-AC5 The sign-in check, run through the driver's entry point against the real installed `claude` on the owner's Mac, passes and confirms `harness:implement` is visible; the exact command (prompt by length) and its result are recorded (FR4(b)).
+- [x] M3-AC1 With `.harness/requirements.md` missing or with `Open Questions` other than `None` (or an `architecture.md` that is not AGREED), `start` refuses: no pid file, no step session, a printed plain reason, and exactly one notification saying what to fix (AC3, FR4(a)).
+- [x] M3-AC2 When the sign-in check session fails (a fake `claude` reporting signed out, or not seeing `harness:implement`), `start` refuses the same way; the check session is built by the same builder as step sessions (same permission flags, plugin dir and environment) with a 2-minute limit (AC3, FR4(b)).
+- [x] M3-AC3 On `main`, `master` or the repository's default branch, `start` refuses the same way (AC3, FR4(c)).
+- [x] M3-AC4 When the pid file names a live driver, `start` refuses the same way and leaves the existing driver running and its state untouched (AC3, FR4(d)).
+- [x] M3-AC5 The sign-in check, run through the driver's entry point against the real installed `claude` on the owner's Mac, passes and confirms `harness:implement` is visible; the exact command (prompt by length) and its result are recorded (FR4(b)).
 
 ### Baseline
 121fbe5fd3c1982abdbfdb1cf5ba0eda0becc76e on m3-start-refuses-unsafe
@@ -213,6 +213,7 @@ Per criterion:
 - Whole suite: for the reviewer to run once.
 
 ### Review
+- Cycle 1 (full milestone, diff 121fbe5..a26e3db): PASS — reviewer tier Mid (sonnet), reason ORDINARY_IMPLEMENTATION (highest routed task M3-T1 Mid). M3-AC1..AC5 PASS; 0 BLOCKER, 0 IMPORTANT, 0 OPTIONAL. No report file (passing review). Suite log: `.harness/evidence/M3-review.log` (36 tests OK).
 
 ### Review Cycles
 0

@@ -158,7 +158,7 @@ Permitted pre-existing failure (cycle-1 F2): `python3 .harness-dev/test-orchestr
 
 ## M3 — `start` refuses to begin when the project is not safe to run
 
-Status: TODO
+Status: IN_PROGRESS
 
 ### Outcome
 
@@ -193,6 +193,7 @@ N/A
 - [ ] M3-AC5 The sign-in check, run through the driver's entry point against the real installed `claude` on the owner's Mac, passes and confirms `harness:implement` is visible; the exact command (prompt by length) and its result are recorded (FR4(b)).
 
 ### Baseline
+121fbe5fd3c1982abdbfdb1cf5ba0eda0becc76e on m3-start-refuses-unsafe
 
 ### Evidence
 

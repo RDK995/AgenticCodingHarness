@@ -130,7 +130,12 @@ N/A
 ### Validation
 - python3 .harness-dev/test-implement-loop.py — PASS, 24 tests (.harness/evidence/M2-T3-verifier.log); milestone validation command for the reviewer. Diff: git diff 8c676453196d66e83d2810645cf1490176967854 HEAD
 
+Permitted pre-existing failure (cycle-1 F2): `python3 .harness-dev/test-orchestrator-inventory.py` fails `test_core_stays_compact` — `agents/orchestrator.md` is 730 lines against a 720-line cap. It was already 730 lines at baseline 8c67645 (last changed in 94cfccd); the M2 diff does not touch `agents/`. Not an M2 regression; tracked under Follow-ups (.harness/evidence/M2-review.log).
+
 ### Review
+- Cycle 1 — tier Top (opus), reason SECURITY (reviewer tier not stated in the report; recorded after M2-T1's SECURITY routing), diff 8c676453196d66e83d2810645cf1490176967854..02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5. Verdict CHANGES REQUIRED, scope SUBSTANTIVE; per-criterion M2-AC1..AC5 all PASS. Report `.harness/reviews/M2-cycle1.md`. Findings: F1 IMPORTANT, F2 IMPORTANT, F3 OPTIONAL.
+- Pre-correction: 02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5
+- F2: resolved record-only (permitted pre-existing failure, see Validation and Follow-ups).
 
 ### Review Cycles
 0
@@ -140,6 +145,7 @@ N/A
 - M2-T1: deny rules (Bash(<cmd>:*) prefix rules) are checked only against a fake claude; whether the real CLI matches them, and variants such as `git -C . push`, an alias, or a script, is unproven. Live check belongs with M3-AC5/M7.
 - M2-T1: verifier flagged an unauthorised assertion loosening in test_start_detaches_driver_and_status_reports_it (exact argv -> -p followed by /harness:implement); forced by M2-AC3, packet amended to authorise it, accepted.
 - M2-T2: interim rule - one failed step (no state progress) stops the loop; M4-AC3 replaces it with two consecutive failed steps.
+- Pre-existing, outside M2: agents/orchestrator.md exceeds the 720-line cap in test-orchestrator-inventory.py::test_core_stays_compact (730 lines, unchanged since 94cfccd); accepted for M2's gate (cycle-1 F2), fix separately.
 
 ## M3 — `start` refuses to begin when the project is not safe to run
 

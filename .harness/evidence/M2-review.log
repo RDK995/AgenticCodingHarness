@@ -1,0 +1,83 @@
+........................
+----------------------------------------------------------------------
+Ran 24 tests in 16.126s
+
+OK
+exit 0
+OK: 7 milestone(s), state schema v1
+exit 0
+=== .harness-dev/test-agent-guards.py
+Ran 3 tests in 0.002s
+
+OK
+rc=0
+=== .harness-dev/test-commit-discipline.py
+Ran 6 tests in 0.001s
+
+OK
+rc=0
+=== .harness-dev/test-compact-returns.py
+Ran 5 tests in 0.000s
+
+OK
+rc=0
+=== .harness-dev/test-dispatch-collect.py
+Ran 8 tests in 0.000s
+
+OK
+rc=0
+=== .harness-dev/test-guard-bash.py
+Ran 9 tests in 0.729s
+
+OK
+rc=0
+=== .harness-dev/test-implement-loop-skill.py
+Ran 3 tests in 0.001s
+
+OK
+rc=0
+=== .harness-dev/test-implement-loop.py
+Ran 24 tests in 16.348s
+
+OK
+rc=0
+=== .harness-dev/test-interrupted-review.py
+Ran 22 tests in 0.002s
+
+OK
+rc=0
+=== .harness-dev/test-measure-context.py
+Ran 9 tests in 0.030s
+
+OK
+rc=0
+=== .harness-dev/test-milestone-complexity.py
+Ran 5 tests in 0.001s
+
+OK
+rc=0
+=== .harness-dev/test-model-routing.py
+Ran 4 tests in 0.005s
+
+OK
+rc=0
+=== .harness-dev/test-no-project-review.py
+Ran 4 tests in 0.002s
+
+OK
+rc=0
+=== .harness-dev/test-orchestrator-inventory.py
+Ran 3 tests in 0.001s
+
+FAILED (failures=1)
+rc=1
+=== .harness-dev/test-state.py
+Ran 13 tests in 0.946s
+
+OK
+rc=0
+=== .harness-dev/test-validation-ownership.py
+Ran 4 tests in 0.000s
+
+OK
+rc=0

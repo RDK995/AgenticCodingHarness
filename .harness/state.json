@@ -710,7 +710,7 @@
     },
     "M5": {
       "outcome": "Notifications reach the owner's phone through ntfy without ever revealing the topic",
-      "status": "IN_PROGRESS",
+      "status": "REVIEW",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
@@ -751,7 +751,9 @@
           "id": "M5-AC4",
           "status": "PENDING",
           "text": "Every message names the project it comes from, and a body over ntfy's 4096-byte limit is truncated to fit with a visible truncation marker (AC5, FR7).",
-          "evidence": []
+          "evidence": [
+            "test_stop_notification_names_the_project; test_refused_start_notification_names_the_project; test_prepare_message_labels_a_short_message_and_leaves_it_otherwise_unchanged; test_prepare_message_cuts_an_over_long_ascii_body_to_the_limit_with_a_marker; test_prepare_message_cuts_multibyte_text_at_a_character_boundary; test_a_labelled_message_of_exactly_the_limit_is_not_truncated (.harness/evidence/M5-T2-verifier.log)"
+          ]
         }
       ],
       "tasks": [
@@ -782,14 +784,28 @@
             "reason_code": "BOUNDED_LOW_RISK",
             "detail": "Small isolated label-and-truncate function at the seam with stated input/output"
           },
-          "attempts": []
+          "attempts": [
+            {
+              "attempt": 1,
+              "tier": "Cheap",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M5-T2-verifier.log"
+            }
+          ]
         }
       ],
       "reviews": [],
       "findings": [],
-      "validation": [],
+      "validation": [
+        {
+          "command": "python3 .harness-dev/test-implement-loop.py",
+          "result": "PASS (72 tests, verifier exit 0)",
+          "artifact": ".harness/evidence/M5-T2-verifier.log"
+        }
+      ],
       "follow_ups": [
-        "ntfy_sink uses urllib default urlopen, which follows HTTP redirects; a redirecting ntfy_server would receive-and-forward the body (verifier note, not in M5 criteria)"
+        "ntfy_sink uses urllib default urlopen, which follows HTTP redirects; a redirecting ntfy_server would receive-and-forward the body (verifier note, not in M5 criteria)",
+        "Truncation is tested at prepare_message level and wired before every sink in notify/refuse; no end-to-end test sends an over-4096-byte body through the ntfy stub (verifier coverage note)"
       ]
     },
     "M6": {

@@ -132,7 +132,7 @@ Per criterion:
 
 ## M5 — Notifications reach the owner's phone through ntfy without ever revealing the topic
 
-Status: IN_PROGRESS
+Status: REVIEW
 
 ### Outcome
 
@@ -162,8 +162,17 @@ N/A
 76ba78510cc492d0fed1e3aaa9f50ffbf3243422 on m5-ntfy-notifications
 
 ### Evidence
+Tasks (packets in .harness/tasks/):
+- M5-T1 — AC1-AC3 ntfy sender, topic secrecy, failures never stop the loop   Top, attempt 4, PASS — routed Top: SECURITY (private topic) (.harness/evidence/M5-T1-verifier.log) — 230880a
+- M5-T2 — AC4 project label + 4096-byte truncation   Cheap, attempt 1, PASS (.harness/evidence/M5-T2-verifier.log) — a86100b
+Per criterion:
+- M5-AC1: test_stop_notification_is_posted_to_ntfy_reading_the_config_at_send_time; test_alert_config_path_comes_from_option_then_env_then_default; test_sink_posts_the_body_and_reports_status_only
+- M5-AC2: test_topic_never_appears_in_output_or_loop_files; test_sink_failure_reason_never_carries_the_topic; test_refused_start_posts_to_ntfy_or_says_why_not_without_the_topic
+- M5-AC3: test_failed_ntfy_send_is_logged_and_the_driver_still_finishes; test_refused_start_posts_to_ntfy_or_says_why_not_without_the_topic; test_without_notify_file_missing_alert_config_records_unsent_notification
+- M5-AC4: test_stop_notification_names_the_project; test_refused_start_notification_names_the_project; test_prepare_message_* (3 tests); test_a_labelled_message_of_exactly_the_limit_is_not_truncated
 
 ### Validation
+- python3 .harness-dev/test-implement-loop.py — PASS, 72 tests (verifier exit 0, .harness/evidence/M5-T2-verifier.log); milestone validation command for the reviewer. Diff: git diff 76ba78510cc492d0fed1e3aaa9f50ffbf3243422 HEAD
 
 ### Review
 
@@ -171,6 +180,8 @@ N/A
 0
 
 ### Follow-ups
+- ntfy_sink uses urllib's default urlopen, which follows HTTP redirects; a redirecting ntfy_server would forward the body (verifier note; outside M5 criteria).
+- Truncation is tested at prepare_message level; no end-to-end test sends an over-4096-byte body through the ntfy stub.
 Size/shape check at pickup: 4 criteria; M5-AC1 runs through `start`/`stop`; complexity signals: none (one production file, two tasks, no lifecycle change, no live proof).
 
 ## M6 — Each milestone's start and finish reach the owner as a full summary and a worker-tier report

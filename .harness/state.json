@@ -1,0 +1,378 @@
+{
+  "schema_version": 1,
+  "current_milestone": "M1",
+  "requirements": {
+    "FR1": "M1",
+    "FR2": "M1",
+    "FR3": "M1",
+    "FR4": "M3",
+    "FR5": "M2",
+    "FR6": "M4",
+    "FR7": "M5",
+    "FR8": "M6",
+    "FR9": "M6",
+    "FR10": "M4",
+    "FR11": "M2",
+    "FR12": "M2",
+    "FR13": "M1"
+  },
+  "planning_decisions": {
+    "state_directory": ".harness/loop/ in the target project (driver.pid, current-step.json, loop.log, commands.log, outcome.json); the driver writes .harness/loop/.gitignore containing '*' so git add .harness never commits loop state",
+    "step_time_limit": "3 hours per /harness:implement step (v2 build-step limit), overridable per start; sign-in check session 2 minutes; kill grace 20 seconds",
+    "test_convention": "stdlib unittest scripts under .harness-dev/, run as python3 .harness-dev/test-<name>.py"
+  },
+  "milestones": {
+    "M1": {
+      "outcome": "The loop starts in the background, reports its status, and stops cleanly",
+      "status": "TODO",
+      "review_cycles": 0,
+      "review_override": null,
+      "baseline": {
+        "commit": "",
+        "branch": ""
+      },
+      "as_built": {
+        "artifact": null,
+        "result": "N/A"
+      },
+      "complexity_signals": [
+        "CONCURRENCY_LIFECYCLE"
+      ],
+      "criteria": [
+        {
+          "id": "M1-AC1",
+          "status": "PENDING",
+          "text": "`/harness:implement-loop` exists as a plugin skill under `skills/implement-loop/`, and `claude --plugin-dir <this repository>` lists it with no plugin load errors (AC1, FR1).",
+          "evidence": []
+        },
+        {
+          "id": "M1-AC2",
+          "status": "PENDING",
+          "text": "With a fake `claude` binary and a file notification sink, `scripts/implement-loop.py start` returns promptly while a detached driver (in its own session, not a child of the invoking shell, with `caffeinate -w <driver pid>` running) writes its pid and current step under `.harness/loop/`; `status` prints running, the pid, the current step and the milestone being worked on (AC2, FR2, FR3).",
+          "evidence": []
+        },
+        {
+          "id": "M1-AC3",
+          "status": "PENDING",
+          "text": "`stop` terminates the running step (SIGTERM, then SIGKILL after the grace period) and the driver, clears the pid file, leaves committed work and `.harness/loop/loop.log` in place, and produces exactly one stop notification in the sink (AC2, FR3).",
+          "evidence": []
+        },
+        {
+          "id": "M1-AC4",
+          "status": "PENDING",
+          "text": "`stop` and `status` with no driver, or with a stale pid file whose process is gone, print \"not running\" and exit 0 (Edge Cases).",
+          "evidence": []
+        },
+        {
+          "id": "M1-AC5",
+          "status": "PENDING",
+          "text": "`.harness/loop/loop.log` records each step started (time, milestone, attempt), its outcome, each notification and whether it was sent, and the final outcome; every child process is logged with its pid and command line, a prompt shown by length only; nothing under `.harness/loop/` is staged by `git add .harness` (FR13).",
+          "evidence": []
+        }
+      ],
+      "tasks": [],
+      "reviews": [],
+      "findings": [],
+      "validation": [],
+      "follow_ups": []
+    },
+    "M2": {
+      "outcome": "Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state",
+      "status": "TODO",
+      "review_cycles": 0,
+      "review_override": null,
+      "baseline": {
+        "commit": "",
+        "branch": ""
+      },
+      "as_built": {
+        "artifact": null,
+        "result": "N/A"
+      },
+      "complexity_signals": [],
+      "criteria": [
+        {
+          "id": "M2-AC1",
+          "status": "PENDING",
+          "text": "Driven through `start` by a fake implement session that advances a fixture `.harness/state.json`, the driver runs successive fresh `claude` processes, one per step, in the project directory, each invoking `/harness:implement`, and decides each step's result from `state.json` / `milestones.md` rather than from the session's output alone (FR5).",
+          "evidence": []
+        },
+        {
+          "id": "M2-AC2",
+          "status": "PENDING",
+          "text": "A session ending at a normal phase boundary (for example a milestone left at REVIEW) with state progress counts as progress and the next fresh session starts; when every milestone is DONE the loop stops as finished (FR5, FR6(a), Edge Cases).",
+          "evidence": []
+        },
+        {
+          "id": "M2-AC3",
+          "status": "PENDING",
+          "text": "The step command line carries `--permission-mode bypassPermissions`, the setting that denies anything that would still prompt, `--plugin-dir <harness root>`, and deny rules for push, merge, commit on main and history rewrite both as `--disallowedTools` values and inside `--settings` `permissions.deny`; the driver itself runs no push or merge (AC7, FR11).",
+          "evidence": []
+        },
+        {
+          "id": "M2-AC4",
+          "status": "PENDING",
+          "text": "The step environment contains only the allowed names (PATH, HOME, USER, GIT_TERMINAL_PROMPT, and the named sign-in variables when set); a fake secret seeded in the parent environment appears in neither the child environment, `commands.log` nor `loop.log` (AC7, FR12, FR13).",
+          "evidence": []
+        },
+        {
+          "id": "M2-AC5",
+          "status": "PENDING",
+          "text": "A step that exceeds the step time limit (3 hours by default, overridable per start) is terminated, killed after the grace period if still alive, and recorded in the loop log as a failed step (FR5, Edge Cases).",
+          "evidence": []
+        }
+      ],
+      "tasks": [],
+      "reviews": [],
+      "findings": [],
+      "validation": [],
+      "follow_ups": []
+    },
+    "M3": {
+      "outcome": "`start` refuses to begin when the project is not safe to run",
+      "status": "TODO",
+      "review_cycles": 0,
+      "review_override": null,
+      "baseline": {
+        "commit": "",
+        "branch": ""
+      },
+      "as_built": {
+        "artifact": null,
+        "result": "N/A"
+      },
+      "complexity_signals": [
+        "IMPLEMENTATION_PLUS_LIVE_PROOF"
+      ],
+      "criteria": [
+        {
+          "id": "M3-AC1",
+          "status": "PENDING",
+          "text": "With `.harness/requirements.md` missing or with `Open Questions` other than `None` (or an `architecture.md` that is not AGREED), `start` refuses: no pid file, no step session, a printed plain reason, and exactly one notification saying what to fix (AC3, FR4(a)).",
+          "evidence": []
+        },
+        {
+          "id": "M3-AC2",
+          "status": "PENDING",
+          "text": "When the sign-in check session fails (a fake `claude` reporting signed out, or not seeing `harness:implement`), `start` refuses the same way; the check session is built by the same builder as step sessions (same permission flags, plugin dir and environment) with a 2-minute limit (AC3, FR4(b)).",
+          "evidence": []
+        },
+        {
+          "id": "M3-AC3",
+          "status": "PENDING",
+          "text": "On `main`, `master` or the repository's default branch, `start` refuses the same way (AC3, FR4(c)).",
+          "evidence": []
+        },
+        {
+          "id": "M3-AC4",
+          "status": "PENDING",
+          "text": "When the pid file names a live driver, `start` refuses the same way and leaves the existing driver running and its state untouched (AC3, FR4(d)).",
+          "evidence": []
+        },
+        {
+          "id": "M3-AC5",
+          "status": "PENDING",
+          "text": "The sign-in check, run through the driver's entry point against the real installed `claude` on the owner's Mac, passes and confirms `harness:implement` is visible; the exact command (prompt by length) and its result are recorded (FR4(b)).",
+          "evidence": []
+        }
+      ],
+      "tasks": [],
+      "reviews": [],
+      "findings": [],
+      "validation": [],
+      "follow_ups": []
+    },
+    "M4": {
+      "outcome": "The loop stops for the right reason and tells the owner in one plain message",
+      "status": "TODO",
+      "review_cycles": 0,
+      "review_override": null,
+      "baseline": {
+        "commit": "",
+        "branch": ""
+      },
+      "as_built": {
+        "artifact": null,
+        "result": "N/A"
+      },
+      "complexity_signals": [],
+      "criteria": [
+        {
+          "id": "M4-AC1",
+          "status": "PENDING",
+          "text": "Driven through `start` by a fake session that completes a milestone per step, the loop stops after 10 milestones reach DONE during this start; milestones that were already DONE before the start, and milestones split into parts that are not yet DONE, do not count (AC4, FR6(b), Edge Cases).",
+          "evidence": []
+        },
+        {
+          "id": "M4-AC2",
+          "status": "PENDING",
+          "text": "A session that stops for the human — a milestone BLOCKED, an escalation, a decision needed, an exhausted continuation/retry/review-cycle cap, a planning stop (including the first session when `milestones.md` does not yet exist), or any other STOP that is not a normal phase boundary — stops the loop without another session (AC4, FR6(c), Edge Cases).",
+          "evidence": []
+        },
+        {
+          "id": "M4-AC3",
+          "status": "PENDING",
+          "text": "Two consecutive failed steps (crash, no recognisable result, no state progress, or the time limit) stop the loop; a single failed step followed by a step that makes progress does not (AC4, FR6(d)).",
+          "evidence": []
+        },
+        {
+          "id": "M4-AC4",
+          "status": "PENDING",
+          "text": "Session output reporting that Claude is signed out or that the plan's usage limit is reached stops the loop at once with no second session, and the stop message includes the reset time when the output gives one (AC4, FR6(e)).",
+          "evidence": []
+        },
+        {
+          "id": "M4-AC5",
+          "status": "PENDING",
+          "text": "Every stop — including the owner's `stop` and an unexpected driver error — writes `.harness/loop/outcome.json` and sends exactly one stop notification naming which condition occurred, the milestone and branch it stopped on, and what the owner is asked to decide or do, if anything (FR6, FR6(f), FR6(g), FR10).",
+          "evidence": []
+        }
+      ],
+      "tasks": [],
+      "reviews": [],
+      "findings": [],
+      "validation": [],
+      "follow_ups": []
+    },
+    "M5": {
+      "outcome": "Notifications reach the owner's phone through ntfy without ever revealing the topic",
+      "status": "TODO",
+      "review_cycles": 0,
+      "review_override": null,
+      "baseline": {
+        "commit": "",
+        "branch": ""
+      },
+      "as_built": {
+        "artifact": null,
+        "result": "N/A"
+      },
+      "complexity_signals": [],
+      "criteria": [
+        {
+          "id": "M5-AC1",
+          "status": "PENDING",
+          "text": "A loop run through `start` and `stop` with the alert config path pointed at a test config sends its stop notification through the ntfy sender, which reads the config at send time and POSTs the body to `<ntfy_server>/<ntfy_topic>` on a local stub; no test touches the external network (AC6, FR7).",
+          "evidence": []
+        },
+        {
+          "id": "M5-AC2",
+          "status": "PENDING",
+          "text": "The topic never appears in stdout, stderr, `loop.log`, `commands.log`, `outcome.json`, or any error or exception text, including when the POST fails (AC6, FR7).",
+          "evidence": []
+        },
+        {
+          "id": "M5-AC3",
+          "status": "PENDING",
+          "text": "A missing or invalid config, a network failure, or an HTTP error status is recorded in `loop.log` as \"not sent\" with a reason, and the loop keeps running (AC6, Edge Cases).",
+          "evidence": []
+        },
+        {
+          "id": "M5-AC4",
+          "status": "PENDING",
+          "text": "Every message names the project it comes from, and a body over ntfy's 4096-byte limit is truncated to fit with a visible truncation marker (AC5, FR7).",
+          "evidence": []
+        }
+      ],
+      "tasks": [],
+      "reviews": [],
+      "findings": [],
+      "validation": [],
+      "follow_ups": []
+    },
+    "M6": {
+      "outcome": "Each milestone's start and finish reach the owner as a full summary and a worker-tier report",
+      "status": "TODO",
+      "review_cycles": 0,
+      "review_override": null,
+      "baseline": {
+        "commit": "",
+        "branch": ""
+      },
+      "as_built": {
+        "artifact": null,
+        "result": "N/A"
+      },
+      "complexity_signals": [],
+      "criteria": [
+        {
+          "id": "M6-AC1",
+          "status": "PENDING",
+          "text": "For a fixture milestone, the start notification contains its id, name, goal/purpose, scope and acceptance criteria, taken from `milestones.md` / `state.json`, and is sent before the session that begins it (AC5, FR8).",
+          "evidence": []
+        },
+        {
+          "id": "M6-AC2",
+          "status": "PENDING",
+          "text": "When the milestone was only planned inside a session (no `milestones.md` before it), its start notification is sent as soon as the driver sees after that session that it has begun (FR8, Edge Cases).",
+          "evidence": []
+        },
+        {
+          "id": "M6-AC3",
+          "status": "PENDING",
+          "text": "When a milestone reaches DONE, the finish notification gives its id, name and result, the task count, the per-tier counts of task entry tiers (Cheap, Mid, Top) matching the fixture's `routing.tier` values, and the tier(s) of its review(s), in the shape \"M3 DONE — 7 tasks: 4 Cheap, 2 Mid, 1 Top; reviewed by Top.\" (AC5, FR9).",
+          "evidence": []
+        },
+        {
+          "id": "M6-AC4",
+          "status": "PENDING",
+          "text": "A loop run through `start` with a fake session advancing a fixture over two milestones leaves, in the sink, each milestone's start and finish notification exactly once and in order, each naming the project (AC5, FR8, FR9).",
+          "evidence": []
+        }
+      ],
+      "tasks": [],
+      "reviews": [],
+      "findings": [],
+      "validation": [],
+      "follow_ups": []
+    },
+    "M7": {
+      "outcome": "One real unattended run builds a milestone, and the owner's phone hears about it",
+      "status": "TODO",
+      "review_cycles": 0,
+      "review_override": null,
+      "baseline": {
+        "commit": "",
+        "branch": ""
+      },
+      "as_built": {
+        "artifact": null,
+        "result": "N/A"
+      },
+      "complexity_signals": [
+        "IMPLEMENTATION_PLUS_LIVE_PROOF"
+      ],
+      "criteria": [
+        {
+          "id": "M7-AC1",
+          "status": "PENDING",
+          "text": "One real `start` against a small fixture project on the owner's Mac (on a non-main branch, with agreed requirements) runs unattended and completes at least one milestone to DONE, shown by the fixture's `state.json` and its milestone branch commits (AC8).",
+          "evidence": []
+        },
+        {
+          "id": "M7-AC2",
+          "status": "PENDING",
+          "text": "The milestone start, milestone finish and stop notifications are each sent through the real ntfy channel, with HTTP 200 recorded for each in `loop.log` (AC8).",
+          "evidence": []
+        },
+        {
+          "id": "M7-AC3",
+          "status": "PENDING",
+          "text": "The owner confirms the three notifications arrived on the phone, and that confirmation is recorded with its date (AC8).",
+          "evidence": []
+        },
+        {
+          "id": "M7-AC4",
+          "status": "PENDING",
+          "text": "After the run, the ntfy topic and any credential appear in none of `loop.log`, `commands.log`, `outcome.json`, the fixture repository or this repository, checked by a recorded search (AC6, FR12).",
+          "evidence": []
+        }
+      ],
+      "tasks": [],
+      "reviews": [],
+      "findings": [],
+      "validation": [],
+      "follow_ups": []
+    }
+  }
+}

@@ -35,6 +35,13 @@ DEFAULT_STEP_TIMEOUT = 3 * 60 * 60
 START_WAIT = 4.0
 STOP_EXTRA_WAIT = 10.0
 POLL = 0.1
+CHECK_TIMEOUT = 120  # seconds the sign-in check session may run (2 minutes)
+CHECK_OK = "HARNESS_LOOP_CHECK_OK"
+CHECK_MISSING = "HARNESS_LOOP_CHECK_MISSING"
+CHECK_PROMPT = (
+    "If a skill named harness:implement is available to you, reply with exactly "
+    f"{CHECK_OK}; otherwise reply with exactly {CHECK_MISSING}. Use no tools."
+)
 
 # The only parent environment names a session may see. Each passes through only
 # when set in the parent; GIT_TERMINAL_PROMPT is always forced to "0".
@@ -471,22 +478,131 @@ def resolve_claude(option: str | None) -> str | None:
     return shutil.which(candidate)
 
 
+def section_body(text: str, heading: str) -> str | None:
+    """Return the stripped text under `## <heading>` up to the next `## ` heading, or None."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() == f"## {heading}":
+            body = []
+            for following in lines[index + 1:]:
+                if following.startswith("## "):
+                    break
+                body.append(following)
+            return "\n".join(body).strip()
+    return None
+
+
+def check_documents(project: Path) -> str | None:
+    requirements = project / ".harness" / "requirements.md"
+    try:
+        text = requirements.read_text()
+    except OSError:
+        return "requirements are missing; write them (roast-requirements) before starting"
+    if section_body(text, "Open Questions") != "None":
+        return "requirements have open questions; answer them (roast-requirements) before starting"
+    architecture = project / ".harness" / "architecture.md"
+    if architecture.exists():
+        status = section_body(architecture.read_text(), "Status")
+        first = status.splitlines()[0].strip() if status else ""
+        if first != "AGREED":
+            return "the architecture is not agreed; agree it before starting"
+    return None
+
+
+def git_output(project: Path, *args: str) -> str | None:
+    result = subprocess.run(
+        ["git", "-C", str(project), *args], text=True, capture_output=True, check=False
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def check_branch(project: Path) -> str | None:
+    branch = git_output(project, "rev-parse", "--abbrev-ref", "HEAD")
+    if branch is None:  # not a git repository: implement handles that
+        return None
+    protected = {"main", "master"}
+    default = git_output(project, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD")
+    if default:
+        protected.add(default.removeprefix("origin/"))
+    if branch in protected:
+        return f"on the {branch} branch; switch to a working branch first"
+    return None
+
+
+def check_sign_in(project: Path, claude: str) -> str | None:
+    command, env = session_command(claude, CHECK_PROMPT)
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=project,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            close_fds=True,
+            start_new_session=True,
+        )
+    except OSError as error:
+        return f"Claude did not start the sign-in check: {error}"
+    try:
+        stdout, stderr = process.communicate(timeout=CHECK_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.communicate()
+        return "the sign-in check did not finish within 2 minutes"
+    if process.returncode != 0:
+        lines = [line.strip() for line in (stdout + "\n" + stderr).splitlines() if line.strip()]
+        first = lines[0][:200] if lines else ""
+        return (
+            f"Claude did not answer the sign-in check (exit {process.returncode}): {first}; "
+            "sign in to Claude and try again"
+        )
+    if CHECK_OK not in stdout or CHECK_MISSING in stdout:
+        return "Claude cannot see the harness:implement skill; check the harness plugin is installed"
+    return None
+
+
+def pre_start_gate(project: Path, claude: str) -> str | None:
+    """Run the pre-start checks in order and return the first failure reason, or None."""
+    pid = running_driver(project)
+    if pid is not None:
+        return f"a driver is already running (pid {pid}); run stop first, or wait for it to finish"
+    return check_documents(project) or check_branch(project) or check_sign_in(project, claude)
+
+
+def refuse(reason: str, notify_file: str | None) -> int:
+    """Refuse to start: say why on stderr, send one notification, write nothing under .harness/loop."""
+    print(f"cannot start: {reason}", file=sys.stderr)
+    sink = choose_sink({"notify_file": notify_file})
+    if sink is None:
+        print("notification not sent: no sink configured", file=sys.stderr)
+    else:
+        try:
+            sink(f"loop did not start: {reason}")
+        except OSError as error:
+            print(f"notification not sent: {error}", file=sys.stderr)
+    return 1
+
+
 def command_start(args, project: Path) -> int:
     if not (math.isfinite(args.step_timeout) and args.step_timeout > 0):
         print("cannot start: --step-timeout must be a positive number of seconds", file=sys.stderr)
         return 2
-    loop = state_dir(project)
-    loop.mkdir(parents=True, exist_ok=True)
-    (loop / ".gitignore").write_text("*\n")
-    pid = running_driver(project)
-    if pid is not None:
-        print(f"already running (pid {pid})")
-        return 1
     claude = resolve_claude(args.claude)
     if claude is None:
         print("cannot start: claude executable not found", file=sys.stderr)
         return 2
     notify_file = str(Path(args.notify_file).expanduser().resolve()) if args.notify_file else None
+    reason = pre_start_gate(project, claude)
+    if reason is not None:
+        return refuse(reason, notify_file)
+    loop = state_dir(project)
+    loop.mkdir(parents=True, exist_ok=True)
+    (loop / ".gitignore").write_text("*\n")
     write_json(
         loop / "config.json",
         {"claude": claude, "notify_file": notify_file, "grace": args.grace, "step_timeout": args.step_timeout},
@@ -513,6 +629,21 @@ def command_start(args, project: Path) -> int:
         return 0
     print(f"driver (pid {driver.pid}) did not record its pid; see {loop / 'loop.log'}", file=sys.stderr)
     return 1
+
+
+def command_check(args, project: Path) -> int:
+    claude = resolve_claude(args.claude)
+    if claude is None:
+        print("cannot check: claude executable not found", file=sys.stderr)
+        return 2
+    command, _ = session_command(claude, CHECK_PROMPT)
+    print(describe_command(command))
+    reason = pre_start_gate(project, claude)
+    if reason is not None:
+        print(f"check failed: {reason}")
+        return 1
+    print("check passed: harness:implement is visible")
+    return 0
 
 
 def command_status(args, project: Path) -> int:
@@ -556,6 +687,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     start.add_argument(
         "--step-timeout", type=float, default=DEFAULT_STEP_TIMEOUT, help="seconds a step may run (default: 10800)"
     )
+    check = commands.add_parser("check", help="run the pre-start checks without starting")
+    check.add_argument("--claude", help="claude executable (default: $HARNESS_LOOP_CLAUDE or claude on PATH)")
     commands.add_parser("status", help="report whether the driver is running")
     commands.add_parser("stop", help="stop the driver and its current step")
     commands.add_parser("_driver", help=argparse.SUPPRESS)
@@ -569,7 +702,7 @@ def main(argv: list[str]) -> int:
     project = Path(args.project).expanduser().resolve()
     if args.command == "_driver":
         return Driver(project).run()
-    return {"start": command_start, "status": command_status, "stop": command_stop}[args.command](args, project)
+    return {"start": command_start, "check": command_check, "status": command_status, "stop": command_stop}[args.command](args, project)
 
 
 if __name__ == "__main__":

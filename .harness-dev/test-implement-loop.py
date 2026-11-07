@@ -27,13 +27,16 @@ STATE = {
     },
 }
 
-SLEEPING_CLAUDE = '#!/bin/sh\necho "$@" > "{args}"\nsleep 60\n'
-STUBBORN_CLAUDE = '#!/bin/sh\ntrap "" TERM\necho "$@" > "{args}"\nsleep 60\n'
-QUICK_CLAUDE = '#!/bin/sh\necho "$@" > "{args}"\nexit 0\n'
+# Answers the sign-in check session (its prompt names the token) before recording
+# anything, so the args file records step sessions only.
+CHECK_PREFIX = 'case "$*" in *HARNESS_LOOP_CHECK_OK*) echo HARNESS_LOOP_CHECK_OK; exit 0;; esac\n'
+SLEEPING_CLAUDE = '#!/bin/sh\n' + CHECK_PREFIX + 'echo "$@" > "{args}"\nsleep 60\n'
+STUBBORN_CLAUDE = '#!/bin/sh\n' + CHECK_PREFIX + 'trap "" TERM\necho "$@" > "{args}"\nsleep 60\n'
+QUICK_CLAUDE = '#!/bin/sh\n' + CHECK_PREFIX + 'echo "$@" > "{args}"\nexit 0\n'
 # Records argv one per line and the environment it was given. /bin/sh itself
 # adds PWD, SHLVL and _ to what it exports, so those are dropped before recording.
 RECORDING_CLAUDE = (
-    '#!/bin/sh\nprintf "%s\\n" "$@" > "{args}.tmp"\n'
+    '#!/bin/sh\n' + CHECK_PREFIX + 'printf "%s\\n" "$@" > "{args}.tmp"\n'
     'env -u PWD -u SHLVL -u _ > "{args}.env"\nmv "{args}.tmp" "{args}"\nexit 0\n'
 )
 ALLOWED_ENV = {
@@ -134,10 +137,12 @@ class ImplementLoopTests(unittest.TestCase):
         self.args_file = self.tools / "claude-args.txt"
         (self.project / ".harness").mkdir()
         (self.project / ".harness" / "state.json").write_text(json.dumps(STATE, indent=2))
+        (self.project / ".harness" / "requirements.md").write_text("## Open Questions\n\nNone\n")
         (self.project / "README.md").write_text("fixture\n")
         self.git("init", "-q")
         self.git("add", "-A")
         self.git("-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "init")
+        self.git("checkout", "-q", "-b", "work")
         self.pids = []
         self.groups = []
         self.addCleanup(self.kill_started)
@@ -521,6 +526,9 @@ class ImplementLoopTests(unittest.TestCase):
         body = (
             f"#!{sys.executable}\n"
             "import json, os, sys\n"
+            "if any('HARNESS_LOOP_CHECK_OK' in a for a in sys.argv[1:]):\n"
+            "    print('HARNESS_LOOP_CHECK_OK')\n"
+            "    sys.exit(0)\n"
             "from pathlib import Path\n"
             f"runs = Path({str(runs)!r})\n"
             f"plan = {plan!r}\n"
@@ -678,6 +686,147 @@ class ImplementLoopTests(unittest.TestCase):
                 self.assertEqual(len(result.stderr.strip().splitlines()), 1, result.stderr)
                 self.assertFalse((self.loop / "driver.pid").exists())
                 self.assertFalse((self.loop / "config.json").exists())
+
+
+    # --- M3-T1: pre-start gate ---
+    def assert_refused(self, result, fragment, claude_args=None):
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(fragment, result.stderr)
+        self.assertFalse((self.loop / "driver.pid").exists())
+        self.assertFalse((claude_args or self.args_file).exists(), "a step session started")
+        lines = self.notifications()
+        self.assertEqual(len(lines), 1, lines)
+        self.assertIn(fragment, lines[0])
+
+    def try_start(self, body=QUICK_CLAUDE):
+        claude = self.fake_claude(body)
+        return self.run_loop("start", "--claude", str(claude), "--notify-file", str(self.notify))
+
+    def test_missing_requirements_refuse_start(self):
+        (self.project / ".harness" / "requirements.md").unlink()
+        self.assert_refused(self.try_start(), "requirements are missing")
+
+    def test_open_questions_refuse_start(self):
+        (self.project / ".harness" / "requirements.md").write_text("## Open Questions\n\n- Which colour?\n")
+        self.assert_refused(self.try_start(), "open questions")
+
+    def test_architecture_must_be_agreed(self):
+        architecture = self.project / ".harness" / "architecture.md"
+        architecture.write_text("## Status\n\nDRAFT\n")
+        self.assert_refused(self.try_start(), "architecture is not agreed")
+        self.notify.unlink()
+        architecture.write_text("## Status\n\nAGREED\n")
+        self.start(self.fake_claude(QUICK_CLAUDE))
+        self.assertTrue(wait_for(lambda: (self.loop / "outcome.json").exists()))
+
+    def test_signed_out_check_refuses_start(self):
+        body = '#!/bin/sh\nif [ "$1" != "x" ]; then echo "Invalid API key · Please run /login"; exit 1; fi\n'
+        result = self.try_start(body)
+        self.assert_refused(result, "sign in")
+        self.assertIn("exit 1", result.stderr)
+
+    def test_check_that_cannot_see_the_skill_refuses_start(self):
+        body = '#!/bin/sh\necho HARNESS_LOOP_CHECK_MISSING\nexit 0\n'
+        self.assert_refused(self.try_start(body), "cannot see the harness:implement skill")
+
+    def test_check_session_is_built_like_a_step_session(self):
+        module = load_script()
+        argv, env = self.run_recording_check()
+        expected, _ = module.session_command(argv[0], module.CHECK_PROMPT)
+        self.assertEqual(argv, expected)
+        self.assertEqual(argv[argv.index("-p") + 1], module.CHECK_PROMPT)
+        self.assertEqual(module.CHECK_TIMEOUT, 120)
+        self.assertLessEqual(set(env), ALLOWED_ENV, sorted(set(env) - ALLOWED_ENV))
+        self.assertEqual(env["GIT_TERMINAL_PROMPT"], "0")
+        deny = json.loads(argv[argv.index("--settings") + 1])["permissions"]["deny"]
+        for rule in REQUIRED_DENY:
+            self.assertIn(rule, deny)
+        self.assertEqual(argv[argv.index("--permission-mode") + 1], "bypassPermissions")
+        self.assertEqual(argv[argv.index("--permission-prompts") + 1], "none")
+        self.assertEqual(Path(argv[argv.index("--plugin-dir") + 1]), ROOT)
+        start = argv.index("--disallowedTools") + 1
+        self.assertEqual(argv[start:start + len(deny)], deny)
+
+    def run_recording_check(self):
+        record = self.tools / "check-record"
+        body = (
+            '#!/bin/sh\nprintf "%s\\n" "$@" > "' + str(record) + '"\n'
+            'env -u PWD -u SHLVL -u _ > "' + str(record) + '.env"\n'
+            'echo HARNESS_LOOP_CHECK_OK\nexit 0\n'
+        )
+        path = self.tools / "claude"
+        path.write_text(body)
+        path.chmod(0o755)
+        # argv[0] of the expected command is the resolved fake, recorded as the first element
+        result = self.run_loop("check", "--claude", str(path))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        argv = [str(path)] + record.read_text().splitlines()
+        env = dict(
+            line.split("=", 1) for line in Path(f"{record}.env").read_text().splitlines() if "=" in line
+        )
+        return argv, env
+
+    def test_check_session_over_the_limit_is_killed_and_refused(self):
+        module = load_script()
+        module.CHECK_TIMEOUT = 0.5
+        marker = self.tools / "child.pid"
+        body = f'#!/bin/sh\nsleep 30 &\necho $! > "{marker}"\nwait\n'
+        path = self.tools / "claude"
+        path.write_text(body)
+        path.chmod(0o755)
+        began = time.monotonic()
+        reason = module.check_sign_in(self.project, str(path))
+        self.assertLess(time.monotonic() - began, 10)
+        self.assertIn("did not finish within 2 minutes", reason)
+        child = int(marker.read_text().strip())
+        self.pids.append(child)
+        self.assertTrue(wait_for(lambda: not alive(child), 5), "check session was not killed")
+
+    def test_protected_branches_refuse_start(self):
+        self.git("checkout", "-q", "-B", "main")
+        self.assert_refused(self.try_start(), "on the main branch")
+        self.notify.unlink()
+        self.git("checkout", "-q", "-B", "master")
+        self.assert_refused(self.try_start(), "on the master branch")
+        self.notify.unlink()
+        self.git("checkout", "-q", "-B", "trunk")
+        self.git("update-ref", "refs/remotes/origin/trunk", "HEAD")
+        self.git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk")
+        self.assert_refused(self.try_start(), "on the trunk branch")
+
+    def snapshot_loop(self):
+        return {
+            str(path.relative_to(self.loop)): path.read_bytes()
+            for path in sorted(self.loop.rglob("*")) if path.is_file()
+        }
+
+    def test_live_driver_refuses_second_start_and_is_untouched(self):
+        _, _, pid, _ = self.start_running(SLEEPING_CLAUDE)
+        before = self.snapshot_loop()
+        result = self.run_loop("start", "--claude", str(self.tools / "claude"), "--notify-file", str(self.notify))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(f"pid {pid}", result.stderr)
+        self.assertEqual(len(self.notifications()), 1, self.notifications())
+        self.assertIn("loop did not start", self.notifications()[0])
+        self.assertTrue(alive(pid))
+        self.assertEqual(self.snapshot_loop(), before)
+
+    def test_check_subcommand_reports_without_starting(self):
+        claude = self.fake_claude(QUICK_CLAUDE)
+        result = self.run_loop("check", "--claude", str(claude))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("check passed", result.stdout)
+        self.assertIn("-p <prompt: ", result.stdout)
+        self.assertNotIn("harness:implement is available", result.stdout)
+        self.assertFalse((self.project / ".harness" / "loop").exists())
+        self.assertEqual(self.notifications(), [])
+
+        missing = self.fake_claude('#!/bin/sh\necho HARNESS_LOOP_CHECK_MISSING\n')
+        result = self.run_loop("check", "--claude", str(missing))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("check failed", result.stdout)
+        self.assertFalse((self.project / ".harness" / "loop").exists())
+        self.assertEqual(self.notifications(), [])
 
 
 if __name__ == "__main__":

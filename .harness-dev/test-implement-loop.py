@@ -1155,7 +1155,8 @@ class ImplementLoopTests(unittest.TestCase):
     def stop_message(self):
         record = json.loads((self.loop / "outcome.json").read_text())
         return (
-            f"implement loop stopped: {record['outcome']}. Stopped on milestone {record['milestone']}, "
+            f"[{self.project.name}] implement loop stopped: {record['outcome']}. "
+            f"Stopped on milestone {record['milestone']}, "
             f"branch {record['branch']}. {record['ask']}"
         ).rstrip()
 
@@ -1200,7 +1201,9 @@ class ImplementLoopTests(unittest.TestCase):
         path, body = server.requests[0]
         self.assertEqual(path, "/" + second)
         self.assertEqual(body, self.stop_message())
-        self.loop_log_matches("notification sent (ntfy HTTP 200): implement loop stopped: stopped by owner")
+        self.loop_log_matches(
+            f"notification sent (ntfy HTTP 200): [{self.project.name}] implement loop stopped: stopped by owner"
+        )
         self.assert_topic_hidden(first, [stop])
         self.assert_topic_hidden(second, [stop])
 
@@ -1287,7 +1290,9 @@ class ImplementLoopTests(unittest.TestCase):
                 record = json.loads((self.loop / "outcome.json").read_text())
                 self.assertEqual(record["outcome"], "finished: every milestone is DONE")
                 lines = self.loop_log_matches("notification not sent: " + reason)
-                self.assertRegex(lines[0], r"notification not sent: \S.*?: implement loop stopped: finished")
+                self.assertRegex(
+                    lines[0], r"notification not sent: \S.*?: \[project\] implement loop stopped: finished"
+                )
                 log_lines = (self.loop / "loop.log").read_text().splitlines()
                 self.assertIn("final outcome: finished", log_lines[-2])
                 self.assertIn("notification not sent", log_lines[-1])
@@ -1370,6 +1375,59 @@ class ImplementLoopTests(unittest.TestCase):
                 self.assertEqual(
                     seen[-1], (f"https://ntfy.example.invalid/{topic}", "POST", "hi — there".encode(), 10)
                 )
+
+    # --- M5-T2: every notification names its project and fits ntfy's size limit ---
+    def test_stop_notification_names_the_project(self):
+        self.run_quick_step()
+        notes = self.notifications()
+        self.assertEqual(len(notes), 1, notes)
+        self.assertIn(f"[{self.project.name}] implement loop stopped: ", notes[0])
+
+    def test_refused_start_notification_names_the_project(self):
+        (self.project / ".harness" / "requirements.md").unlink()
+        result = self.try_start()
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        notes = self.notifications()
+        self.assertEqual(len(notes), 1, notes)
+        self.assertIn(f"[{self.project.name}] loop did not start: requirements are missing", notes[0])
+
+    def test_prepare_message_labels_a_short_message_and_leaves_it_otherwise_unchanged(self):
+        module = load_script()
+        text = "hello — there\nsecond line"
+        self.assertEqual(module.prepare_message(Path("/work/demo"), text), "[demo] " + text)
+
+    def test_prepare_message_cuts_an_over_long_ascii_body_to_the_limit_with_a_marker(self):
+        module = load_script()
+        out = module.prepare_message(self.project, "a" * 10000)
+        self.assertLessEqual(len(out.encode("utf-8")), 4096)
+        self.assertTrue(out.endswith("[truncated]"), out[-40:])
+        self.assertTrue(out.startswith(f"[{self.project.name}] aaa"), out[:40])
+
+    def test_prepare_message_cuts_multibyte_text_at_a_character_boundary(self):
+        module = load_script()
+        marker = " … [truncated]"
+        label = f"[{self.project.name}] "
+        for char in ("é", "😀"):
+            with self.subTest(char=char):
+                out = module.prepare_message(self.project, char * 5000)
+                encoded = out.encode("utf-8")
+                self.assertLessEqual(len(encoded), 4096)
+                self.assertGreaterEqual(len(encoded), 4096 - 3, "more than a split character was lost")
+                self.assertEqual(encoded.decode("utf-8"), out)
+                self.assertTrue(out.endswith(marker), out[-40:])
+                kept = out[len(label):-len(marker)]
+                self.assertTrue(kept and set(kept) == {char}, "kept text is not whole characters")
+
+    def test_a_labelled_message_of_exactly_the_limit_is_not_truncated(self):
+        module = load_script()
+        label = f"[{self.project.name}] "
+        body = "a" * (4096 - len(label.encode("utf-8")))
+        exact = module.prepare_message(self.project, body)
+        self.assertEqual(exact, label + body)
+        self.assertEqual(len(exact.encode("utf-8")), 4096)
+        over = module.prepare_message(self.project, body + "a")
+        self.assertTrue(over.endswith(" … [truncated]"), over[-40:])
+        self.assertLessEqual(len(over.encode("utf-8")), 4096)
 
 
 if __name__ == "__main__":

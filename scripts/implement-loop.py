@@ -40,6 +40,8 @@ STOP_EXTRA_WAIT = 10.0
 POLL = 0.1
 DEFAULT_ALERT_CONFIG = "~/.config/harness-e2e/alert.json"
 NTFY_TIMEOUT = 10  # seconds one ntfy POST may take
+NTFY_LIMIT = 4096  # largest message body ntfy accepts, in UTF-8 bytes
+TRUNCATED_MARK = " … [truncated]"
 CHECK_TIMEOUT = 120  # seconds the sign-in check session may run (2 minutes)
 CHECK_OK = "HARNESS_LOOP_CHECK_OK"
 CHECK_MISSING = "HARNESS_LOOP_CHECK_MISSING"
@@ -305,7 +307,18 @@ def not_sent_reason(error: Exception) -> str:
     return str(error) if isinstance(error, (NotSent, OSError)) else type(error).__name__
 
 
+def prepare_message(project: Path, message: str) -> str:
+    """Label a message with its project and cut it to the ntfy limit, marking any cut."""
+    labelled = f"[{project.name}] {message}"
+    if len(labelled.encode("utf-8")) <= NTFY_LIMIT:
+        return labelled
+    budget = NTFY_LIMIT - len(TRUNCATED_MARK.encode("utf-8"))
+    # Decoding drops only a trailing partial character, so the cut lands on a character boundary.
+    return labelled.encode("utf-8")[:budget].decode("utf-8", errors="ignore") + TRUNCATED_MARK
+
+
 def notify(project: Path, config: dict, message: str) -> None:
+    message = prepare_message(project, message)
     try:
         where = choose_sink(config)(message)
     except Exception as error:
@@ -802,11 +815,12 @@ def pre_start_gate(project: Path, claude: str) -> str | None:
     return check_documents(project) or check_branch(project) or check_sign_in(project, claude)
 
 
-def refuse(reason: str, notify_file: str | None, alert_config: str) -> int:
+def refuse(project: Path, reason: str, notify_file: str | None, alert_config: str) -> int:
     """Refuse to start: say why on stderr, send one notification, write nothing under .harness/loop."""
     print(f"cannot start: {reason}", file=sys.stderr)
+    message = prepare_message(project, f"loop did not start: {reason}")
     try:
-        choose_sink({"notify_file": notify_file, "alert_config": alert_config})(f"loop did not start: {reason}")
+        choose_sink({"notify_file": notify_file, "alert_config": alert_config})(message)
     except Exception as error:
         print(f"notification not sent: {not_sent_reason(error)}", file=sys.stderr)
     return 1
@@ -824,7 +838,7 @@ def command_start(args, project: Path) -> int:
     alert_config = alert_config_path(args.alert_config)
     reason = pre_start_gate(project, claude)
     if reason is not None:
-        return refuse(reason, notify_file, alert_config)
+        return refuse(project, reason, notify_file, alert_config)
     loop = state_dir(project)
     loop.mkdir(parents=True, exist_ok=True)
     (loop / ".gitignore").write_text("*\n")

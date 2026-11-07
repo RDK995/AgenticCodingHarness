@@ -206,7 +206,7 @@
     },
     "M2": {
       "outcome": "Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state",
-      "status": "IN_PROGRESS",
+      "status": "REVIEW",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
@@ -225,31 +225,41 @@
           "id": "M2-AC1",
           "status": "PENDING",
           "text": "Driven through `start` by a fake implement session that advances a fixture `.harness/state.json`, the driver runs successive fresh `claude` processes, one per step, in the project directory, each invoking `/harness:implement`, and decides each step's result from `state.json` / `milestones.md` rather than from the session's output alone (FR5).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M2-T2-verifier.log: test_loop_runs_successive_fresh_steps_until_every_milestone_is_done (4 runs, 4 distinct pids, cwd == project, -p /harness:implement each); test_state_not_output_decides_the_step_result"
+          ]
         },
         {
           "id": "M2-AC2",
           "status": "PENDING",
           "text": "A session ending at a normal phase boundary (for example a milestone left at REVIEW) with state progress counts as progress and the next fresh session starts; when every milestone is DONE the loop stops as finished (FR5, FR6(a), Edge Cases).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M2-T2-verifier.log: same 4-run test (M1 REVIEW -> 'step 1 outcome: progress' -> step 2 started; ends 'finished: every milestone is DONE', one notification); test_nonzero_exit_with_state_advanced_to_all_done_is_finished; test_milestones_file_only_change_counts_as_progress"
+          ]
         },
         {
           "id": "M2-AC3",
           "status": "PENDING",
           "text": "The step command line carries `--permission-mode bypassPermissions`, the setting that denies anything that would still prompt, `--plugin-dir <harness root>`, and deny rules for push, merge, commit on main and history rewrite both as `--disallowedTools` values and inside `--settings` `permissions.deny`; the driver itself runs no push or merge (AC7, FR11).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M2-T1-verifier.log: test_builder_returns_locked_down_command, test_step_runs_locked_down_with_minimal_environment (bypassPermissions, --permission-prompts none, --plugin-dir, DENY_RULES in --disallowedTools and --settings permissions.deny); test_driver_source_runs_no_push_or_merge"
+          ]
         },
         {
           "id": "M2-AC4",
           "status": "PENDING",
           "text": "The step environment contains only the allowed names (PATH, HOME, USER, GIT_TERMINAL_PROMPT, and the named sign-in variables when set); a fake secret seeded in the parent environment appears in neither the child environment, `commands.log` nor `loop.log` (AC7, FR12, FR13).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M2-T1-verifier.log: test_step_runs_locked_down_with_minimal_environment (env names subset of allowed, GIT_TERMINAL_PROMPT=0); test_parent_secret_reaches_neither_step_nor_logs"
+          ]
         },
         {
           "id": "M2-AC5",
           "status": "PENDING",
           "text": "A step that exceeds the step time limit (3 hours by default, overridable per start) is terminated, killed after the grace period if still alive, and recorded in the loop log as a failed step (FR5, Edge Cases).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M2-T3-verifier.log: test_step_over_time_limit_is_terminated_and_recorded_as_failed, test_step_over_time_limit_ignoring_sigterm_is_killed_after_grace, test_timed_out_step_is_failed_even_if_state_advanced, test_step_timeout_defaults_to_three_hours_and_is_listed_in_help"
+          ]
         }
       ],
       "tasks": [
@@ -288,11 +298,35 @@
               "evidence": ".harness/evidence/M2-T2-verifier.log"
             }
           ]
+        },
+        {
+          "id": "M2-T3",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Mid",
+            "model": "sonnet",
+            "reason_code": "ORDINARY_IMPLEMENTATION",
+            "detail": "Deadline in the step wait loop reusing the tested terminate_step"
+          },
+          "attempts": [
+            {
+              "attempt": 3,
+              "tier": "Mid",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M2-T3-verifier.log"
+            }
+          ]
         }
       ],
       "reviews": [],
       "findings": [],
-      "validation": [],
+      "validation": [
+        {
+          "command": "python3 .harness-dev/test-implement-loop.py",
+          "result": "PASS (24 tests, verifier run at T3)",
+          "artifact": ".harness/evidence/M2-T3-verifier.log"
+        }
+      ],
       "follow_ups": [
         "Size check at pickup: 5 criteria; shape OK (start entry point); one signal CONCURRENCY_LIFECYCLE (step time limit) - seam check: reuses M1 terminate_step, same outward outcome, kept whole.",
         "M2-T1: deny rules (Bash(<cmd>:*) prefix rules) are checked only against a fake claude; whether the real CLI matches them, and variants such as `git -C . push`, an alias, or a script, is unproven. Live check belongs with M3-AC5/M7.",

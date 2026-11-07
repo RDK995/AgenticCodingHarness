@@ -30,6 +30,7 @@ SCRIPT = Path(__file__).resolve()
 HARNESS_ROOT = SCRIPT.parent.parent
 STEP_PROMPT = "/harness:implement"
 DEFAULT_GRACE = 20.0
+DEFAULT_STEP_TIMEOUT = 3 * 60 * 60
 START_WAIT = 4.0
 STOP_EXTRA_WAIT = 10.0
 POLL = 0.1
@@ -265,10 +266,13 @@ def take_snapshot(project: Path) -> dict:
     }
 
 
-def judge_step(before: dict, after: dict, returncode: int | None, stopped: bool) -> str:
+def judge_step(before: dict, after: dict, returncode: int | None, stopped: bool,
+               timed_out: bool = False, step_timeout: float = DEFAULT_STEP_TIMEOUT) -> str:
     """Decide what follows a step from recorded state; the exit code never decides progress."""
     if stopped:
         return "stopped by owner"
+    if timed_out:  # a step that overran its limit failed, whatever state it changed
+        return f"failed step: time limit {step_timeout:g}s exceeded"
     statuses = after["statuses"]
     if statuses and all(status == "DONE" for status in statuses.values()):
         return FINISHED
@@ -283,6 +287,7 @@ class Driver:
         self.loop = state_dir(project)
         self.config = read_json(self.loop / "config.json") or {}
         self.grace = float(self.config.get("grace", DEFAULT_GRACE))
+        self.step_timeout = float(self.config.get("step_timeout", DEFAULT_STEP_TIMEOUT))
         self.stop_requested = False
         self.finished = False
         self.notified = False
@@ -345,7 +350,7 @@ class Driver:
                 pass
         step.wait()
 
-    def run_step(self, number: int, attempt: int) -> tuple[int | None, bool]:
+    def run_step(self, number: int, attempt: int) -> tuple[int | None, bool, bool]:
         self.milestone = current_milestone(self.project)
         claude = self.config.get("claude") or "claude"
         command, env = session_command(claude, STEP_PROMPT)
@@ -359,6 +364,8 @@ class Driver:
                 stderr=subprocess.STDOUT,
                 start_new_session=True,
             )
+        deadline = time.monotonic() + self.step_timeout
+        timed_out = False
         write_json(
             self.loop / "current-step.json",
             {
@@ -373,10 +380,15 @@ class Driver:
             if self.stop_requested:
                 self.terminate_step()
                 break
+            if time.monotonic() >= deadline:
+                timed_out = True
+                log(self.project, f"step {number} exceeded time limit {self.step_timeout:g}s: terminating")
+                self.terminate_step()
+                break
             time.sleep(POLL)
         returncode = self.step.returncode
         log(self.project, f"step {number} ended: exit {returncode}")
-        return returncode, self.stop_requested
+        return returncode, self.stop_requested, timed_out
 
     def finish(self, outcome: str) -> None:
         if self.finished:
@@ -414,8 +426,10 @@ class Driver:
                     outcome = "stopped by owner"
                     break
                 before = take_snapshot(self.project)
-                returncode, stopped = self.run_step(number, 1)
-                outcome = judge_step(before, take_snapshot(self.project), returncode, stopped)
+                returncode, stopped, timed_out = self.run_step(number, 1)
+                outcome = judge_step(
+                    before, take_snapshot(self.project), returncode, stopped, timed_out, self.step_timeout
+                )
                 log(self.project, f"step {number} outcome: {outcome}")
                 if outcome != PROGRESS:
                     break
@@ -449,7 +463,10 @@ def command_start(args, project: Path) -> int:
         print("cannot start: claude executable not found", file=sys.stderr)
         return 2
     notify_file = str(Path(args.notify_file).expanduser().resolve()) if args.notify_file else None
-    write_json(loop / "config.json", {"claude": claude, "notify_file": notify_file, "grace": args.grace})
+    write_json(
+        loop / "config.json",
+        {"claude": claude, "notify_file": notify_file, "grace": args.grace, "step_timeout": args.step_timeout},
+    )
     for stale in ("current-step.json", "outcome.json"):
         (loop / stale).unlink(missing_ok=True)
 
@@ -512,6 +529,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     start.add_argument("--claude", help="claude executable (default: $HARNESS_LOOP_CLAUDE or claude on PATH)")
     start.add_argument("--notify-file", help="append notifications to this file")
     start.add_argument("--grace", type=float, default=DEFAULT_GRACE, help="seconds between SIGTERM and SIGKILL")
+    start.add_argument(
+        "--step-timeout", type=float, default=DEFAULT_STEP_TIMEOUT, help="seconds a step may run (default: 10800)"
+    )
     commands.add_parser("status", help="report whether the driver is running")
     commands.add_parser("stop", help="stop the driver and its current step")
     commands.add_parser("_driver", help=argparse.SUPPRESS)

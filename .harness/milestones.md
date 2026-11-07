@@ -82,7 +82,7 @@ Permitted pre-existing failure (F1): `python3 .harness-dev/test-orchestrator-inv
 
 ## M2 — Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state
 
-Status: IN_PROGRESS
+Status: REVIEW
 
 ### Outcome
 
@@ -120,8 +120,15 @@ N/A
 ### Evidence
 - M2-T1 (Top, attempt 4, PASS; routed Top: SECURITY): step-session builder `session_command` - .harness/evidence/M2-T1-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 15 tests OK)
 - M2-T2 (Mid, attempt 3, PASS; routed Mid: ORDINARY_IMPLEMENTATION): loop advances on recorded state via pure `judge_step` - .harness/evidence/M2-T2-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 20 tests OK)
+- M2-T3 (Mid, attempt 3, PASS; routed Mid: ORDINARY_IMPLEMENTATION): step time limit, --step-timeout - .harness/evidence/M2-T3-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 24 tests OK)
+- M2-AC1: .harness/evidence/M2-T2-verifier.log: test_loop_runs_successive_fresh_steps_until_every_milestone_is_done (4 runs, 4 distinct pids, cwd == project, -p /harness:implement each); test_state_not_output_decides_the_step_result
+- M2-AC2: .harness/evidence/M2-T2-verifier.log: same 4-run test (M1 REVIEW -> 'step 1 outcome: progress' -> step 2 started; ends 'finished: every milestone is DONE', one notification); test_nonzero_exit_with_state_advanced_to_all_done_is_finished; test_milestones_file_only_change_counts_as_progress
+- M2-AC3: .harness/evidence/M2-T1-verifier.log: test_builder_returns_locked_down_command, test_step_runs_locked_down_with_minimal_environment (bypassPermissions, --permission-prompts none, --plugin-dir, DENY_RULES in --disallowedTools and --settings permissions.deny); test_driver_source_runs_no_push_or_merge
+- M2-AC4: .harness/evidence/M2-T1-verifier.log: test_step_runs_locked_down_with_minimal_environment (env names subset of allowed, GIT_TERMINAL_PROMPT=0); test_parent_secret_reaches_neither_step_nor_logs
+- M2-AC5: .harness/evidence/M2-T3-verifier.log: test_step_over_time_limit_is_terminated_and_recorded_as_failed, test_step_over_time_limit_ignoring_sigterm_is_killed_after_grace, test_timed_out_step_is_failed_even_if_state_advanced, test_step_timeout_defaults_to_three_hours_and_is_listed_in_help
 
 ### Validation
+- python3 .harness-dev/test-implement-loop.py — PASS, 24 tests (.harness/evidence/M2-T3-verifier.log); milestone validation command for the reviewer. Diff: git diff 8c676453196d66e83d2810645cf1490176967854 HEAD
 
 ### Review
 

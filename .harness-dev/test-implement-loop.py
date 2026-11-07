@@ -609,5 +609,46 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertEqual(judge(missing, missing, 0, False), "failed step: no state progress")
 
 
+    def check_time_limit(self, body, sigkill):
+        _, _, pid, step = self.start_running(body, "--step-timeout", "1", "--grace", "1")
+        done = wait_for(lambda: (self.loop / "outcome.json").exists(), 15)
+        self.assertTrue(done, "no outcome after the time limit")
+        outcome = json.loads((self.loop / "outcome.json").read_text())
+        self.assertTrue(outcome["outcome"].startswith("failed step: time limit"), outcome)
+        self.assertTrue(wait_for(lambda: not (self.loop / "driver.pid").exists(), 5))
+        log_text = (self.loop / "loop.log").read_text()
+        self.assertIn("step 1 exceeded time limit 1s: terminating", log_text)
+        self.assertIn("SIGTERM", log_text)
+        self.assertIn("step 1 outcome: failed step: time limit", log_text)
+        if sigkill:
+            self.assertIn("still alive after grace: SIGKILL", log_text)
+        self.assertTrue(wait_for(lambda: not group_alive(step["pid"]), 5), "step group still alive")
+        self.assertFalse(alive(step["pid"]))
+        self.assertEqual(len(self.notifications()), 1, self.notifications())
+        self.assertNotIn("step 2 started", log_text)
+
+    def test_step_over_time_limit_is_terminated_and_recorded_as_failed(self):
+        self.check_time_limit(SLEEPING_CLAUDE.replace("sleep 60", "sleep 30"), False)
+
+    def test_step_over_time_limit_ignoring_sigterm_is_killed_after_grace(self):
+        self.check_time_limit(STUBBORN_CLAUDE.replace("sleep 60", "sleep 30"), True)
+
+    def test_timed_out_step_is_failed_even_if_state_advanced(self):
+        judge = load_script().judge_step
+        before = {"statuses": {"M1": "TODO"}, "current": "M1", "notes": None}
+        after = {"statuses": {"M1": "REVIEW"}, "current": "M1", "notes": None}
+        done = {"statuses": {"M1": "DONE"}, "current": "M1", "notes": None}
+        self.assertEqual(judge(before, after, -15, False, True, 1.0), "failed step: time limit 1s exceeded")
+        self.assertEqual(judge(before, done, -15, False, True, 10800.0), "failed step: time limit 10800s exceeded")
+
+    def test_step_timeout_defaults_to_three_hours_and_is_listed_in_help(self):
+        self.start(self.fake_claude(QUICK_CLAUDE))
+        self.assertTrue(wait_for(lambda: (self.loop / "outcome.json").exists()))
+        config = json.loads((self.loop / "config.json").read_text())
+        self.assertEqual(config["step_timeout"], 10800)
+        result = self.run_loop("start", "--help")
+        self.assertIn("--step-timeout", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

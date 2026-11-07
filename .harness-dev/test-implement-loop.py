@@ -668,6 +668,17 @@ class ImplementLoopTests(unittest.TestCase):
         result = self.run_loop("start", "--help")
         self.assertIn("--step-timeout", result.stdout)
 
+    def test_step_timeout_must_be_finite_and_positive(self):
+        claude = self.fake_claude(QUICK_CLAUDE)
+        for value in ("0", "-5", "nan", "inf", "-inf"):
+            with self.subTest(value=value):
+                result = self.run_loop("start", "--claude", str(claude), f"--step-timeout={value}")
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn("--step-timeout", result.stderr)
+                self.assertEqual(len(result.stderr.strip().splitlines()), 1, result.stderr)
+                self.assertFalse((self.loop / "driver.pid").exists())
+                self.assertFalse((self.loop / "config.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

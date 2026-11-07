@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 import hashlib
 import itertools
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -471,6 +472,9 @@ def resolve_claude(option: str | None) -> str | None:
 
 
 def command_start(args, project: Path) -> int:
+    if not (math.isfinite(args.step_timeout) and args.step_timeout > 0):
+        print("cannot start: --step-timeout must be a positive number of seconds", file=sys.stderr)
+        return 2
     loop = state_dir(project)
     loop.mkdir(parents=True, exist_ok=True)
     (loop / ".gitignore").write_text("*\n")

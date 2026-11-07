@@ -207,7 +207,7 @@
     "M2": {
       "outcome": "Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state",
       "status": "REVIEW",
-      "review_cycles": 0,
+      "review_cycles": 1,
       "review_override": null,
       "baseline": {
         "commit": "8c676453196d66e83d2810645cf1490176967854",
@@ -316,6 +316,42 @@
               "evidence": ".harness/evidence/M2-T3-verifier.log"
             }
           ]
+        },
+        {
+          "id": "M2-C1-F1",
+          "scope": "correction",
+          "routing": {
+            "tier": "Top",
+            "model": "opus",
+            "reason_code": "SECURITY",
+            "detail": "Deny rules are the only guard on an unattended session; a rule the CLI does not match fails silently"
+          },
+          "attempts": [
+            {
+              "attempt": 4,
+              "tier": "Top",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M2-C1-F1-verifier.log"
+            }
+          ]
+        },
+        {
+          "id": "M2-C1-F3",
+          "scope": "correction",
+          "routing": {
+            "tier": "Cheap",
+            "model": "haiku",
+            "reason_code": "BOUNDED_LOW_RISK",
+            "detail": "One input check with stated input/output, one test"
+          },
+          "attempts": [
+            {
+              "attempt": 1,
+              "tier": "Cheap",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M2-C1-F3-verifier.log"
+            }
+          ]
         }
       ],
       "reviews": [
@@ -328,15 +364,29 @@
           "diff_range": "8c676453196d66e83d2810645cf1490176967854..02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5",
           "verdict": "CHANGES REQUIRED (scope SUBSTANTIVE; M2-AC1..AC5 PASS; 0 BLOCKER, 2 IMPORTANT, 1 OPTIONAL)",
           "artifact": ".harness/reviews/M2-cycle1.md",
-          "pre_correction": "02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5"
+          "pre_correction": "02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5",
+          "corrections": {
+            "pre_correction": "02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5",
+            "commits": [
+              "19721a9",
+              "a677a80",
+              "607442d"
+            ],
+            "correction_diff": "git diff 02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5 HEAD",
+            "changed_files": [
+              "scripts/implement-loop.py",
+              ".harness-dev/test-implement-loop.py"
+            ],
+            "files_not_named_by_a_finding": []
+          }
         }
       ],
       "findings": [
         {
           "id": "F1",
           "severity": "IMPORTANT",
-          "status": "OPEN",
-          "resolution": null
+          "status": "RESOLVED",
+          "resolution": "M2-C1-F1 (a677a80): 14 deny rules added to DENY_RULES and REQUIRED_DENY; HEAD~/HEAD^ spelled `HEAD~*`/`HEAD^*` (installed CLI's `:*` form needs a following space); amend anywhere as `Bash(git commit * --amend*)`"
         },
         {
           "id": "F2",
@@ -347,8 +397,8 @@
         {
           "id": "F3",
           "severity": "OPTIONAL",
-          "status": "OPEN",
-          "resolution": null
+          "status": "RESOLVED",
+          "resolution": "M2-C1-F3 (607442d): command_start rejects non-finite or non-positive --step-timeout, exit 2"
         }
       ],
       "validation": [
@@ -361,6 +411,11 @@
           "command": "python3 .harness-dev/test-orchestrator-inventory.py",
           "result": "FAIL (pre-existing at baseline 8c67645, permitted; cycle-1 F2)",
           "artifact": ".harness/evidence/M2-review.log"
+        },
+        {
+          "command": "python3 .harness-dev/test-implement-loop.py",
+          "result": "PASS (26 tests, verifier run after M2-C1-F3)",
+          "artifact": ".harness/evidence/M2-C1-F3-verifier.log"
         }
       ],
       "follow_ups": [
@@ -368,7 +423,10 @@
         "M2-T1: deny rules (Bash(<cmd>:*) prefix rules) are checked only against a fake claude; whether the real CLI matches them, and variants such as `git -C . push`, an alias, or a script, is unproven. Live check belongs with M3-AC5/M7.",
         "M2-T1: verifier flagged an unauthorised assertion loosening in test_start_detaches_driver_and_status_reports_it (exact argv -> -p followed by /harness:implement); forced by M2-AC3, packet amended to authorise it, accepted.",
         "M2-T2: interim rule - one failed step (no state progress) stops the loop; M4-AC3 replaces it with two consecutive failed steps.",
-        "Pre-existing, outside M2: agents/orchestrator.md exceeds the 720-line cap in test-orchestrator-inventory.py::test_core_stays_compact (730 lines, unchanged since 94cfccd); accepted for M2's gate (cycle-1 F2), fix separately."
+        "Pre-existing, outside M2: agents/orchestrator.md exceeds the 720-line cap in test-orchestrator-inventory.py::test_core_stays_compact (730 lines, unchanged since 94cfccd); accepted for M2's gate (cycle-1 F2), fix separately.",
+        "Cycle-1 F1: the new deny rules are checked as strings only; the matching behaviour (`:*` needs a following space; mid-pattern `*` becomes `.*`) was read from the installed CLI 2.1.319 binary by the worker, not observed live. The live M3-AC5/M7 check should try `git branch -m main`, `git commit -a --amend` and `git reset HEAD~1`.",
+        "Cycle-1 F1: still not denied (outside F1's list): `git reset <sha>`, `git reset origin/main`, `git reset HEAD@{n}`; the amend rule also denies a commit whose message contains ' --amend' (safe side).",
+        "Cycle-1 F3: `--step-timeout -inf` in the space form is rejected by argparse (multi-line usage, exit 2, no driver) before the new check; the test covers only the `--step-timeout=VALUE` form and asserts the `--step-timeout` substring, not the full message wording."
       ]
     },
     "M3": {

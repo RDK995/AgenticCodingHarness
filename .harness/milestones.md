@@ -121,6 +121,8 @@ N/A
 - M2-T1 (Top, attempt 4, PASS; routed Top: SECURITY): step-session builder `session_command` - .harness/evidence/M2-T1-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 15 tests OK)
 - M2-T2 (Mid, attempt 3, PASS; routed Mid: ORDINARY_IMPLEMENTATION): loop advances on recorded state via pure `judge_step` - .harness/evidence/M2-T2-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 20 tests OK)
 - M2-T3 (Mid, attempt 3, PASS; routed Mid: ORDINARY_IMPLEMENTATION): step time limit, --step-timeout - .harness/evidence/M2-T3-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 24 tests OK)
+- M2-C1-F1 (Top, attempt 4, PASS; routed Top: SECURITY): deny-list gaps (cycle-1 F1), commit a677a80 - .harness/evidence/M2-C1-F1-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 25 tests OK)
+- M2-C1-F3 (Cheap, attempt 1, PASS): --step-timeout must be finite and positive (cycle-1 F3), commit 607442d - .harness/evidence/M2-C1-F3-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 26 tests OK)
 - M2-AC1: .harness/evidence/M2-T2-verifier.log: test_loop_runs_successive_fresh_steps_until_every_milestone_is_done (4 runs, 4 distinct pids, cwd == project, -p /harness:implement each); test_state_not_output_decides_the_step_result
 - M2-AC2: .harness/evidence/M2-T2-verifier.log: same 4-run test (M1 REVIEW -> 'step 1 outcome: progress' -> step 2 started; ends 'finished: every milestone is DONE', one notification); test_nonzero_exit_with_state_advanced_to_all_done_is_finished; test_milestones_file_only_change_counts_as_progress
 - M2-AC3: .harness/evidence/M2-T1-verifier.log: test_builder_returns_locked_down_command, test_step_runs_locked_down_with_minimal_environment (bypassPermissions, --permission-prompts none, --plugin-dir, DENY_RULES in --disallowedTools and --settings permissions.deny); test_driver_source_runs_no_push_or_merge
@@ -128,7 +130,7 @@ N/A
 - M2-AC5: .harness/evidence/M2-T3-verifier.log: test_step_over_time_limit_is_terminated_and_recorded_as_failed, test_step_over_time_limit_ignoring_sigterm_is_killed_after_grace, test_timed_out_step_is_failed_even_if_state_advanced, test_step_timeout_defaults_to_three_hours_and_is_listed_in_help
 
 ### Validation
-- python3 .harness-dev/test-implement-loop.py — PASS, 24 tests (.harness/evidence/M2-T3-verifier.log); milestone validation command for the reviewer. Diff: git diff 8c676453196d66e83d2810645cf1490176967854 HEAD
+- python3 .harness-dev/test-implement-loop.py — PASS, 26 tests after cycle-1 corrections (.harness/evidence/M2-C1-F3-verifier.log); earlier 24 tests (.harness/evidence/M2-T3-verifier.log); milestone validation command for the reviewer. Diff: git diff 8c676453196d66e83d2810645cf1490176967854 HEAD
 
 Permitted pre-existing failure (cycle-1 F2): `python3 .harness-dev/test-orchestrator-inventory.py` fails `test_core_stays_compact` — `agents/orchestrator.md` is 730 lines against a 720-line cap. It was already 730 lines at baseline 8c67645 (last changed in 94cfccd); the M2 diff does not touch `agents/`. Not an M2 regression; tracked under Follow-ups (.harness/evidence/M2-review.log).
 
@@ -136,9 +138,11 @@ Permitted pre-existing failure (cycle-1 F2): `python3 .harness-dev/test-orchestr
 - Cycle 1 — tier Top (opus), reason SECURITY (reviewer tier not stated in the report; recorded after M2-T1's SECURITY routing), diff 8c676453196d66e83d2810645cf1490176967854..02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5. Verdict CHANGES REQUIRED, scope SUBSTANTIVE; per-criterion M2-AC1..AC5 all PASS. Report `.harness/reviews/M2-cycle1.md`. Findings: F1 IMPORTANT, F2 IMPORTANT, F3 OPTIONAL.
 - Pre-correction: 02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5
 - F2: resolved record-only (permitted pre-existing failure, see Validation and Follow-ups).
+- F1: resolved by M2-C1-F1 (a677a80). F3: resolved by M2-C1-F3 (607442d).
+- Cycle 1 corrections: commits 19721a9 (record), a677a80, 607442d. Correction diff: `git diff 02a06cbf2c810b316a6cfd4c69c0c61b5315a6c5 HEAD`. Files changed outside `.harness/`: scripts/implement-loop.py, .harness-dev/test-implement-loop.py — both named by cycle-1 findings (F1, F3); no file changed that no finding named.
 
 ### Review Cycles
-0
+1
 
 ### Follow-ups
 - Size check at pickup: 5 criteria; shape OK (start entry point); one signal CONCURRENCY_LIFECYCLE (step time limit) - seam check: reuses M1 terminate_step, same outward outcome, kept whole.
@@ -146,6 +150,9 @@ Permitted pre-existing failure (cycle-1 F2): `python3 .harness-dev/test-orchestr
 - M2-T1: verifier flagged an unauthorised assertion loosening in test_start_detaches_driver_and_status_reports_it (exact argv -> -p followed by /harness:implement); forced by M2-AC3, packet amended to authorise it, accepted.
 - M2-T2: interim rule - one failed step (no state progress) stops the loop; M4-AC3 replaces it with two consecutive failed steps.
 - Pre-existing, outside M2: agents/orchestrator.md exceeds the 720-line cap in test-orchestrator-inventory.py::test_core_stays_compact (730 lines, unchanged since 94cfccd); accepted for M2's gate (cycle-1 F2), fix separately.
+- Cycle-1 F1: the new deny rules are checked as strings only; the matching behaviour (`:*` needs a following space; mid-pattern `*` becomes `.*`) was read from the installed CLI 2.1.319 binary by the worker, not observed live. The live M3-AC5/M7 check should try `git branch -m main`, `git commit -a --amend` and `git reset HEAD~1`.
+- Cycle-1 F1: still not denied (outside F1's list): `git reset <sha>`, `git reset origin/main`, `git reset HEAD@{n}`; the amend rule also denies a commit whose message contains ` --amend` (safe side).
+- Cycle-1 F3: `--step-timeout -inf` in the space form is rejected by argparse (multi-line usage, exit 2, no driver) before the new check; the test covers only the `--step-timeout=VALUE` form and asserts the `--step-timeout` substring, not the full message wording.
 
 ## M3 — `start` refuses to begin when the project is not safe to run
 

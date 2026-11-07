@@ -827,12 +827,12 @@
     },
     "M6": {
       "outcome": "Each milestone's start and finish reach the owner as a full summary and a worker-tier report",
-      "status": "TODO",
+      "status": "BLOCKED",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
-        "commit": "",
-        "branch": ""
+        "commit": "8da33fb6f3fb90f9024092cfef8edd2a2e2602e5",
+        "branch": "m6-milestone-notifications"
       },
       "as_built": {
         "artifact": null,
@@ -865,11 +865,49 @@
           "evidence": []
         }
       ],
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "M6-T1",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Cheap",
+            "model": "haiku",
+            "reason_code": "BOUNDED_LOW_RISK",
+            "detail": "Two isolated read-only message builders with exact stated output"
+          },
+          "attempts": [
+            {
+              "attempt": 1,
+              "tier": "Cheap",
+              "result": "BLOCKED",
+              "evidence": "worker return: first Edit to the test file refused by the permission classifier (no verdict); no change made"
+            },
+            {
+              "attempt": 2,
+              "tier": "Cheap",
+              "result": "BLOCKED",
+              "evidence": "worker return: same first Edit to .harness-dev/test-implement-loop.py refused again by the permission classifier (no verdict); no change made"
+            }
+          ]
+        },
+        {
+          "id": "M6-T2",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Mid",
+            "model": "sonnet",
+            "reason_code": "ORDINARY_IMPLEMENTATION",
+            "detail": "Driver step-loop wiring with ordering/exactly-once rules and existing end-to-end assertion updates"
+          },
+          "attempts": []
+        }
+      ],
       "reviews": [],
       "findings": [],
       "validation": [],
-      "follow_ups": []
+      "follow_ups": [
+        "Size/shape check at pickup: 4 criteria; M6-AC4 runs through start; complexity signals: none (one production file, two tasks, no concurrency/lifecycle ownership change, no live proof)"
+      ]
     },
     "M7": {
       "outcome": "One real unattended run builds a milestone, and the owner's phone hears about it",

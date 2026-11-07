@@ -193,7 +193,7 @@ Size/shape check at pickup: 4 criteria; M5-AC1 runs through `start`/`stop`; comp
 
 ## M6 — Each milestone's start and finish reach the owner as a full summary and a worker-tier report
 
-Status: TODO
+Status: BLOCKED
 
 ### Outcome
 
@@ -218,8 +218,29 @@ N/A
 - [ ] M6-AC4 A loop run through `start` with a fake session advancing a fixture over two milestones leaves, in the sink, each milestone's start and finish notification exactly once and in order, each naming the project (AC5, FR8, FR9).
 
 ### Baseline
+8da33fb6f3fb90f9024092cfef8edd2a2e2602e5 on m6-milestone-notifications
 
 ### Evidence
+Tasks (packets in .harness/tasks/):
+- M6-T1 — AC1/AC3 message builders   Cheap attempt 1 BLOCKED (permission classifier refused the first Edit to .harness-dev/test-implement-loop.py, "no verdict"; no change made) → Cheap attempt 2 BLOCKED (same edit refused the same way; no change made)
+- M6-T2 — driver wiring, AC1-AC4 through `start`   Mid, not started (depends on M6-T1)
+
+Problem:
+Two fresh workers were each stopped by the session's permission check the moment they tried to add tests to `.harness-dev/test-implement-loop.py`. The check gave no verdict and said a retry would get the same answer. No file was changed.
+
+Requirement/milestone affected:
+M6 (FR8, FR9; M6-AC1..AC4). Every M6 task must edit that test file and `scripts/implement-loop.py`; M5 edited the same two files without trouble.
+
+Attempts made:
+1. M6-T1 Cheap attempt 1: Edit to the test file refused (no verdict); worker did not retry or route around it.
+2. M6-T1 Cheap attempt 2 (fresh context, told to stop if refused again): identical refusal; no change.
+The ladder was not climbed further: a stronger model faces the same permission check, and retrying a refused action through another worker or another tool would be routing around it.
+
+Remaining issue:
+Nothing in M6 can start until edits to `.harness-dev/test-implement-loop.py` (and then `scripts/implement-loop.py`) are allowed in this session.
+
+Recommended decision:
+Re-run the M6 implementation phase in a session where that edit is permitted (for example, approve it when prompted, or run the phase interactively). The packets in .harness/tasks/M6-T1.md and M6-T2.md are ready and unchanged in substance; once the permission problem is fixed, set Status back to IN_PROGRESS and restart M6-T1 as a fresh Cheap attempt (the two refusals were permission failures, not capability failures, so they need not consume the ladder).
 
 ### Validation
 
@@ -229,6 +250,7 @@ N/A
 0
 
 ### Follow-ups
+Size/shape check at pickup: 4 criteria; M6-AC4 runs through `start`; complexity signals: none (one production file, two tasks, no concurrency/lifecycle ownership change, no live proof).
 
 ## M7 — One real unattended run builds a milestone, and the owner's phone hears about it
 

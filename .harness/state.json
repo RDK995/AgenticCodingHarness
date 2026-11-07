@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_milestone": "M1",
+  "current_milestone": "M2",
   "requirements": {
     "FR1": "M1",
     "FR2": "M1",
@@ -24,7 +24,7 @@
   "milestones": {
     "M1": {
       "outcome": "The loop starts in the background, reports its status, and stops cleanly",
-      "status": "REVIEW",
+      "status": "DONE",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
@@ -41,43 +41,48 @@
       "criteria": [
         {
           "id": "M1-AC1",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "`/harness:implement-loop` exists as a plugin skill under `skills/implement-loop/`, and `claude --plugin-dir <this repository>` lists it with no plugin load errors (AC1, FR1).",
           "evidence": [
             ".harness/evidence/M1-AC1-plugin-listing.log: `claude --plugin-dir <repo> -p ...` exit 0, line 4 `SKILL:harness:implement-loop`, `PLUGIN_ERRORS: none`",
-            ".harness/evidence/M1-T1-verifier.log: python3 .harness-dev/test-implement-loop-skill.py exit 0, 3 tests OK"
+            ".harness/evidence/M1-T1-verifier.log: python3 .harness-dev/test-implement-loop-skill.py exit 0, 3 tests OK",
+            ".harness/reviews/M1-cycle1.md: reviewer per-criterion row PASS (cycle 1, opus)"
           ]
         },
         {
           "id": "M1-AC2",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "With a fake `claude` binary and a file notification sink, `scripts/implement-loop.py start` returns promptly while a detached driver (in its own session, not a child of the invoking shell, with `caffeinate -w <driver pid>` running) writes its pid and current step under `.harness/loop/`; `status` prints running, the pid, the current step and the milestone being worked on (AC2, FR2, FR3).",
           "evidence": [
-            ".harness/evidence/M1-T2-verifier.log: test_start_detaches_driver_and_status_reports_it (start <5s, ppid != invoker, own session, caffeinate -w <driver pid>, status running/pid/step 1/M2)"
+            ".harness/evidence/M1-T2-verifier.log: test_start_detaches_driver_and_status_reports_it (start <5s, ppid != invoker, own session, caffeinate -w <driver pid>, status running/pid/step 1/M2)",
+            ".harness/reviews/M1-cycle1.md: reviewer per-criterion row PASS (cycle 1, opus)"
           ]
         },
         {
           "id": "M1-AC3",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "`stop` terminates the running step (SIGTERM, then SIGKILL after the grace period) and the driver, clears the pid file, leaves committed work and `.harness/loop/loop.log` in place, and produces exactly one stop notification in the sink (AC2, FR3).",
           "evidence": [
-            ".harness/evidence/M1-T2-verifier.log: test_stop_ends_step_and_driver_leaving_log_and_git_untouched; test_stop_kills_step_that_ignores_sigterm_after_grace (--grace 1, SIGKILL, one notification)"
+            ".harness/evidence/M1-T2-verifier.log: test_stop_ends_step_and_driver_leaving_log_and_git_untouched; test_stop_kills_step_that_ignores_sigterm_after_grace (--grace 1, SIGKILL, one notification)",
+            ".harness/reviews/M1-cycle1.md: reviewer per-criterion row PASS (cycle 1, opus)"
           ]
         },
         {
           "id": "M1-AC4",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "`stop` and `status` with no driver, or with a stale pid file whose process is gone, print \"not running\" and exit 0 (Edge Cases).",
           "evidence": [
-            ".harness/evidence/M1-T2-verifier.log: test_status_and_stop_report_not_running_without_live_driver (no pid file, dead pid, foreign live pid; exit 0)"
+            ".harness/evidence/M1-T2-verifier.log: test_status_and_stop_report_not_running_without_live_driver (no pid file, dead pid, foreign live pid; exit 0)",
+            ".harness/reviews/M1-cycle1.md: reviewer per-criterion row PASS (cycle 1, opus)"
           ]
         },
         {
           "id": "M1-AC5",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "`.harness/loop/loop.log` records each step started (time, milestone, attempt), its outcome, each notification and whether it was sent, and the final outcome; every child process is logged with its pid and command line, a prompt shown by length only; nothing under `.harness/loop/` is staged by `git add .harness` (FR13).",
           "evidence": [
-            ".harness/evidence/M1-T3-verifier.log: tests a-d (timestamped step started/outcome/notification/final outcome; not sent; commands.log pid+cmdline with `<prompt: 18 chars>`; git add .harness stages nothing under .harness/loop/)"
+            ".harness/evidence/M1-T3-verifier.log: tests a-d (timestamped step started/outcome/notification/final outcome; not sent; commands.log pid+cmdline with `<prompt: 18 chars>`; git add .harness stages nothing under .harness/loop/)",
+            ".harness/reviews/M1-cycle1.md: reviewer per-criterion row PASS (cycle 1, opus)"
           ]
         }
       ],
@@ -137,8 +142,39 @@
           ]
         }
       ],
-      "reviews": [],
-      "findings": [],
+      "reviews": [
+        {
+          "cycle": 1,
+          "tier": "Top",
+          "model": "opus",
+          "reason_code": "DIFFICULT_CONCURRENCY",
+          "diff_range": "5eccdccf677779cbe92a845bcd4ca76da6dd70b4..53b8390c9d335050037ece0c80425114bc198774",
+          "verdict": "CHANGES REQUIRED (all criteria PASS; findings record-only)",
+          "artifact": ".harness/reviews/M1-cycle1.md",
+          "attempts": "4 (attempts 1-3 interrupted; attempt 4 human-authorised beyond the 2-retry cap)",
+          "record_only_correction": {
+            "pre_correction": "53b8390c9d335050037ece0c80425114bc198774",
+            "resolved": [
+              "F1",
+              "F2"
+            ]
+          }
+        }
+      ],
+      "findings": [
+        {
+          "id": "F1",
+          "severity": "IMPORTANT",
+          "status": "RESOLVED",
+          "resolution": "record-only: pre-existing failure recorded as permitted"
+        },
+        {
+          "id": "F2",
+          "severity": "OPTIONAL",
+          "status": "RESOLVED",
+          "resolution": "record-only: follow-up wording corrected"
+        }
+      ],
       "validation": [
         {
           "command": "python3 .harness-dev/test-implement-loop.py",
@@ -153,6 +189,11 @@
         {
           "command": "python3 .harness-dev/test-orchestrator-inventory.py",
           "result": "FAIL (pre-existing at baseline 5eccdcc, permitted; F1)",
+          "artifact": ".harness/evidence/M1-review.log"
+        },
+        {
+          "command": "python3 .harness-dev/test-implement-loop.py; python3 .harness-dev/test-implement-loop-skill.py (reviewer re-run)",
+          "result": "PASS (10/10, 3/3)",
           "artifact": ".harness/evidence/M1-review.log"
         }
       ],

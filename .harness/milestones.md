@@ -2,7 +2,7 @@
 
 ## M1 — The loop starts in the background, reports its status, and stops cleanly
 
-Status: REVIEW
+Status: DONE
 
 ### Outcome
 
@@ -37,11 +37,11 @@ N/A
 N/A
 
 ### Acceptance Criteria
-- [ ] M1-AC1 `/harness:implement-loop` exists as a plugin skill under `skills/implement-loop/`, and `claude --plugin-dir <this repository>` lists it with no plugin load errors (AC1, FR1).
-- [ ] M1-AC2 With a fake `claude` binary and a file notification sink, `scripts/implement-loop.py start` returns promptly while a detached driver (in its own session, not a child of the invoking shell, with `caffeinate -w <driver pid>` running) writes its pid and current step under `.harness/loop/`; `status` prints running, the pid, the current step and the milestone being worked on (AC2, FR2, FR3).
-- [ ] M1-AC3 `stop` terminates the running step (SIGTERM, then SIGKILL after the grace period) and the driver, clears the pid file, leaves committed work and `.harness/loop/loop.log` in place, and produces exactly one stop notification in the sink (AC2, FR3).
-- [ ] M1-AC4 `stop` and `status` with no driver, or with a stale pid file whose process is gone, print "not running" and exit 0 (Edge Cases).
-- [ ] M1-AC5 `.harness/loop/loop.log` records each step started (time, milestone, attempt), its outcome, each notification and whether it was sent, and the final outcome; every child process is logged with its pid and command line, a prompt shown by length only; nothing under `.harness/loop/` is staged by `git add .harness` (FR13).
+- [x] M1-AC1 `/harness:implement-loop` exists as a plugin skill under `skills/implement-loop/`, and `claude --plugin-dir <this repository>` lists it with no plugin load errors (AC1, FR1).
+- [x] M1-AC2 With a fake `claude` binary and a file notification sink, `scripts/implement-loop.py start` returns promptly while a detached driver (in its own session, not a child of the invoking shell, with `caffeinate -w <driver pid>` running) writes its pid and current step under `.harness/loop/`; `status` prints running, the pid, the current step and the milestone being worked on (AC2, FR2, FR3).
+- [x] M1-AC3 `stop` terminates the running step (SIGTERM, then SIGKILL after the grace period) and the driver, clears the pid file, leaves committed work and `.harness/loop/loop.log` in place, and produces exactly one stop notification in the sink (AC2, FR3).
+- [x] M1-AC4 `stop` and `status` with no driver, or with a stale pid file whose process is gone, print "not running" and exit 0 (Edge Cases).
+- [x] M1-AC5 `.harness/loop/loop.log` records each step started (time, milestone, attempt), its outcome, each notification and whether it was sent, and the final outcome; every child process is logged with its pid and command line, a prompt shown by length only; nothing under `.harness/loop/` is staged by `git add .harness` (FR13).
 
 ### Baseline
 5eccdccf677779cbe92a845bcd4ca76da6dd70b4 on m1-loop-background-start-stop
@@ -67,6 +67,9 @@ For the reviewer to run once:
 Permitted pre-existing failure (F1): `python3 .harness-dev/test-orchestrator-inventory.py` fails `test_core_stays_compact` — `agents/orchestrator.md` is 730 lines against a 720-line cap. It was already 730 lines at baseline 5eccdcc; the M1 diff does not touch `agents/`. Not an M1 regression; tracked under Follow-ups.
 
 ### Review
+- Cycle 1 — tier Top (opus), reason DIFFICULT_CONCURRENCY, diff 5eccdcc..53b8390. Verdict CHANGES REQUIRED, scope RECORD_ONLY; per-criterion M1-AC1..AC5 all PASS. Report `.harness/reviews/M1-cycle1.md`. Findings: F1 IMPORTANT, F2 OPTIONAL.
+- Review attempts: 4. Attempts 1–3 were interrupted (attempt 3 reached its verdict, but the report save failed). The human authorised attempt 4, beyond the 2-retry cap.
+- Record-only correction: pre-correction 53b8390; F1 and F2 resolved by `.harness/` edits; `check-state.py --record-only 53b8390 HEAD` and the consistency check both OK.
 
 ### Review Cycles
 0

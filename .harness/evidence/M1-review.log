@@ -1,0 +1,446 @@
+=== .harness-dev/test-agent-guards.py
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.002s
+
+OK
+EXIT 0
+=== .harness-dev/test-commit-discipline.py
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.001s
+
+OK
+EXIT 0
+=== .harness-dev/test-compact-returns.py
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.000s
+
+OK
+EXIT 0
+=== .harness-dev/test-dispatch-collect.py
+........
+----------------------------------------------------------------------
+Ran 8 tests in 0.001s
+
+OK
+EXIT 0
+=== .harness-dev/test-guard-bash.py
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.810s
+
+OK
+EXIT 0
+=== .harness-dev/test-implement-loop-skill.py
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK
+EXIT 0
+=== .harness-dev/test-implement-loop.py
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 7.297s
+
+OK
+EXIT 0
+=== .harness-dev/test-interrupted-review.py
+......................
+----------------------------------------------------------------------
+Ran 22 tests in 0.002s
+
+OK
+EXIT 0
+=== .harness-dev/test-measure-context.py
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.048s
+
+OK
+EXIT 0
+=== .harness-dev/test-milestone-complexity.py
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK
+EXIT 0
+=== .harness-dev/test-model-routing.py
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.009s
+
+OK
+EXIT 0
+=== .harness-dev/test-no-project-review.py
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.002s
+
+OK
+EXIT 0
+=== .harness-dev/test-orchestrator-inventory.py
+.F.
+======================================================================
+FAIL: test_core_stays_compact (__main__.OrchestratorInventoryTests.test_core_stays_compact)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/ryankenny/Tools/AgenticCodingHarness/.harness-dev/test-orchestrator-inventory.py", line 21, in test_core_stays_compact
+    self.assertLessEqual(len(self.text.splitlines()), 720)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 730 not less than or equal to 720
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (failures=1)
+EXIT 1
+=== .harness-dev/test-state.py
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 1.042s
+
+OK
+EXIT 0
+=== .harness-dev/test-validation-ownership.py
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.001s
+
+OK
+EXIT 0
+
+  ❯ /Users/ryankenny/Tools/AgenticCodingHarness/README.md: This README has no line that installs "harness" from a marketplace. Add the install line, which works in one step on Claude Code 2.1.275 or later. Validate the folder that holds its marketplace.json to have <owner>/<repo> filled in, and the name its marketplace lists it under.
+      /plugin install harness --marketplace <owner>/<repo>
+
+✔ Validation passed with warnings
+=== M1 review retry Sat  7 Nov 2026 18:46:11 GMT HEAD 53b8390
+--- .harness-dev/test-agent-guards.py
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.003s
+
+OK
+EXIT 0
+--- .harness-dev/test-commit-discipline.py
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.001s
+
+OK
+EXIT 0
+--- .harness-dev/test-compact-returns.py
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.000s
+
+OK
+EXIT 0
+--- .harness-dev/test-dispatch-collect.py
+........
+----------------------------------------------------------------------
+Ran 8 tests in 0.000s
+
+OK
+EXIT 0
+--- .harness-dev/test-guard-bash.py
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.790s
+
+OK
+EXIT 0
+--- .harness-dev/test-implement-loop-skill.py
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK
+EXIT 0
+--- .harness-dev/test-implement-loop.py
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 7.104s
+
+OK
+EXIT 0
+--- .harness-dev/test-interrupted-review.py
+......................
+----------------------------------------------------------------------
+Ran 22 tests in 0.001s
+
+OK
+EXIT 0
+--- .harness-dev/test-measure-context.py
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.021s
+
+OK
+EXIT 0
+--- .harness-dev/test-milestone-complexity.py
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK
+EXIT 0
+--- .harness-dev/test-model-routing.py
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.006s
+
+OK
+EXIT 0
+--- .harness-dev/test-no-project-review.py
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.002s
+
+OK
+EXIT 0
+--- .harness-dev/test-orchestrator-inventory.py
+.F.
+======================================================================
+FAIL: test_core_stays_compact (__main__.OrchestratorInventoryTests.test_core_stays_compact)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/ryankenny/Tools/AgenticCodingHarness/.harness-dev/test-orchestrator-inventory.py", line 21, in test_core_stays_compact
+    self.assertLessEqual(len(self.text.splitlines()), 720)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 730 not less than or equal to 720
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (failures=1)
+EXIT 1
+--- .harness-dev/test-state.py
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 1.031s
+
+OK
+EXIT 0
+--- .harness-dev/test-validation-ownership.py
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.000s
+
+OK
+EXIT 0
+--- claude plugin validate .
+These plugin directory checks do not change the result below. To fail on problems the directory refuses a submission for, run this command with --profile directory.
+
+The directory also runs a safety scan and a policy review that this command does not.
+
+ℹ Advice (does not change the verdict):
+
+  ❯ /Users/ryankenny/Tools/AgenticCodingHarness/README.md: This README has no line that installs "harness" from a marketplace. Add the install line, which works in one step on Claude Code 2.1.275 or later. Validate the folder that holds its marketplace.json to have <owner>/<repo> filled in, and the name its marketplace lists it under.
+      /plugin install harness --marketplace <owner>/<repo>
+
+✔ Validation passed with warnings
+=== retry2 Sat  7 Nov 2026 18:51:39 GMT HEAD 53b8390
+--- .harness-dev/test-agent-guards.py
+----------------------------------------------------------------------
+Ran 3 tests in 0.002s
+
+OK
+exit 
+--- .harness-dev/test-commit-discipline.py
+----------------------------------------------------------------------
+Ran 6 tests in 0.001s
+
+OK
+exit 
+--- .harness-dev/test-compact-returns.py
+----------------------------------------------------------------------
+Ran 5 tests in 0.000s
+
+OK
+exit 
+--- .harness-dev/test-dispatch-collect.py
+----------------------------------------------------------------------
+Ran 8 tests in 0.001s
+
+OK
+exit 
+--- .harness-dev/test-guard-bash.py
+----------------------------------------------------------------------
+Ran 9 tests in 0.770s
+
+OK
+exit 
+--- .harness-dev/test-implement-loop-skill.py
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK
+exit 
+--- .harness-dev/test-implement-loop.py
+----------------------------------------------------------------------
+Ran 10 tests in 7.046s
+
+OK
+exit 
+--- .harness-dev/test-interrupted-review.py
+----------------------------------------------------------------------
+Ran 22 tests in 0.001s
+
+OK
+exit 
+--- .harness-dev/test-measure-context.py
+----------------------------------------------------------------------
+Ran 9 tests in 0.018s
+
+OK
+exit 
+--- .harness-dev/test-milestone-complexity.py
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK
+exit 
+--- .harness-dev/test-model-routing.py
+----------------------------------------------------------------------
+Ran 4 tests in 0.006s
+
+OK
+exit 
+--- .harness-dev/test-no-project-review.py
+----------------------------------------------------------------------
+Ran 4 tests in 0.002s
+
+OK
+exit 
+--- .harness-dev/test-orchestrator-inventory.py
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (failures=1)
+exit 
+--- .harness-dev/test-state.py
+----------------------------------------------------------------------
+Ran 13 tests in 1.010s
+
+OK
+exit 
+--- .harness-dev/test-validation-ownership.py
+----------------------------------------------------------------------
+Ran 4 tests in 0.000s
+
+OK
+exit 
+=== Review retry 3 Sat  7 Nov 2026 19:37:02 GMT HEAD 53b8390
+--- .harness-dev/test-agent-guards.py
+----------------------------------------------------------------------
+Ran 3 tests in 0.002s
+
+OK
+exit 0
+--- .harness-dev/test-commit-discipline.py
+----------------------------------------------------------------------
+Ran 6 tests in 0.001s
+
+OK
+exit 0
+--- .harness-dev/test-compact-returns.py
+----------------------------------------------------------------------
+Ran 5 tests in 0.000s
+
+OK
+exit 0
+--- .harness-dev/test-dispatch-collect.py
+----------------------------------------------------------------------
+Ran 8 tests in 0.000s
+
+OK
+exit 0
+--- .harness-dev/test-guard-bash.py
+----------------------------------------------------------------------
+Ran 9 tests in 0.816s
+
+OK
+exit 0
+--- .harness-dev/test-implement-loop-skill.py
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK
+exit 0
+--- .harness-dev/test-implement-loop.py
+----------------------------------------------------------------------
+Ran 10 tests in 7.373s
+
+OK
+exit 0
+--- .harness-dev/test-interrupted-review.py
+----------------------------------------------------------------------
+Ran 22 tests in 0.001s
+
+OK
+exit 0
+--- .harness-dev/test-measure-context.py
+----------------------------------------------------------------------
+Ran 9 tests in 0.024s
+
+OK
+exit 0
+--- .harness-dev/test-milestone-complexity.py
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK
+exit 0
+--- .harness-dev/test-model-routing.py
+----------------------------------------------------------------------
+Ran 4 tests in 0.005s
+
+OK
+exit 0
+--- .harness-dev/test-no-project-review.py
+----------------------------------------------------------------------
+Ran 4 tests in 0.002s
+
+OK
+exit 0
+--- .harness-dev/test-orchestrator-inventory.py
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (failures=1)
+exit 1
+--- .harness-dev/test-state.py
+----------------------------------------------------------------------
+Ran 13 tests in 0.977s
+
+OK
+exit 0
+--- .harness-dev/test-validation-ownership.py
+----------------------------------------------------------------------
+Ran 4 tests in 0.000s
+
+OK
+exit 0
+--- orchestrator.md lines HEAD:      730 baseline:      730
+
+=== Review retry 4 (Sat  7 Nov 2026 19:44:15 GMT) HEAD 53b8390 ===
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 7.271s
+
+OK
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (failures=1)
+orchestrator.md lines HEAD:      730 baseline:      730

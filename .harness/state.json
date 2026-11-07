@@ -149,12 +149,18 @@
           "command": "python3 .harness-dev/test-implement-loop-skill.py",
           "result": "PASS",
           "artifact": ".harness/evidence/M1-T1-verifier.log"
+        },
+        {
+          "command": "python3 .harness-dev/test-orchestrator-inventory.py",
+          "result": "FAIL (pre-existing at baseline 5eccdcc, permitted; F1)",
+          "artifact": ".harness/evidence/M1-review.log"
         }
       ],
       "follow_ups": [
         "Interface defaults untested: HARNESS_LOOP_CLAUDE fallback and --grace default 20s; stop timeout branch (exit 1 after grace+10s) untested and does not force-kill or notify.",
-        "loop.log \"step N outcome:\" line is written on the normal path only; a step stopped mid-run is recorded via the stop/SIGKILL lines and \"final outcome: stopped by owner\", not a per-step outcome line.",
-        "run() hardcodes step 1 / attempt 1; M2 adds the step counter."
+        "loop.log \"step N outcome:\" is logged whenever a step ran, including a step stopped mid-run (scripts/implement-loop.py L320-322); absent only when stop arrives before the step starts.",
+        "run() hardcodes step 1 / attempt 1; M2 adds the step counter.",
+        "Pre-existing, outside M1: agents/orchestrator.md exceeds the 720-line cap in test-orchestrator-inventory.py::test_core_stays_compact (730 lines since baseline 5eccdcc); fix separately."
       ]
     },
     "M2": {

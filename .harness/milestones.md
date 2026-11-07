@@ -64,6 +64,8 @@ For the reviewer to run once:
 - `python3 .harness-dev/test-implement-loop.py` (10 tests; verifier run exit 0)
 - `python3 .harness-dev/test-implement-loop-skill.py` (3 tests; verifier run exit 0)
 
+Permitted pre-existing failure (F1): `python3 .harness-dev/test-orchestrator-inventory.py` fails `test_core_stays_compact` — `agents/orchestrator.md` is 730 lines against a 720-line cap. It was already 730 lines at baseline 5eccdcc; the M1 diff does not touch `agents/`. Not an M1 regression; tracked under Follow-ups.
+
 ### Review
 
 ### Review Cycles
@@ -71,8 +73,9 @@ For the reviewer to run once:
 
 ### Follow-ups
 - Interface defaults untested: `HARNESS_LOOP_CLAUDE` fallback and `--grace` default 20 s; the `stop` timeout branch (exit 1 after grace+10 s) is untested and neither force-kills nor notifies.
-- `step N outcome:` is logged on the normal path only; a step stopped mid-run is recorded by the SIGTERM/SIGKILL lines and `final outcome: stopped by owner`, not a per-step outcome line.
+- `step N outcome:` is logged whenever a step ran, including a step stopped mid-run (`scripts/implement-loop.py` L320-322); it is absent only when `stop` arrives before the step starts.
 - `run()` hardcodes step 1 / attempt 1; M2 adds the step counter.
+- Pre-existing, outside M1: `agents/orchestrator.md` exceeds the 720-line cap in `test-orchestrator-inventory.py::test_core_stays_compact` (730 lines since baseline 5eccdcc); fix separately.
 
 ## M2 — Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state
 

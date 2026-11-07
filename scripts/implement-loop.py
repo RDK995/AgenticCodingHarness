@@ -380,6 +380,45 @@ def judge_step(before: dict, after: dict, returncode: int | None, stopped: bool,
     return FAILED_STEP
 
 
+HUMAN_PREFIX = "stopped for the human"
+CONDITIONS = (  # (outcome prefix, condition code)
+    ("finished", "finished"),
+    ("cap:", "cap"),
+    ("failed steps", "failed_steps"),
+    (HUMAN_PREFIX, "human_stop"),
+    ("signed out", "signed_out"),
+    ("usage limit", "usage_limit"),
+    ("stopped by owner", "owner_stop"),
+)
+
+
+def condition_for(outcome: str) -> str:
+    """The condition code for a driver outcome string; anything unmapped is a driver error."""
+    for prefix, condition in CONDITIONS:
+        if outcome.startswith(prefix):
+            return condition
+    return "driver_error"
+
+
+def ask_for(condition: str, outcome: str, milestone: str) -> str:
+    """Plain words saying what the owner is asked to decide or do after this stop."""
+    if condition == "human_stop":
+        sentence = outcome[len(HUMAN_PREFIX):].lstrip(": ").strip()
+        if re.fullmatch(r"milestone \S+ is BLOCKED|milestones planned; review the plan", sentence):
+            sentence = ""  # the driver's own wording, not the session's sentence
+        return sentence or f"Read {milestone}'s entry in .harness/milestones.md and decide what happens next."
+    if condition == "usage_limit":
+        reset = re.search(r"\(resets (.*)\)$", outcome)
+        return "Wait for the usage limit to reset" + (f", at {reset.group(1)}" if reset else "") + ", then run start again."
+    return {
+        "finished": "Nothing to do: every milestone is done. Review the branch when you are ready.",
+        "cap": "Check the work so far, then run start again to carry on.",
+        "failed_steps": "Look at .harness/loop/loop.log and the last step's output, then run start again.",
+        "signed_out": "Sign in to Claude again (run claude, then /login), then run start again.",
+        "owner_stop": "Nothing: you stopped it. Run start again to carry on.",
+    }.get(condition, "Look at .harness/loop/loop.log: the loop hit an unexpected error.")
+
+
 class Driver:
     def __init__(self, project: Path):
         self.project = project
@@ -502,17 +541,32 @@ class Driver:
         if self.step is not None and self.step.poll() is None:
             self.terminate_step()
         self.stop_caffeinate()
-        write_json(
-            self.loop / "outcome.json",
-            {"outcome": outcome, "time": now(), "milestone": self.milestone},
-        )
+        condition, milestone, branch, ask = "driver_error", self.milestone or "none", "unknown", ""
+        try:
+            condition = condition_for(outcome)
+            milestone = self.milestone or current_milestone(self.project) or "none"
+            branch = git_output(self.project, "rev-parse", "--abbrev-ref", "HEAD") or "unknown"
+            ask = ask_for(condition, outcome, milestone)
+        except Exception as error:  # still write what we can and still notify
+            log(self.project, f"could not build the full outcome record: {error}")
+        try:
+            write_json(
+                self.loop / "outcome.json",
+                {
+                    "outcome": outcome, "condition": condition, "time": now(),
+                    "milestone": milestone, "branch": branch, "ask": ask,
+                },
+            )
+        except OSError as error:
+            log(self.project, f"could not write outcome.json: {error}")
         log(self.project, f"final outcome: {outcome}")
         if not self.notified:
             self.notified = True
             notify(
                 self.project,
                 self.config,
-                f"implement loop stopped: {outcome} (milestone {self.milestone})",
+                f"implement loop stopped: {outcome}. Stopped on milestone {milestone}, "
+                f"branch {branch}. {ask}".rstrip(),
             )
         pid_file = self.loop / "driver.pid"
         if read_pid(self.project) == os.getpid():

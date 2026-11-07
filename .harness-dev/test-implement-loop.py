@@ -755,6 +755,90 @@ class ImplementLoopTests(unittest.TestCase):
             [{"statuses": {"M1": "BLOCKED", "M2": "TODO"}, "print": "Not logged in"}], "signed out of Claude"
         )
 
+    # --- M4-T3: every stop writes a full outcome record and one plain-words stop message ---
+    def read_outcome(self):
+        return json.loads((self.loop / "outcome.json").read_text())
+
+    def assert_full_record(self, condition, ask_contains, milestone=None):
+        record = self.read_outcome()
+        self.assertEqual(
+            set(record), {"outcome", "condition", "time", "milestone", "branch", "ask"}, record
+        )
+        self.assertEqual(record["condition"], condition)
+        self.assertEqual(record["branch"], "work")
+        if milestone is not None:
+            self.assertEqual(record["milestone"], milestone)
+        self.assertIn(ask_contains, record["ask"])
+        notes = self.notifications()
+        self.assertEqual(len(notes), 1, notes)
+        for part in (record["outcome"], record["milestone"], record["branch"], record["ask"]):
+            self.assertIn(part, notes[0])
+        self.assertIn("implement loop stopped", notes[0])
+        return record
+
+    def test_every_stop_condition_writes_a_full_record_and_one_message(self):
+        two_todo = {"M1": "TODO", "M2": "TODO"}
+        names = [f"M{n}" for n in range(1, 13)]
+        cap_before = {"D1": "DONE", "D2": "DONE", **{name: "TODO" for name in names}}
+        cases = [
+            ("finished", two_todo, [{"statuses": {"M1": "DONE", "M2": "DONE"}}],
+             "Nothing to do: every milestone is done.", "M1"),
+            ("cap", cap_before,
+             [{"statuses": {**cap_before, **{name: "DONE" for name in names[:count]}}, "current": names[count - 1]}
+              for count in range(1, 13)],
+             "Check the work so far, then run start again to carry on.", None),
+            ("failed_steps", two_todo, [{}],
+             "Look at .harness/loop/loop.log and the last step's output, then run start again.", "M1"),
+            ("human_stop", two_todo, [{"statuses": {"M1": "BLOCKED", "M2": "TODO"}}],
+             "Read M1's entry in .harness/milestones.md and decide what happens next.", "M1"),
+            ("human_stop", two_todo,
+             [{"print": "HARNESS_LOOP_RESULT: HUMAN \u2014 pick which fix to keep"}],
+             "pick which fix to keep", "M1"),
+            ("signed_out", two_todo, [{"print": "Not logged in", "exit": 1}],
+             "Sign in to Claude again (run claude, then /login), then run start again.", "M1"),
+            ("usage_limit", two_todo,
+             [{"print": "You've hit your limit \u00b7 resets 3pm (Europe/London)", "exit": 1}],
+             "Wait for the usage limit to reset, at 3pm (Europe/London), then run start again.", "M1"),
+            ("usage_limit", two_todo, [{"print": "Usage limit reached", "exit": 1}],
+             "Wait for the usage limit to reset, then run start again.", "M1"),
+        ]
+        for condition, statuses, plan, ask, milestone in cases:
+            with self.subTest(condition=condition, ask=ask):
+                self.notify.unlink(missing_ok=True)
+                (self.tools / "runs.jsonl").unlink(missing_ok=True)
+                self.write_state(statuses)
+                self.run_to_end(plan)
+                self.assert_full_record(condition, ask, milestone)
+
+    def test_owner_stop_writes_a_full_record_and_one_message(self):
+        self.start_running(SLEEPING_CLAUDE)
+        stop = self.run_loop("stop")
+        self.assertEqual(stop.returncode, 0, stop.stdout + stop.stderr)
+        record = self.assert_full_record(
+            "owner_stop", "Nothing: you stopped it. Run start again to carry on.", "M2"
+        )
+        self.assertEqual(record["outcome"], "stopped by owner")
+
+    def test_unexpected_driver_error_writes_a_full_record_and_one_message(self):
+        (self.loop / "step-1.out").mkdir(parents=True)  # opening the step output now raises
+        self.start(self.scripted_claude([{}]))
+        finished = wait_for(
+            lambda: (self.loop / "outcome.json").exists() and not (self.loop / "driver.pid").exists(),
+            timeout=30,
+        )
+        self.assertTrue(finished, "driver did not finish by itself")
+        self.assertTrue(wait_for(lambda: len(self.notifications()) == 1, 2))
+        record = self.assert_full_record(
+            "driver_error", "Look at .harness/loop/loop.log: the loop hit an unexpected error.", "M2"
+        )
+        self.assertTrue(record["outcome"].startswith("driver error: "), record)
+        self.assertFalse((self.loop / "driver.pid").exists())
+
+    def test_unmapped_outcome_is_a_driver_error(self):
+        module = load_script()
+        self.assertEqual(module.condition_for("something unexpected"), "driver_error")
+        self.assertEqual(module.condition_for("driver error"), "driver_error")
+
     def test_step_command_carries_the_result_instruction(self):
         module = load_script()
         command, _ = module.session_command("claude", "/harness:implement", {})

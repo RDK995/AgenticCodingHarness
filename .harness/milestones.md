@@ -224,7 +224,7 @@ Per criterion:
 
 ## M4 — The loop stops for the right reason and tells the owner in one plain message
 
-Status: REVIEW
+Status: DONE
 
 ### Outcome
 
@@ -243,11 +243,11 @@ N/A
 N/A
 
 ### Acceptance Criteria
-- [ ] M4-AC1 Driven through `start` by a fake session that completes a milestone per step, the loop stops after 10 milestones reach DONE during this start; milestones that were already DONE before the start, and milestones split into parts that are not yet DONE, do not count (AC4, FR6(b), Edge Cases).
-- [ ] M4-AC2 A session that stops for the human — a milestone BLOCKED, an escalation, a decision needed, an exhausted continuation/retry/review-cycle cap, a planning stop (including the first session when `milestones.md` does not yet exist), or any other STOP that is not a normal phase boundary — stops the loop without another session (AC4, FR6(c), Edge Cases).
-- [ ] M4-AC3 Two consecutive failed steps (crash, no recognisable result, no state progress, or the time limit) stop the loop; a single failed step followed by a step that makes progress does not (AC4, FR6(d)).
-- [ ] M4-AC4 Session output reporting that Claude is signed out or that the plan's usage limit is reached stops the loop at once with no second session, and the stop message includes the reset time when the output gives one (AC4, FR6(e)).
-- [ ] M4-AC5 Every stop — including the owner's `stop` and an unexpected driver error — writes `.harness/loop/outcome.json` and sends exactly one stop notification naming which condition occurred, the milestone and branch it stopped on, and what the owner is asked to decide or do, if anything (FR6, FR6(f), FR6(g), FR10).
+- [x] M4-AC1 Driven through `start` by a fake session that completes a milestone per step, the loop stops after 10 milestones reach DONE during this start; milestones that were already DONE before the start, and milestones split into parts that are not yet DONE, do not count (AC4, FR6(b), Edge Cases).
+- [x] M4-AC2 A session that stops for the human — a milestone BLOCKED, an escalation, a decision needed, an exhausted continuation/retry/review-cycle cap, a planning stop (including the first session when `milestones.md` does not yet exist), or any other STOP that is not a normal phase boundary — stops the loop without another session (AC4, FR6(c), Edge Cases).
+- [x] M4-AC3 Two consecutive failed steps (crash, no recognisable result, no state progress, or the time limit) stop the loop; a single failed step followed by a step that makes progress does not (AC4, FR6(d)).
+- [x] M4-AC4 Session output reporting that Claude is signed out or that the plan's usage limit is reached stops the loop at once with no second session, and the stop message includes the reset time when the output gives one (AC4, FR6(e)).
+- [x] M4-AC5 Every stop — including the owner's `stop` and an unexpected driver error — writes `.harness/loop/outcome.json` and sends exactly one stop notification naming which condition occurred, the milestone and branch it stopped on, and what the owner is asked to decide or do, if anything (FR6, FR6(f), FR6(g), FR10).
 
 ### Baseline
 42a92681650c6bb746926531474a64023412991f on m4-loop-stops-right-reason
@@ -268,6 +268,7 @@ Per criterion:
 - python3 .harness-dev/test-implement-loop.py — PASS, 58 tests (verifier exit 0, .harness/evidence/M4-T3-verifier.log); milestone validation command for the reviewer. Diff: git diff 42a92681650c6bb746926531474a64023412991f HEAD
 
 ### Review
+- Cycle 1 (full milestone, diff 42a9268..c6d182a): PASS — reviewer tier Mid (sonnet), reason ORDINARY_IMPLEMENTATION (all tasks M4-T1..T3 Mid). M4-AC1..AC5 PASS; 0 BLOCKER, 0 IMPORTANT, 2 OPTIONAL (account-stop substring match may mislabel; non-state human stops rely on the HARNESS_LOOP_RESULT line — both already under Follow-ups). No report file (passing review). Suite log: `.harness/evidence/M4-review.log` (58 tests OK).
 
 ### Review Cycles
 0

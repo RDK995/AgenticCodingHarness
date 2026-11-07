@@ -224,7 +224,7 @@ Per criterion:
 
 ## M4 — The loop stops for the right reason and tells the owner in one plain message
 
-Status: TODO
+Status: IN_PROGRESS
 
 ### Outcome
 
@@ -250,6 +250,7 @@ N/A
 - [ ] M4-AC5 Every stop — including the owner's `stop` and an unexpected driver error — writes `.harness/loop/outcome.json` and sends exactly one stop notification naming which condition occurred, the milestone and branch it stopped on, and what the owner is asked to decide or do, if anything (FR6, FR6(f), FR6(g), FR10).
 
 ### Baseline
+42a92681650c6bb746926531474a64023412991f on m4-loop-stops-right-reason
 
 ### Evidence
 

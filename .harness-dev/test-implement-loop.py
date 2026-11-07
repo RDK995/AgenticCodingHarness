@@ -71,6 +71,7 @@ REQUIRED_DENY = [
     "Bash(git reset HEAD^*)",
     "Bash(git commit * --amend*)",
 ]
+TWO = "failed steps: two in a row; last: "
 TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} ")
 
 
@@ -375,14 +376,16 @@ class ImplementLoopTests(unittest.TestCase):
             "driver did not finish by itself",
         )
         outcome = json.loads((self.loop / "outcome.json").read_text())
-        self.assertEqual(outcome["outcome"], "failed step: no state progress")
+        self.assertEqual(outcome["outcome"], TWO + "failed step: no state progress")
         self.assertEqual(outcome["milestone"], "M2")
         self.assertIn("time", outcome)
         self.assert_prompt_argument(self.args_file.read_text().split())
         self.assertTrue(wait_for(lambda: len(self.notifications()) == 1, 2))
         self.assertEqual(len(self.notifications()), 1, self.notifications())
         self.assertTrue((self.loop / "step-1.out").exists())
-        self.assertIn("failed step: no state progress", (self.loop / "loop.log").read_text())
+        self.assertIn("step 1 outcome: failed step: no state progress", (self.loop / "loop.log").read_text())
+        self.assertIn("step 2 outcome: failed step: no state progress", (self.loop / "loop.log").read_text())
+        self.assertTrue((self.loop / "step-2.out").exists())
 
         status = self.run_loop("status")
         self.assertEqual(status.returncode, 0)
@@ -422,7 +425,8 @@ class ImplementLoopTests(unittest.TestCase):
         self.loop_log_matches("step 1 started: milestone M2, attempt 1")
         self.loop_log_matches("step 1 outcome: failed step: no state progress")
         self.loop_log_matches("notification sent")
-        self.loop_log_matches("final outcome: failed step: no state progress")
+        self.loop_log_matches("step 2 outcome: failed step: no state progress")
+        self.loop_log_matches("final outcome: " + TWO + "failed step: no state progress")
 
     def test_loop_log_records_unsent_notification_without_notify_file(self):
         self.run_quick_step(notify=False)
@@ -595,8 +599,8 @@ class ImplementLoopTests(unittest.TestCase):
     def test_state_not_output_decides_the_step_result(self):
         self.write_state({"M1": "TODO", "M2": "TODO"})
         outcome = self.run_to_end([{"print": "milestone DONE, all complete", "exit": 0}])
-        self.assertEqual(outcome, "failed step: no state progress")
-        self.assertEqual(len(self.recorded_runs()), 1)
+        self.assertEqual(outcome, TWO + "failed step: no state progress")
+        self.assertEqual(len(self.recorded_runs()), 2)
 
     def test_nonzero_exit_with_state_advanced_to_all_done_is_finished(self):
         self.write_state({"M1": "TODO", "M2": "TODO"})
@@ -608,6 +612,59 @@ class ImplementLoopTests(unittest.TestCase):
         self.write_state({"M1": "TODO"})
         plan = [{"notes": "# milestones\nM1 notes\n"}, {"statuses": {"M1": "DONE"}}]
         self.assertEqual(self.run_to_end(plan), "finished: every milestone is DONE")
+        self.assertEqual(len(self.recorded_runs()), 2)
+
+    # --- M4-T1: milestone cap and two-failures-in-a-row rule ---
+    CAP_OUTCOME = "cap: 10 milestones reached DONE during this start"
+
+    def test_cap_stops_after_ten_milestones_reach_done_this_start(self):
+        names = [f"M{n}" for n in range(1, 13)]
+        before = {"D1": "DONE", "D2": "DONE", **{name: "TODO" for name in names}}
+        self.write_state(before)
+        plan = [
+            {"statuses": {**before, **{name: "DONE" for name in names[:count]}}, "current": names[count - 1]}
+            for count in range(1, 13)
+        ]
+        self.assertEqual(self.run_to_end(plan), self.CAP_OUTCOME)
+        self.assertEqual(len(self.recorded_runs()), 10)
+        self.loop_log_matches("final outcome: " + self.CAP_OUTCOME)
+
+    def test_split_milestone_parts_do_not_count_toward_the_cap(self):
+        others = [f"M{n}" for n in range(2, 13)]
+        before = {"M1": "TODO", **{name: "TODO" for name in others}}
+        self.write_state(before)
+        split = {"M1a": "TODO", "M1b": "TODO", **{name: "TODO" for name in others}}
+        plan = [{"statuses": split}] + [
+            {"statuses": {**split, **{name: "DONE" for name in others[:count]}}} for count in range(1, 12)
+        ]
+        self.assertEqual(self.run_to_end(plan), self.CAP_OUTCOME)
+        # one split step plus ten DONE steps; counting the split would stop at 10 runs
+        self.assertEqual(len(self.recorded_runs()), 11)
+
+    def test_one_failed_step_then_progress_keeps_the_loop_running(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        plan = [
+            {},
+            {"statuses": {"M1": "REVIEW", "M2": "TODO"}},
+            {"statuses": {"M1": "DONE", "M2": "DONE"}},
+        ]
+        self.assertEqual(self.run_to_end(plan), "finished: every milestone is DONE")
+        self.assertEqual(len(self.recorded_runs()), 3)
+        self.loop_log_matches("step 1 outcome: failed step: no state progress")
+        self.loop_log_matches("step 2 started: milestone M1, attempt 2")
+        self.loop_log_matches("step 3 started: milestone M1, attempt 1")
+
+    def test_two_failed_steps_in_a_row_stop_the_loop(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        outcome = self.run_to_end([{}])
+        self.assertEqual(outcome, "failed steps: two in a row; last: failed step: no state progress")
+        self.assertEqual(len(self.recorded_runs()), 2)
+        self.loop_log_matches("step 2 started: milestone M1, attempt 2")
+
+    def test_a_crash_then_another_failure_stops_after_two_steps(self):
+        self.write_state({"M1": "TODO", "M2": "TODO"})
+        outcome = self.run_to_end([{"exit": 1}, {"exit": 0}])
+        self.assertTrue(outcome.startswith("failed steps: two in a row"), outcome)
         self.assertEqual(len(self.recorded_runs()), 2)
 
     def test_judge_step_branches(self):
@@ -641,18 +698,20 @@ class ImplementLoopTests(unittest.TestCase):
         done = wait_for(lambda: (self.loop / "outcome.json").exists(), 15)
         self.assertTrue(done, "no outcome after the time limit")
         outcome = json.loads((self.loop / "outcome.json").read_text())
-        self.assertTrue(outcome["outcome"].startswith("failed step: time limit"), outcome)
+        self.assertTrue(outcome["outcome"].startswith(TWO + "failed step: time limit"), outcome)
         self.assertTrue(wait_for(lambda: not (self.loop / "driver.pid").exists(), 5))
         log_text = (self.loop / "loop.log").read_text()
         self.assertIn("step 1 exceeded time limit 1s: terminating", log_text)
         self.assertIn("SIGTERM", log_text)
         self.assertIn("step 1 outcome: failed step: time limit", log_text)
+        self.assertIn("step 2 started: milestone M2, attempt 2", log_text)
+        self.assertIn("step 2 outcome: failed step: time limit", log_text)
+        self.assertNotIn("step 3 started", log_text)
         if sigkill:
             self.assertIn("still alive after grace: SIGKILL", log_text)
         self.assertTrue(wait_for(lambda: not group_alive(step["pid"]), 5), "step group still alive")
         self.assertFalse(alive(step["pid"]))
         self.assertEqual(len(self.notifications()), 1, self.notifications())
-        self.assertNotIn("step 2 started", log_text)
 
     def test_step_over_time_limit_is_terminated_and_recorded_as_failed(self):
         self.check_time_limit(SLEEPING_CLAUDE.replace("sleep 60", "sleep 30"), False)

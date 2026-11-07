@@ -572,12 +572,12 @@
     },
     "M4": {
       "outcome": "The loop stops for the right reason and tells the owner in one plain message",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
-        "commit": "",
-        "branch": ""
+        "commit": "42a92681650c6bb746926531474a64023412991f",
+        "branch": "m4-loop-stops-right-reason"
       },
       "as_built": {
         "artifact": null,

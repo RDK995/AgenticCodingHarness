@@ -271,6 +271,14 @@ def running_driver(project: Path) -> int | None:
 PROGRESS = "progress"
 FINISHED = "finished: every milestone is DONE"
 FAILED_STEP = "failed step: no state progress"
+MILESTONE_CAP = 10
+CAP_REACHED = f"cap: {MILESTONE_CAP} milestones reached DONE during this start"
+
+
+def done_milestones(project: Path) -> set[str]:
+    """Ids of the milestones whose status is DONE in state.json (empty without state)."""
+    snapshot = take_snapshot(project)["statuses"] or {}
+    return {identifier for identifier, status in snapshot.items() if status == "DONE"}
 
 
 def take_snapshot(project: Path) -> dict:
@@ -306,7 +314,7 @@ def judge_step(before: dict, after: dict, returncode: int | None, stopped: bool,
         return FINISHED
     if before != after:
         return PROGRESS
-    return FAILED_STEP  # interim for M2: one failed step stops the loop
+    return FAILED_STEP
 
 
 class Driver:
@@ -449,17 +457,29 @@ class Driver:
         outcome = "driver error"
         try:
             self.start_caffeinate()
+            done_before = done_milestones(self.project)
+            failures = 0
             for number in itertools.count(1):
                 if self.stop_requested:
                     outcome = "stopped by owner"
                     break
                 before = take_snapshot(self.project)
-                returncode, stopped, timed_out = self.run_step(number, 1)
+                returncode, stopped, timed_out = self.run_step(number, failures + 1)
                 outcome = judge_step(
                     before, take_snapshot(self.project), returncode, stopped, timed_out, self.step_timeout
                 )
                 log(self.project, f"step {number} outcome: {outcome}")
-                if outcome != PROGRESS:
+                if outcome == PROGRESS:
+                    failures = 0
+                    if len(done_milestones(self.project) - done_before) >= MILESTONE_CAP:
+                        outcome = CAP_REACHED
+                        break
+                elif outcome.startswith("failed step"):
+                    failures += 1
+                    if failures >= 2:
+                        outcome = f"failed steps: two in a row; last: {outcome}"
+                        break
+                else:
                     break
         except Exception as error:  # the driver must always end with its notification
             outcome = f"driver error: {error}"

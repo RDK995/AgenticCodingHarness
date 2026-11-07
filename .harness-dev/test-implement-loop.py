@@ -53,6 +53,20 @@ REQUIRED_DENY = [
     "Bash(git switch master:*)",
     "Bash(git branch -f:*)",
     "Bash(git update-ref:*)",
+    "Bash(git branch -m:*)",
+    "Bash(git branch -M:*)",
+    "Bash(git branch --move:*)",
+    "Bash(git branch --force:*)",
+    "Bash(git checkout -B:*)",
+    "Bash(git switch -C:*)",
+    "Bash(git switch --force-create:*)",
+    "Bash(git reset --soft:*)",
+    "Bash(git reset --mixed:*)",
+    "Bash(git reset --keep:*)",
+    "Bash(git reset --merge:*)",
+    "Bash(git reset HEAD~*)",
+    "Bash(git reset HEAD^*)",
+    "Bash(git commit * --amend*)",
 ]
 TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} ")
 
@@ -451,6 +465,11 @@ class ImplementLoopTests(unittest.TestCase):
         deny = self.assert_locked_down(command[1:])
         self.assertEqual(deny, list(module.DENY_RULES))
         self.assertEqual(env, {"PATH": "/usr/bin", "GIT_TERMINAL_PROMPT": "0"})
+
+    def test_deny_rules_leave_path_resets_and_ordinary_commits_allowed(self):
+        module = load_script()
+        for rule in ("Bash(git reset:*)", "Bash(git commit:*)"):
+            self.assertNotIn(rule, module.DENY_RULES)
 
     def test_builder_takes_the_prompt_as_a_parameter(self):
         module = load_script()

@@ -51,7 +51,13 @@ SESSION_ENV_NAMES = (
 # syntax. Passed both as --disallowedTools values and as --settings
 # permissions.deny. Committing on the milestone branch stays allowed, so a commit
 # on main is blocked by denying every way of moving onto main (checkout, switch,
-# forced branch moves, ref rewrites); M3's start gate also refuses to run on main.
+# forced create-and-switch, forced branch moves and renames, ref rewrites); M3's
+# start gate also refuses to run on main. History rewrites are denied too: every
+# non-path reset (--soft, --mixed, --keep, --merge, HEAD~/HEAD^) and an amend
+# wherever --amend appears on the line. A plain `git reset <path>` and ordinary
+# commits stay allowed. "<prefix>:*" matches the prefix followed by a space or the
+# end of the line; a bare "*" is a wildcard for any text, so HEAD~ and HEAD^ (whose
+# count follows with no space) and the mid-line amend use "*".
 DENY_RULES = (
     "Bash(git push:*)",
     "Bash(git merge:*)",
@@ -68,6 +74,20 @@ DENY_RULES = (
     "Bash(git switch master:*)",
     "Bash(git branch -f:*)",
     "Bash(git update-ref:*)",
+    "Bash(git branch -m:*)",
+    "Bash(git branch -M:*)",
+    "Bash(git branch --move:*)",
+    "Bash(git branch --force:*)",
+    "Bash(git checkout -B:*)",
+    "Bash(git switch -C:*)",
+    "Bash(git switch --force-create:*)",
+    "Bash(git reset --soft:*)",
+    "Bash(git reset --mixed:*)",
+    "Bash(git reset --keep:*)",
+    "Bash(git reset --merge:*)",
+    "Bash(git reset HEAD~*)",
+    "Bash(git reset HEAD^*)",
+    "Bash(git commit * --amend*)",
 )
 
 

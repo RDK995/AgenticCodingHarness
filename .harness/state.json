@@ -446,7 +446,7 @@
     },
     "M3": {
       "outcome": "`start` refuses to begin when the project is not safe to run",
-      "status": "IN_PROGRESS",
+      "status": "REVIEW",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
@@ -465,38 +465,99 @@
           "id": "M3-AC1",
           "status": "PENDING",
           "text": "With `.harness/requirements.md` missing or with `Open Questions` other than `None` (or an `architecture.md` that is not AGREED), `start` refuses: no pid file, no step session, a printed plain reason, and exactly one notification saying what to fix (AC3, FR4(a)).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M3-T1-verifier.log: test_missing_requirements_refuse_start, test_open_questions_refuse_start, test_architecture_must_be_agreed (assert_refused: non-zero exit, stderr reason, no driver.pid, no step args, exactly one notification)"
+          ]
         },
         {
           "id": "M3-AC2",
           "status": "PENDING",
           "text": "When the sign-in check session fails (a fake `claude` reporting signed out, or not seeing `harness:implement`), `start` refuses the same way; the check session is built by the same builder as step sessions (same permission flags, plugin dir and environment) with a 2-minute limit (AC3, FR4(b)).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M3-T1-verifier.log: test_signed_out_check_refuses_start, test_check_that_cannot_see_the_skill_refuses_start, test_check_session_is_built_like_a_step_session (argv == session_command(CHECK_PROMPT), lockdown flags, env within ALLOWED_ENV, CHECK_TIMEOUT == 120), test_check_session_over_the_limit_is_killed_and_refused"
+          ]
         },
         {
           "id": "M3-AC3",
           "status": "PENDING",
           "text": "On `main`, `master` or the repository's default branch, `start` refuses the same way (AC3, FR4(c)).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M3-T1-verifier.log: test_protected_branches_refuse_start (main, master, origin/HEAD default trunk)"
+          ]
         },
         {
           "id": "M3-AC4",
           "status": "PENDING",
           "text": "When the pid file names a live driver, `start` refuses the same way and leaves the existing driver running and its state untouched (AC3, FR4(d)).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M3-T1-verifier.log: test_live_driver_refuses_second_start_and_is_untouched (first driver alive, .harness/loop/ byte-identical, one notification)"
+          ]
         },
         {
           "id": "M3-AC5",
           "status": "PENDING",
           "text": "The sign-in check, run through the driver's entry point against the real installed `claude` on the owner's Mac, passes and confirms `harness:implement` is visible; the exact command (prompt by length) and its result are recorded (FR4(b)).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M3-AC5-live-check.log and .harness/evidence/M3-T2-verifier.log: `python3 scripts/implement-loop.py check --project /Users/ryankenny/Tools/AgenticCodingHarness --claude \"$(command -v claude)\"` against claude 2.1.319 -> exit 0, `check passed: harness:implement is visible`, prompt shown as `-p <prompt: 168 chars>`"
+          ]
         }
       ],
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "M3-T1",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Mid",
+            "model": "sonnet",
+            "reason_code": "ORDINARY_IMPLEMENTATION",
+            "detail": "Four bounded pre-start checks and one refusal path in command_start, plus fixture update for existing lifecycle tests"
+          },
+          "attempts": [
+            {
+              "attempt": 3,
+              "tier": "Mid",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M3-T1-verifier.log"
+            }
+          ]
+        },
+        {
+          "id": "M3-T2",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Cheap",
+            "model": "haiku",
+            "reason_code": "BOUNDED_LOW_RISK",
+            "detail": "Run the already-implemented check entry point once against the real claude and save its output"
+          },
+          "attempts": [
+            {
+              "attempt": 1,
+              "tier": "Cheap",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M3-T2-verifier.log"
+            }
+          ]
+        }
+      ],
       "reviews": [],
       "findings": [],
-      "validation": [],
-      "follow_ups": []
+      "validation": [
+        {
+          "command": "python3 .harness-dev/test-implement-loop.py",
+          "result": "PASS (36 tests, verifier run at T1, commit d9558a9)",
+          "artifact": ".harness/evidence/M3-T1-verifier.log"
+        },
+        {
+          "command": "python3 scripts/implement-loop.py check --project /Users/ryankenny/Tools/AgenticCodingHarness --claude \"$(command -v claude)\"",
+          "result": "PASS (exit 0, check passed: harness:implement is visible; real claude 2.1.319)",
+          "artifact": ".harness/evidence/M3-T2-verifier.log"
+        }
+      ],
+      "follow_ups": [
+        "SKILL.md does not yet mention the new `check` subcommand (out of M3 scope; skill unchanged by packet)",
+        "Pre-existing permitted failure from M2 (agents/orchestrator.md over core-size limit in test-orchestrator-inventory.py) not touched by M3"
+      ]
     },
     "M4": {
       "outcome": "The loop stops for the right reason and tells the owner in one plain message",

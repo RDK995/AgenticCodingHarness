@@ -158,7 +158,7 @@ Permitted pre-existing failure (cycle-1 F2): `python3 .harness-dev/test-orchestr
 
 ## M3 — `start` refuses to begin when the project is not safe to run
 
-Status: IN_PROGRESS
+Status: REVIEW
 
 ### Outcome
 
@@ -196,8 +196,21 @@ N/A
 121fbe5fd3c1982abdbfdb1cf5ba0eda0becc76e on m3-start-refuses-unsafe
 
 ### Evidence
+Tasks:
+- M3-T1 — pre-start gate + `check` subcommand   Mid (sonnet, ORDINARY_IMPLEMENTATION), attempt 3, PASS — commit d9558a9; .harness/evidence/M3-T1-verifier.log
+- M3-T2 — live sign-in proof (M3-AC5)           Cheap (haiku, BOUNDED_LOW_RISK), attempt 1, PASS — .harness/evidence/M3-AC5-live-check.log, .harness/evidence/M3-T2-verifier.log
+
+Per criterion:
+- M3-AC1: test_missing_requirements_refuse_start, test_open_questions_refuse_start, test_architecture_must_be_agreed (M3-T1-verifier.log)
+- M3-AC2: test_signed_out_check_refuses_start, test_check_that_cannot_see_the_skill_refuses_start, test_check_session_is_built_like_a_step_session, test_check_session_over_the_limit_is_killed_and_refused (M3-T1-verifier.log)
+- M3-AC3: test_protected_branches_refuse_start (main, master, origin/HEAD default `trunk`) (M3-T1-verifier.log)
+- M3-AC4: test_live_driver_refuses_second_start_and_is_untouched (M3-T1-verifier.log)
+- M3-AC5: real installed claude 2.1.319 via `check` entry point -> exit 0, `check passed: harness:implement is visible`, prompt shown as `-p <prompt: 168 chars>` (M3-AC5-live-check.log, M3-T2-verifier.log)
 
 ### Validation
+- `python3 .harness-dev/test-implement-loop.py` — PASS, 36 tests (verifier, at d9558a9) — .harness/evidence/M3-T1-verifier.log
+- `python3 scripts/implement-loop.py check --project /Users/ryankenny/Tools/AgenticCodingHarness --claude "$(command -v claude)"` — PASS, exit 0 (verifier, real claude) — .harness/evidence/M3-T2-verifier.log
+- Whole suite: for the reviewer to run once.
 
 ### Review
 
@@ -205,6 +218,8 @@ N/A
 0
 
 ### Follow-ups
+- SKILL.md does not yet mention the new `check` subcommand (out of M3 scope).
+- Pre-existing permitted failure from M2 (test-orchestrator-inventory.py core-size limit) untouched by M3.
 
 ## M4 — The loop stops for the right reason and tells the owner in one plain message
 

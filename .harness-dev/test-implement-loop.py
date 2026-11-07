@@ -4,6 +4,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 import sys
@@ -28,6 +29,7 @@ STATE = {
 SLEEPING_CLAUDE = '#!/bin/sh\necho "$@" > "{args}"\nsleep 60\n'
 STUBBORN_CLAUDE = '#!/bin/sh\ntrap "" TERM\necho "$@" > "{args}"\nsleep 60\n'
 QUICK_CLAUDE = '#!/bin/sh\necho "$@" > "{args}"\nexit 0\n'
+TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} ")
 
 
 def wait_for(predicate, timeout=10.0, interval=0.05):
@@ -303,6 +305,72 @@ class ImplementLoopTests(unittest.TestCase):
             wait_for(lambda: (self.loop / "outcome.json").exists() and not (self.loop / "driver.pid").exists())
         )
         self.assertIn("not sent: no sink configured", (self.loop / "loop.log").read_text())
+
+    def run_quick_step(self, notify=True):
+        claude = self.fake_claude(QUICK_CLAUDE)
+        if notify:
+            self.start(claude)
+        else:
+            result = self.run_loop("start", "--claude", str(claude))
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        finished = wait_for(
+            lambda: (self.loop / "outcome.json").exists() and not (self.loop / "driver.pid").exists()
+        )
+        self.assertTrue(finished, "driver did not finish by itself")
+
+    def loop_log_matches(self, fragment):
+        lines = [line for line in (self.loop / "loop.log").read_text().splitlines() if fragment in line]
+        self.assertTrue(lines, f"no loop.log line contains {fragment!r}")
+        for line in lines:
+            self.assertRegex(line, TIMESTAMP, f"loop.log line lacks a timestamp: {line}")
+        return lines
+
+    def test_loop_log_records_step_lifecycle_with_timestamps(self):
+        self.run_quick_step()
+
+        self.loop_log_matches("step 1 started: milestone M2, attempt 1")
+        self.loop_log_matches("step 1 outcome: finished one step")
+        self.loop_log_matches("notification sent")
+        self.loop_log_matches("final outcome: finished one step")
+
+    def test_loop_log_records_unsent_notification_without_notify_file(self):
+        self.run_quick_step(notify=False)
+
+        self.loop_log_matches("notification not sent")
+
+    def test_commands_log_records_children_with_prompt_by_length(self):
+        self.run_quick_step()
+
+        commands_path = self.loop / "commands.log"
+        self.assertTrue(commands_path.exists(), "commands.log was not written")
+        commands = commands_path.read_text()
+        step = json.loads((self.loop / "current-step.json").read_text())
+        driver = int(re.search(r"driver started: pid (\d+)", (self.loop / "loop.log").read_text()).group(1))
+
+        step_lines = [line for line in commands.splitlines() if f" pid {step['pid']}: " in line]
+        self.assertEqual(len(step_lines), 1, commands)
+        self.assertIn(str(self.tools / "claude"), step_lines[0])
+        self.assertIn("-p <prompt: 18 chars>", step_lines[0])
+
+        caffeinate_lines = [line for line in commands.splitlines() if line.endswith(f"caffeinate -w {driver}")]
+        self.assertEqual(len(caffeinate_lines), 1, commands)
+
+        for name in ("commands.log", "loop.log"):
+            self.assertNotIn("/harness:implement", (self.loop / name).read_text(), name)
+
+    def test_git_add_stages_fixture_changes_but_never_loop_state(self):
+        (self.project / ".harness" / "note.md").write_text("new note\n")
+        state = self.project / ".harness" / "state.json"
+        state.write_text(state.read_text() + "\n")
+        self.run_quick_step()
+        self.assertTrue((self.loop / "loop.log").exists())
+
+        self.git("add", ".harness")
+        staged = self.git("diff", "--cached", "--name-only").splitlines()
+
+        self.assertIn(".harness/note.md", staged)
+        self.assertIn(".harness/state.json", staged)
+        self.assertEqual([path for path in staged if path.startswith(".harness/loop/")], [])
 
 
 if __name__ == "__main__":

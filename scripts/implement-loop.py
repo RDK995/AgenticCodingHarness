@@ -63,6 +63,12 @@ def log(project: Path, message: str) -> None:
         handle.write(f"{now()} {message}\n")
 
 
+def record_command(project: Path, pid: int, command: list[str]) -> None:
+    """The single commands.log writer: one timestamped line per child process started."""
+    with open(state_dir(project) / "commands.log", "a") as handle:
+        handle.write(f"{now()} pid {pid}: {describe_command(command)}\n")
+
+
 def describe_command(command: list[str]) -> str:
     """Render a child command line for the log, showing a prompt by length only."""
     shown = []
@@ -196,6 +202,7 @@ class Driver:
     def spawn(self, command: list[str], **options) -> subprocess.Popen:
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, close_fds=True, **options)
         log(self.project, f"child started pid {process.pid}: {describe_command(command)}")
+        record_command(self.project, process.pid, command)
         return process
 
     def start_caffeinate(self) -> None:
@@ -312,6 +319,7 @@ class Driver:
             else:
                 returncode, stopped = self.run_step(1, 1)
                 outcome = judge_step(returncode, stopped)
+                log(self.project, f"step 1 outcome: {outcome}")
         except Exception as error:  # the driver must always end with its notification
             outcome = f"driver error: {error}"
             log(self.project, outcome)

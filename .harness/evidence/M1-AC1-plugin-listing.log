@@ -1,0 +1,35 @@
+Warning: this sign-in ends between 2026-11-10 and 2026-11-13 (in 3 days at the earliest). Renewing it does not move those dates. Run claude auth login before then, or use claude setup-token for unattended jobs.
+SKILL:harness:architect
+SKILL:harness:implement
+SKILL:harness:implement-loop
+SKILL:harness:roast-requirements
+SKILL:harness:scope-mvp
+SKILL:dataviz
+SKILL:update-config
+SKILL:keybindings-help
+SKILL:code-review
+SKILL:simplify
+SKILL:fewer-permission-prompts
+SKILL:loop
+SKILL:schedule
+SKILL:claude-api
+SKILL:workflow-authoring
+SKILL:run
+SKILL:plugin-authoring
+SKILL:init
+SKILL:security-review
+SKILL:anthropic-skills:built-in-browser
+SKILL:anthropic-skills:chrome-browser
+SKILL:anthropic-skills:computer-use
+SKILL:anthropic-skills:deep-research
+SKILL:anthropic-skills:docs
+SKILL:anthropic-skills:docx
+SKILL:anthropic-skills:google-workspace
+SKILL:anthropic-skills:import-memory
+SKILL:anthropic-skills:morning
+SKILL:anthropic-skills:pdf
+SKILL:anthropic-skills:pptx
+SKILL:anthropic-skills:skill-creator
+SKILL:anthropic-skills:xlsx
+PLUGIN_ERRORS: none
+EXIT_STATUS=0

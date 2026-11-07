@@ -43,31 +43,42 @@
           "id": "M1-AC1",
           "status": "PENDING",
           "text": "`/harness:implement-loop` exists as a plugin skill under `skills/implement-loop/`, and `claude --plugin-dir <this repository>` lists it with no plugin load errors (AC1, FR1).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M1-AC1-plugin-listing.log: `claude --plugin-dir <repo> -p ...` exit 0, line 4 `SKILL:harness:implement-loop`, `PLUGIN_ERRORS: none`",
+            ".harness/evidence/M1-T1-verifier.log: python3 .harness-dev/test-implement-loop-skill.py exit 0, 3 tests OK"
+          ]
         },
         {
           "id": "M1-AC2",
           "status": "PENDING",
           "text": "With a fake `claude` binary and a file notification sink, `scripts/implement-loop.py start` returns promptly while a detached driver (in its own session, not a child of the invoking shell, with `caffeinate -w <driver pid>` running) writes its pid and current step under `.harness/loop/`; `status` prints running, the pid, the current step and the milestone being worked on (AC2, FR2, FR3).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M1-T2-verifier.log: test_start_detaches_driver_and_status_reports_it (start <5s, ppid != invoker, own session, caffeinate -w <driver pid>, status running/pid/step 1/M2)"
+          ]
         },
         {
           "id": "M1-AC3",
           "status": "PENDING",
           "text": "`stop` terminates the running step (SIGTERM, then SIGKILL after the grace period) and the driver, clears the pid file, leaves committed work and `.harness/loop/loop.log` in place, and produces exactly one stop notification in the sink (AC2, FR3).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M1-T2-verifier.log: test_stop_ends_step_and_driver_leaving_log_and_git_untouched; test_stop_kills_step_that_ignores_sigterm_after_grace (--grace 1, SIGKILL, one notification)"
+          ]
         },
         {
           "id": "M1-AC4",
           "status": "PENDING",
           "text": "`stop` and `status` with no driver, or with a stale pid file whose process is gone, print \"not running\" and exit 0 (Edge Cases).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M1-T2-verifier.log: test_status_and_stop_report_not_running_without_live_driver (no pid file, dead pid, foreign live pid; exit 0)"
+          ]
         },
         {
           "id": "M1-AC5",
           "status": "PENDING",
           "text": "`.harness/loop/loop.log` records each step started (time, milestone, attempt), its outcome, each notification and whether it was sent, and the final outcome; every child process is logged with its pid and command line, a prompt shown by length only; nothing under `.harness/loop/` is staged by `git add .harness` (FR13).",
-          "evidence": []
+          "evidence": [
+            ".harness/evidence/M1-T3-verifier.log: tests a-d (timestamped step started/outcome/notification/final outcome; not sent; commands.log pid+cmdline with `<prompt: 18 chars>`; git add .harness stages nothing under .harness/loop/)"
+          ]
         }
       ],
       "tasks": [
@@ -116,13 +127,35 @@
             "reason_code": "BOUNDED_LOW_RISK",
             "detail": "Log lines through existing helpers plus tests of stated assertions"
           },
-          "attempts": []
+          "attempts": [
+            {
+              "attempt": 1,
+              "tier": "Cheap",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M1-T3-verifier.log"
+            }
+          ]
         }
       ],
       "reviews": [],
       "findings": [],
-      "validation": [],
-      "follow_ups": []
+      "validation": [
+        {
+          "command": "python3 .harness-dev/test-implement-loop.py",
+          "result": "PASS",
+          "artifact": ".harness/evidence/M1-T3-verifier.log"
+        },
+        {
+          "command": "python3 .harness-dev/test-implement-loop-skill.py",
+          "result": "PASS",
+          "artifact": ".harness/evidence/M1-T1-verifier.log"
+        }
+      ],
+      "follow_ups": [
+        "Interface defaults untested: HARNESS_LOOP_CLAUDE fallback and --grace default 20s; stop timeout branch (exit 1 after grace+10s) untested and does not force-kill or notify.",
+        "loop.log \"step N outcome:\" line is written on the normal path only; a step stopped mid-run is recorded via the stop/SIGKILL lines and \"final outcome: stopped by owner\", not a per-step outcome line.",
+        "run() hardcodes step 1 / attempt 1; M2 adds the step counter."
+      ]
     },
     "M2": {
       "outcome": "Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state",

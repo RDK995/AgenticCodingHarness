@@ -2,7 +2,7 @@
 
 ## M1 — The loop starts in the background, reports its status, and stops cleanly
 
-Status: TODO
+Status: IN_PROGRESS
 
 ### Outcome
 
@@ -44,6 +44,7 @@ N/A
 - [ ] M1-AC5 `.harness/loop/loop.log` records each step started (time, milestone, attempt), its outcome, each notification and whether it was sent, and the final outcome; every child process is logged with its pid and command line, a prompt shown by length only; nothing under `.harness/loop/` is staged by `git add .harness` (FR13).
 
 ### Baseline
+5eccdccf677779cbe92a845bcd4ca76da6dd70b4 on m1-loop-background-start-stop
 
 ### Evidence
 

@@ -24,12 +24,12 @@
   "milestones": {
     "M1": {
       "outcome": "The loop starts in the background, reports its status, and stops cleanly",
-      "status": "TODO",
+      "status": "IN_PROGRESS",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
-        "commit": "",
-        "branch": ""
+        "commit": "5eccdccf677779cbe92a845bcd4ca76da6dd70b4",
+        "branch": "m1-loop-background-start-stop"
       },
       "as_built": {
         "artifact": null,
@@ -70,7 +70,37 @@
           "evidence": []
         }
       ],
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "M1-T1",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Cheap",
+            "model": "haiku",
+            "reason_code": "BOUNDED_LOW_RISK",
+            "detail": "Skill markdown file with stated shape and a stated structural test"
+          },
+          "attempts": [
+            {
+              "attempt": 1,
+              "tier": "Cheap",
+              "result": "PASS",
+              "evidence": ".harness/evidence/M1-T1-verifier.log"
+            }
+          ]
+        },
+        {
+          "id": "M1-T2",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Top",
+            "model": "opus",
+            "reason_code": "DIFFICULT_CONCURRENCY",
+            "detail": "Detached sessions, signal handling across driver/step/caffeinate, pid liveness races"
+          },
+          "attempts": []
+        }
+      ],
       "reviews": [],
       "findings": [],
       "validation": [],
@@ -206,7 +236,7 @@
         {
           "id": "M4-AC2",
           "status": "PENDING",
-          "text": "A session that stops for the human — a milestone BLOCKED, an escalation, a decision needed, an exhausted continuation/retry/review-cycle cap, a planning stop (including the first session when `milestones.md` does not yet exist), or any other STOP that is not a normal phase boundary — stops the loop without another session (AC4, FR6(c), Edge Cases).",
+          "text": "A session that stops for the human \u2014 a milestone BLOCKED, an escalation, a decision needed, an exhausted continuation/retry/review-cycle cap, a planning stop (including the first session when `milestones.md` does not yet exist), or any other STOP that is not a normal phase boundary \u2014 stops the loop without another session (AC4, FR6(c), Edge Cases).",
           "evidence": []
         },
         {
@@ -224,7 +254,7 @@
         {
           "id": "M4-AC5",
           "status": "PENDING",
-          "text": "Every stop — including the owner's `stop` and an unexpected driver error — writes `.harness/loop/outcome.json` and sends exactly one stop notification naming which condition occurred, the milestone and branch it stopped on, and what the owner is asked to decide or do, if anything (FR6, FR6(f), FR6(g), FR10).",
+          "text": "Every stop \u2014 including the owner's `stop` and an unexpected driver error \u2014 writes `.harness/loop/outcome.json` and sends exactly one stop notification naming which condition occurred, the milestone and branch it stopped on, and what the owner is asked to decide or do, if anything (FR6, FR6(f), FR6(g), FR10).",
           "evidence": []
         }
       ],
@@ -310,7 +340,7 @@
         {
           "id": "M6-AC3",
           "status": "PENDING",
-          "text": "When a milestone reaches DONE, the finish notification gives its id, name and result, the task count, the per-tier counts of task entry tiers (Cheap, Mid, Top) matching the fixture's `routing.tier` values, and the tier(s) of its review(s), in the shape \"M3 DONE — 7 tasks: 4 Cheap, 2 Mid, 1 Top; reviewed by Top.\" (AC5, FR9).",
+          "text": "When a milestone reaches DONE, the finish notification gives its id, name and result, the task count, the per-tier counts of task entry tiers (Cheap, Mid, Top) matching the fixture's `routing.tier` values, and the tier(s) of its review(s), in the shape \"M3 DONE \u2014 7 tasks: 4 Cheap, 2 Mid, 1 Top; reviewed by Top.\" (AC5, FR9).",
           "evidence": []
         },
         {

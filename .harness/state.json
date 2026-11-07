@@ -801,6 +801,11 @@
           "command": "python3 .harness-dev/test-implement-loop.py",
           "result": "PASS (72 tests, verifier exit 0)",
           "artifact": ".harness/evidence/M5-T2-verifier.log"
+        },
+        {
+          "command": "python3 .harness-dev/test-*.py (each, full suite)",
+          "result": "PASS except permitted pre-existing failure test-orchestrator-inventory.py::test_core_stays_compact (agents/orchestrator.md 730 > 720 lines; fails identically at baseline 76ba785; M5 diff does not touch agents/; accepted for M5's gate per cycle-1 F1, as in M1-M3)",
+          "artifact": ".harness/evidence/M5-review.log"
         }
       ],
       "follow_ups": [

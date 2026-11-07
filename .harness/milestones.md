@@ -173,8 +173,11 @@ Per criterion:
 
 ### Validation
 - python3 .harness-dev/test-implement-loop.py — PASS, 72 tests (verifier exit 0, .harness/evidence/M5-T2-verifier.log); milestone validation command for the reviewer. Diff: git diff 76ba78510cc492d0fed1e3aaa9f50ffbf3243422 HEAD
+- Full suite: every python3 .harness-dev/test-*.py, run once each by the cycle-1 reviewer — all PASS except the permitted pre-existing failure below (.harness/evidence/M5-review.log).
+Permitted pre-existing failure (cycle-1 F1): `python3 .harness-dev/test-orchestrator-inventory.py` fails `test_core_stays_compact` — `agents/orchestrator.md` is 730 lines against a 720-line cap. It fails identically at baseline 76ba785; the M5 diff does not touch `agents/`. Accepted for M5's gate as in M1–M3; fix separately.
 
 ### Review
+Pre-correction: 3d69447a9b7b37d092e803ab4c5c96458824f385 (record-only correction of cycle-1 F1)
 
 ### Review Cycles
 0

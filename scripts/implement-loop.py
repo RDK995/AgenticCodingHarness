@@ -24,11 +24,47 @@ import time
 sys.dont_write_bytecode = True
 
 SCRIPT = Path(__file__).resolve()
+HARNESS_ROOT = SCRIPT.parent.parent
 STEP_PROMPT = "/harness:implement"
 DEFAULT_GRACE = 20.0
 START_WAIT = 4.0
 STOP_EXTRA_WAIT = 10.0
 POLL = 0.1
+
+# The only parent environment names a session may see. Each passes through only
+# when set in the parent; GIT_TERMINAL_PROMPT is always forced to "0".
+SESSION_ENV_NAMES = (
+    "PATH",
+    "HOME",
+    "USER",
+    "GIT_TERMINAL_PROMPT",
+    "CLAUDE_CODE_OAUTH_TOKEN",
+    "ANTHROPIC_API_KEY",
+    "CLAUDE_CONFIG_DIR",
+)
+
+# Commands an unattended session must never run, in Claude Code permission-rule
+# syntax. Passed both as --disallowedTools values and as --settings
+# permissions.deny. Committing on the milestone branch stays allowed, so a commit
+# on main is blocked by denying every way of moving onto main (checkout, switch,
+# forced branch moves, ref rewrites); M3's start gate also refuses to run on main.
+DENY_RULES = (
+    "Bash(git push:*)",
+    "Bash(git merge:*)",
+    "Bash(git pull:*)",
+    "Bash(gh pr merge:*)",
+    "Bash(git rebase:*)",
+    "Bash(git reset --hard:*)",
+    "Bash(git commit --amend:*)",
+    "Bash(git filter-branch:*)",
+    "Bash(git filter-repo:*)",
+    "Bash(git checkout main:*)",
+    "Bash(git checkout master:*)",
+    "Bash(git switch main:*)",
+    "Bash(git switch master:*)",
+    "Bash(git branch -f:*)",
+    "Bash(git update-ref:*)",
+)
 
 
 def now() -> str:
@@ -78,6 +114,30 @@ def describe_command(command: list[str]) -> str:
         else:
             shown.append(part)
     return " ".join(shown)
+
+
+def session_command(claude: str, prompt: str, parent_env=None) -> tuple[list[str], dict[str, str]]:
+    """Return the locked-down command line and minimal environment for one claude session."""
+    parent = os.environ if parent_env is None else parent_env
+    rules = list(DENY_RULES)
+    command = [
+        claude,
+        "--permission-mode",
+        "bypassPermissions",
+        "--permission-prompts",
+        "none",
+        "--plugin-dir",
+        str(HARNESS_ROOT),
+        "--settings",
+        json.dumps({"permissions": {"deny": rules}}),
+        "--disallowedTools",
+        *rules,
+        "-p",
+        prompt,
+    ]
+    env = {name: parent[name] for name in SESSION_ENV_NAMES if name in parent}
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    return command, env
 
 
 def current_milestone(project: Path) -> str | None:
@@ -254,12 +314,13 @@ class Driver:
     def run_step(self, number: int, attempt: int) -> tuple[int | None, bool]:
         self.milestone = current_milestone(self.project)
         claude = self.config.get("claude") or "claude"
-        command = [claude, "-p", STEP_PROMPT]
+        command, env = session_command(claude, STEP_PROMPT)
         log(self.project, f"step {number} started: milestone {self.milestone}, attempt {attempt}")
         with open(self.loop / f"step-{number}.out", "ab") as output:
             self.step = self.spawn(
                 command,
                 cwd=self.project,
+                env=env,
                 stdout=output,
                 stderr=subprocess.STDOUT,
                 start_new_session=True,

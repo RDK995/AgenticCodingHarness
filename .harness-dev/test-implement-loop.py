@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Black-box tests for the unattended loop driver's start/status/stop lifecycle."""
 
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -29,7 +30,38 @@ STATE = {
 SLEEPING_CLAUDE = '#!/bin/sh\necho "$@" > "{args}"\nsleep 60\n'
 STUBBORN_CLAUDE = '#!/bin/sh\ntrap "" TERM\necho "$@" > "{args}"\nsleep 60\n'
 QUICK_CLAUDE = '#!/bin/sh\necho "$@" > "{args}"\nexit 0\n'
+# Records argv one per line and the environment it was given. /bin/sh itself
+# adds PWD, SHLVL and _ to what it exports, so those are dropped before recording.
+RECORDING_CLAUDE = (
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "{args}.tmp"\n'
+    'env -u PWD -u SHLVL -u _ > "{args}.env"\nmv "{args}.tmp" "{args}"\nexit 0\n'
+)
+ALLOWED_ENV = {
+    "PATH", "HOME", "USER", "GIT_TERMINAL_PROMPT",
+    "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "CLAUDE_CONFIG_DIR",
+}
+REQUIRED_DENY = [
+    "Bash(git push:*)",
+    "Bash(git merge:*)",
+    "Bash(git rebase:*)",
+    "Bash(git reset --hard:*)",
+    "Bash(git commit --amend:*)",
+    "Bash(git filter-branch:*)",
+    "Bash(git checkout main:*)",
+    "Bash(git checkout master:*)",
+    "Bash(git switch main:*)",
+    "Bash(git switch master:*)",
+    "Bash(git branch -f:*)",
+    "Bash(git update-ref:*)",
+]
 TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} ")
+
+
+def load_script():
+    spec = importlib.util.spec_from_file_location("implement_loop", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def wait_for(predicate, timeout=10.0, interval=0.05):
@@ -119,9 +151,10 @@ class ImplementLoopTests(unittest.TestCase):
         path.chmod(0o755)
         return path
 
-    def run_loop(self, command, *extra, timeout=60):
+    def run_loop(self, command, *extra, timeout=60, extra_env=None):
         env = os.environ.copy()
         env.pop("HARNESS_LOOP_CLAUDE", None)
+        env.update(extra_env or {})
         return subprocess.run(
             [sys.executable, str(SCRIPT), command, "--project", str(self.project), *extra],
             text=True,
@@ -131,14 +164,53 @@ class ImplementLoopTests(unittest.TestCase):
             check=False,
         )
 
-    def start(self, claude, *extra):
+    def start(self, claude, *extra, extra_env=None):
         began = time.monotonic()
         result = self.run_loop(
-            "start", "--claude", str(claude), "--notify-file", str(self.notify), *extra
+            "start", "--claude", str(claude), "--notify-file", str(self.notify), *extra,
+            extra_env=extra_env,
         )
         elapsed = time.monotonic() - began
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return result, elapsed
+
+    def assert_prompt_argument(self, argv):
+        self.assertIn("-p", argv)
+        self.assertEqual(argv[argv.index("-p") + 1], "/harness:implement")
+
+    def assert_locked_down(self, argv):
+        """The step command line carries every lockdown flag and the same deny rules twice."""
+        self.assert_prompt_argument(argv)
+
+        def value_of(flag):
+            self.assertIn(flag, argv)
+            return argv[argv.index(flag) + 1]
+
+        self.assertEqual(value_of("--permission-mode"), "bypassPermissions")
+        self.assertEqual(value_of("--permission-prompts"), "none")
+        self.assertEqual(Path(value_of("--plugin-dir")), ROOT)
+        settings = json.loads(value_of("--settings"))
+        deny = settings["permissions"]["deny"]
+        for rule in REQUIRED_DENY:
+            self.assertIn(rule, deny)
+        start = argv.index("--disallowedTools") + 1
+        self.assertEqual(argv[start:start + len(deny)], deny)
+        return deny
+
+    def run_recording_step(self, extra_env=None):
+        self.start(self.fake_claude(RECORDING_CLAUDE), extra_env=extra_env)
+        finished = wait_for(
+            lambda: (self.loop / "outcome.json").exists() and not (self.loop / "driver.pid").exists()
+        )
+        self.assertTrue(finished, "driver did not finish by itself")
+        self.assertTrue(self.args_file.exists(), "fake claude never ran")
+        argv = self.args_file.read_text().splitlines()
+        env = dict(
+            line.split("=", 1)
+            for line in Path(f"{self.args_file}.env").read_text().splitlines()
+            if "=" in line
+        )
+        return argv, env
 
     def driver_pid(self):
         pid = int((self.loop / "driver.pid").read_text().strip())
@@ -194,7 +266,7 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertEqual(step["attempt"], 1)
         self.assertIn("started", step)
         self.assertNotEqual(os.getsid(step["pid"]), pid, "step must run in its own session")
-        self.assertEqual(self.args_file.read_text().split(), ["-p", "/harness:implement"])
+        self.assert_prompt_argument(self.args_file.read_text().split())
 
         status = self.run_loop("status")
         self.assertEqual(status.returncode, 0, status.stderr)
@@ -287,7 +359,7 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertEqual(outcome["outcome"], "finished one step")
         self.assertEqual(outcome["milestone"], "M2")
         self.assertIn("time", outcome)
-        self.assertEqual(self.args_file.read_text().split(), ["-p", "/harness:implement"])
+        self.assert_prompt_argument(self.args_file.read_text().split())
         self.assertTrue(wait_for(lambda: len(self.notifications()) == 1, 2))
         self.assertEqual(len(self.notifications()), 1, self.notifications())
         self.assertTrue((self.loop / "step-1.out").exists())
@@ -371,6 +443,49 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertIn(".harness/note.md", staged)
         self.assertIn(".harness/state.json", staged)
         self.assertEqual([path for path in staged if path.startswith(".harness/loop/")], [])
+
+    def test_builder_returns_locked_down_command(self):
+        module = load_script()
+        command, env = module.session_command("/bin/claude", "/harness:implement", {"PATH": "/usr/bin"})
+        self.assertEqual(command[0], "/bin/claude")
+        deny = self.assert_locked_down(command[1:])
+        self.assertEqual(deny, list(module.DENY_RULES))
+        self.assertEqual(env, {"PATH": "/usr/bin", "GIT_TERMINAL_PROMPT": "0"})
+
+    def test_builder_takes_the_prompt_as_a_parameter(self):
+        module = load_script()
+        command, _ = module.session_command("claude", "say ok", {})
+        self.assertEqual(command[command.index("-p") + 1], "say ok")
+
+    def test_step_runs_locked_down_with_minimal_environment(self):
+        argv, env = self.run_recording_step()
+
+        self.assert_locked_down(argv)
+        self.assertLessEqual(set(env), ALLOWED_ENV, sorted(set(env) - ALLOWED_ENV))
+        self.assertIn("PATH", env)
+        self.assertIn("HOME", env)
+        self.assertEqual(env["GIT_TERMINAL_PROMPT"], "0")
+
+    def test_parent_secret_reaches_neither_step_nor_logs(self):
+        argv, env = self.run_recording_step(
+            {"HARNESS_FAKE_SECRET": "s3cr3t-value-123", "ANTHROPIC_API_KEY": "sk-fake-key-456"}
+        )
+
+        self.assertNotIn("HARNESS_FAKE_SECRET", set(env))
+        leaked = [name for name, value in env.items() if "s3cr3t-value-123" in value]
+        self.assertEqual(leaked, [], "the parent secret reached the step environment")
+        self.assertEqual(env.get("ANTHROPIC_API_KEY"), "sk-fake-key-456", "sign-in value must pass through")
+        for name in ("commands.log", "loop.log"):
+            text = (self.loop / name).read_text()
+            for secret in ("s3cr3t-value-123", "sk-fake-key-456"):
+                self.assertFalse(secret in text, f"{secret} leaked into {name}")
+
+    def test_driver_source_runs_no_push_or_merge(self):
+        source = SCRIPT.read_text()
+        without_rules = re.sub(r'"Bash\([^"]*\)"', '""', source)
+        self.assertTrue("DENY_RULES" in source, "deny rules constant not found")
+        self.assertNotRegex(without_rules, r"""["'](push|merge)["']""")
+        self.assertNotRegex(without_rules, r"git\s+(push|merge)")
 
 
 if __name__ == "__main__":

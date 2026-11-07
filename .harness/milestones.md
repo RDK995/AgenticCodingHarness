@@ -82,7 +82,7 @@ Permitted pre-existing failure (F1): `python3 .harness-dev/test-orchestrator-inv
 
 ## M2 — Each step is a fresh, locked-down `/harness:implement` session, and the loop advances on recorded state
 
-Status: TODO
+Status: IN_PROGRESS
 
 ### Outcome
 
@@ -115,8 +115,10 @@ N/A
 - [ ] M2-AC5 A step that exceeds the step time limit (3 hours by default, overridable per start) is terminated, killed after the grace period if still alive, and recorded in the loop log as a failed step (FR5, Edge Cases).
 
 ### Baseline
+8c676453196d66e83d2810645cf1490176967854 on m2-fresh-locked-down-steps
 
 ### Evidence
+- M2-T1 (Top, attempt 4, PASS; routed Top: SECURITY): step-session builder `session_command` - .harness/evidence/M2-T1-verifier.log (python3 .harness-dev/test-implement-loop.py exit 0, 15 tests OK)
 
 ### Validation
 
@@ -126,6 +128,9 @@ N/A
 0
 
 ### Follow-ups
+- Size check at pickup: 5 criteria; shape OK (start entry point); one signal CONCURRENCY_LIFECYCLE (step time limit) - seam check: reuses M1 terminate_step, same outward outcome, kept whole.
+- M2-T1: deny rules (Bash(<cmd>:*) prefix rules) are checked only against a fake claude; whether the real CLI matches them, and variants such as `git -C . push`, an alias, or a script, is unproven. Live check belongs with M3-AC5/M7.
+- M2-T1: verifier flagged an unauthorised assertion loosening in test_start_detaches_driver_and_status_reports_it (exact argv -> -p followed by /harness:implement); forced by M2-AC3, packet amended to authorise it, accepted.
 
 ## M3 — `start` refuses to begin when the project is not safe to run
 

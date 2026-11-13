@@ -887,6 +887,12 @@
               "tier": "Cheap",
               "result": "BLOCKED",
               "evidence": "worker return: same first Edit to .harness-dev/test-implement-loop.py refused again by the permission classifier (no verdict); no change made"
+            },
+            {
+              "attempt": 1,
+              "tier": "Cheap",
+              "result": "PASS",
+              "evidence": "restart after human unblock (manual approval); verifier: python3 .harness-dev/test-implement-loop.py exit 0, Ran 80 tests OK; files within allowed set; tests weakened NO; .harness/evidence/M6-T1-verifier.log"
             }
           ]
         },

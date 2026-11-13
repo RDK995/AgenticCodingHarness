@@ -1429,6 +1429,141 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertTrue(over.endswith(" … [truncated]"), over[-40:])
         self.assertLessEqual(len(over.encode("utf-8")), 4096)
 
+    def write_harness(self, milestones=None, state=None):
+        harness = self.project / ".harness"
+        harness.mkdir(parents=True, exist_ok=True)
+        if milestones is not None:
+            (harness / "milestones.md").write_text(milestones)
+        if state is not None:
+            (harness / "state.json").write_text(state if isinstance(state, str) else json.dumps(state))
+
+    def test_milestone_start_summary_uses_heading_outcome_and_state_criteria(self):
+        module = load_script()
+        self.write_harness(
+            milestones=(
+                "# Milestones\n\n"
+                "## M1 — First thing\n\n"
+                "### Outcome\n\n"
+                "The first thing\nruns  end to end.\n\n"
+                "### Acceptance Criteria\n\n"
+                "- [ ] M1-AC1 old text\n\n"
+                "## M1a — Other\n\n"
+                "### Outcome\n\n"
+                "Other stuff.\n"
+            ),
+            state={"milestones": {"M1": {
+                "status": "TODO",
+                "criteria": [{"id": "M1-AC1", "text": "Runs  fine"}, {"id": "M1-AC2", "text": "Second"}],
+            }}},
+        )
+        out = module.milestone_start_summary(self.project, "M1")
+        self.assertEqual(out, "\n".join([
+            "M1 starting — First thing",
+            "Goal and scope: The first thing runs end to end.",
+            "Acceptance criteria:",
+            "- M1-AC1 Runs fine",
+            "- M1-AC2 Second",
+        ]))
+        self.assertNotIn("Other", out)
+
+    def test_milestone_start_summary_takes_criteria_from_milestones_when_state_has_none(self):
+        module = load_script()
+        self.write_harness(
+            milestones=(
+                "## M1 — First thing\n\n"
+                "### Outcome\n\n"
+                "Do it.\n\n"
+                "### Acceptance Criteria\n\n"
+                "- [ ] M1-AC1 first check\n"
+                "- [x] M1-AC2 second check\n"
+            ),
+            state={"milestones": {"M1": {"status": "IN_PROGRESS"}}},
+        )
+        self.assertEqual(module.milestone_start_summary(self.project, "M1"), "\n".join([
+            "M1 starting — First thing",
+            "Goal and scope: Do it.",
+            "Acceptance criteria:",
+            "- M1-AC1 first check",
+            "- M1-AC2 second check",
+        ]))
+
+    def test_milestone_start_summary_without_milestones_file_falls_back_to_state_outcome(self):
+        module = load_script()
+        self.write_harness(state={"milestones": {"M1": {
+            "outcome": "Ship the thing",
+            "criteria": [{"id": "M1-AC1", "text": "Works"}],
+        }}})
+        self.assertEqual(module.milestone_start_summary(self.project, "M1"), "\n".join([
+            "M1 starting — Ship the thing",
+            "Goal and scope: Ship the thing",
+            "Acceptance criteria:",
+            "- M1-AC1 Works",
+        ]))
+
+    def test_milestone_finish_report_counts_tiers_and_reviewers(self):
+        module = load_script()
+        tiers = ["Cheap"] * 4 + ["Mid"] * 2 + ["Top"]
+        self.write_harness(
+            milestones="## M3 — Accounts can be listed\n\n### Outcome\n\nList them.\n",
+            state={"milestones": {"M3": {
+                "status": "DONE",
+                "tasks": [{"id": f"T{n}", "routing": {"tier": tier}} for n, tier in enumerate(tiers, 1)],
+                "reviews": [{"tier": "Top"}],
+            }}},
+        )
+        self.assertEqual(
+            module.milestone_finish_report(self.project, "M3"),
+            "M3 DONE — Accounts can be listed — 7 tasks: 4 Cheap, 2 Mid, 1 Top; reviewed by Top.",
+        )
+
+    def test_milestone_finish_report_lists_review_tiers_once_in_first_seen_order(self):
+        module = load_script()
+        self.write_harness(state={"milestones": {"M3": {
+            "status": "DONE",
+            "tasks": [{"id": "T1", "routing": {"tier": "Cheap"}}],
+            "reviews": [{"tier": "Mid"}, {"tier": "Top"}, {"tier": "Mid"}],
+        }}})
+        self.assertEqual(
+            module.milestone_finish_report(self.project, "M3"),
+            "M3 DONE — M3 — 1 task: 1 Cheap, 0 Mid, 0 Top; reviewed by Mid and Top.",
+        )
+
+    def test_milestone_finish_report_counts_tasks_without_routing_as_unrecorded(self):
+        module = load_script()
+        self.write_harness(state={"milestones": {"M3": {
+            "status": "DONE",
+            "tasks": [{"id": "T1"}],
+            "reviews": [{"tier": "Top"}],
+        }}})
+        self.assertEqual(
+            module.milestone_finish_report(self.project, "M3"),
+            "M3 DONE — M3 — 1 task: 0 Cheap, 0 Mid, 0 Top, 1 unrecorded; reviewed by Top.",
+        )
+
+    def test_milestone_finish_report_says_no_review_recorded_without_reviews(self):
+        module = load_script()
+        self.write_harness(state={"milestones": {"M3": {"status": "DONE", "tasks": []}}})
+        self.assertEqual(
+            module.milestone_finish_report(self.project, "M3"),
+            "M3 DONE — M3 — 0 tasks: 0 Cheap, 0 Mid, 0 Top; no review recorded.",
+        )
+
+    def test_milestone_summaries_return_strings_when_state_is_missing_or_invalid(self):
+        module = load_script()
+        for case in ("missing", "invalid"):
+            with self.subTest(case=case):
+                (self.project / ".harness" / "state.json").unlink(missing_ok=True)
+                self.write_harness(
+                    milestones="## M1 — First thing\n",
+                    state="{not json" if case == "invalid" else None,
+                )
+                start = module.milestone_start_summary(self.project, "M1")
+                finish = module.milestone_finish_report(self.project, "M1")
+                self.assertIsInstance(start, str)
+                self.assertIsInstance(finish, str)
+                self.assertTrue(start.startswith("M1 starting — First thing\n"), start)
+                self.assertEqual(finish, "M1 UNKNOWN — First thing — 0 tasks: 0 Cheap, 0 Mid, 0 Top; no review recorded.")
+
 
 if __name__ == "__main__":
     unittest.main()

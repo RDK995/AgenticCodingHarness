@@ -327,6 +327,130 @@ def notify(project: Path, config: dict, message: str) -> None:
     log(project, f"notification sent ({where}): {message}")
 
 
+MILESTONE_HEADING = re.compile(r"^## (\S+) (?:—|-) (.+?)\s*$")
+CRITERION_ITEM = re.compile(r"^\s*- (?:\[[ xX]\] )?(.*)$")
+TIERS = ("Cheap", "Mid", "Top")
+
+
+def collapse(value) -> str:
+    """Collapse every whitespace run to one space; anything that is not text becomes empty."""
+    return " ".join(value.split()) if isinstance(value, str) else ""
+
+
+def milestone_section(project: Path, identifier: str) -> tuple[str | None, list[str]]:
+    """The name and body lines of the `## <identifier> — <name>` section in milestones.md, or (None, [])."""
+    try:
+        lines = (project / ".harness" / "milestones.md").read_text().splitlines()
+    except (OSError, ValueError):
+        return None, []
+    for index, line in enumerate(lines):
+        match = MILESTONE_HEADING.match(line)
+        if match and match.group(1) == identifier:
+            body = []
+            for following in lines[index + 1:]:
+                if following.startswith("## "):
+                    break
+                body.append(following)
+            return match.group(2), body
+    return None, []
+
+
+def subsection(body: list[str], heading: str) -> list[str] | None:
+    """The lines under `### <heading>` up to the next `### ` heading or the end, or None."""
+    for index, line in enumerate(body):
+        if line.strip() == f"### {heading}":
+            lines = []
+            for following in body[index + 1:]:
+                if following.startswith("### "):
+                    break
+                lines.append(following)
+            return lines
+    return None
+
+
+def milestone_record(project: Path, identifier: str) -> dict:
+    """The state.json record for one milestone; empty when the file or the record is missing or malformed."""
+    try:
+        state = read_json(project / ".harness" / "state.json")
+    except ValueError:
+        return {}
+    milestones = (state or {}).get("milestones")
+    record = milestones.get(identifier) if isinstance(milestones, dict) else None
+    return record if isinstance(record, dict) else {}
+
+
+def state_criteria(record: dict) -> list[str]:
+    """The `<id> <text>` criteria recorded in state.json, skipping entries without string id and text."""
+    items = record.get("criteria")
+    if not isinstance(items, list):
+        return []
+    criteria = []
+    for item in items:
+        if isinstance(item, dict) and isinstance(item.get("id"), str) and isinstance(item.get("text"), str):
+            criteria.append(collapse(f"{item['id']} {item['text']}"))
+    return [criterion for criterion in criteria if criterion]
+
+
+def markdown_criteria(body: list[str]) -> list[str]:
+    """The list items under `### Acceptance Criteria` in milestones.md, with any checkbox removed."""
+    criteria = []
+    for line in subsection(body, "Acceptance Criteria") or []:
+        match = CRITERION_ITEM.match(line)
+        if match and collapse(match.group(1)):
+            criteria.append(collapse(match.group(1)))
+    return criteria
+
+
+def milestone_start_summary(project: Path, identifier: str) -> str:
+    """The notification sent before a session starts a milestone: id, name, goal and scope, criteria."""
+    heading, body = milestone_section(project, identifier)
+    record = milestone_record(project, identifier)
+    name = collapse(heading) or collapse(record.get("outcome")) or identifier
+    outcome_lines = subsection(body, "Outcome")
+    goal = collapse("\n".join(outcome_lines)) if outcome_lines is not None else ""
+    goal = goal or collapse(record.get("outcome"))
+    criteria = state_criteria(record) or markdown_criteria(body)
+    lines = [f"{identifier} starting — {name}"]
+    if goal:
+        lines.append(f"Goal and scope: {goal}")
+    lines.append("Acceptance criteria:")
+    if criteria:
+        lines.extend(f"- {criterion}" for criterion in criteria)
+    else:
+        lines.append("(none recorded)")
+    return "\n".join(lines)
+
+
+def milestone_finish_report(project: Path, identifier: str) -> str:
+    """The notification sent when a milestone reaches DONE: result, task count, tiers, and reviewers."""
+    heading, _body = milestone_section(project, identifier)
+    record = milestone_record(project, identifier)
+    name = collapse(heading) or collapse(record.get("outcome")) or identifier
+    result = collapse(record.get("status")) or "UNKNOWN"
+    tasks = record.get("tasks") if isinstance(record.get("tasks"), list) else []
+    counts = {tier: 0 for tier in TIERS}
+    unrecorded = 0
+    for task in tasks:
+        routing = task.get("routing") if isinstance(task, dict) else None
+        tier = routing.get("tier") if isinstance(routing, dict) else None
+        if tier in TIERS:
+            counts[tier] += 1
+        else:
+            unrecorded += 1
+    reviews = record.get("reviews") if isinstance(record.get("reviews"), list) else []
+    reviewers = []
+    for review in reviews:
+        tier = collapse(review.get("tier")) if isinstance(review, dict) else ""
+        if tier and tier not in reviewers:
+            reviewers.append(tier)
+    tally = f"{len(tasks)} {'task' if len(tasks) == 1 else 'tasks'}: " + ", ".join(
+        f"{counts[tier]} {tier}" for tier in TIERS)
+    if unrecorded:
+        tally += f", {unrecorded} unrecorded"
+    review = f"reviewed by {' and '.join(reviewers)}" if reviewers else "no review recorded"
+    return f"{identifier} {result} — {name} — {tally}; {review}."
+
+
 # Driver identity and liveness.
 def read_pid(project: Path) -> int | None:
     try:

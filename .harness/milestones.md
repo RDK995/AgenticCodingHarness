@@ -222,7 +222,7 @@ N/A
 
 ### Evidence
 Tasks (packets in .harness/tasks/):
-- M6-T1 — AC1/AC3 message builders   Cheap attempt 1 BLOCKED (permission classifier refused the first Edit to .harness-dev/test-implement-loop.py, "no verdict"; no change made) → Cheap attempt 2 BLOCKED (same edit refused the same way; no change made)
+- M6-T1 — AC1/AC3 message builders   Cheap attempt 1 BLOCKED (permission classifier refused the first Edit to .harness-dev/test-implement-loop.py, "no verdict"; no change made) → Cheap attempt 2 BLOCKED (same edit refused the same way; no change made) → restart after human unblock, Cheap attempt 1, PASS (verifier: `python3 .harness-dev/test-implement-loop.py` exit 0, Ran 80 tests OK; changed only scripts/implement-loop.py and .harness-dev/test-implement-loop.py; tests weakened NO; .harness/evidence/M6-T1-verifier.log)
 - M6-T2 — driver wiring, AC1-AC4 through `start`   Mid, not started (depends on M6-T1)
 
 Problem:

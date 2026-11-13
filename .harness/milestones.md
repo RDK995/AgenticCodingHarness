@@ -193,7 +193,7 @@ Size/shape check at pickup: 4 criteria; M5-AC1 runs through `start`/`stop`; comp
 
 ## M6 — Each milestone's start and finish reach the owner as a full summary and a worker-tier report
 
-Status: REVIEW
+Status: DONE
 
 ### Outcome
 
@@ -212,10 +212,10 @@ N/A
 N/A
 
 ### Acceptance Criteria
-- [ ] M6-AC1 For a fixture milestone, the start notification contains its id, name, goal/purpose, scope and acceptance criteria, taken from `milestones.md` / `state.json`, and is sent before the session that begins it (AC5, FR8).
-- [ ] M6-AC2 When the milestone was only planned inside a session (no `milestones.md` before it), its start notification is sent as soon as the driver sees after that session that it has begun (FR8, Edge Cases).
-- [ ] M6-AC3 When a milestone reaches DONE, the finish notification gives its id, name and result, the task count, the per-tier counts of task entry tiers (Cheap, Mid, Top) matching the fixture's `routing.tier` values, and the tier(s) of its review(s), in the shape "M3 DONE — 7 tasks: 4 Cheap, 2 Mid, 1 Top; reviewed by Top." (AC5, FR9).
-- [ ] M6-AC4 A loop run through `start` with a fake session advancing a fixture over two milestones leaves, in the sink, each milestone's start and finish notification exactly once and in order, each naming the project (AC5, FR8, FR9).
+- [x] M6-AC1 For a fixture milestone, the start notification contains its id, name, goal/purpose, scope and acceptance criteria, taken from `milestones.md` / `state.json`, and is sent before the session that begins it (AC5, FR8).
+- [x] M6-AC2 When the milestone was only planned inside a session (no `milestones.md` before it), its start notification is sent as soon as the driver sees after that session that it has begun (FR8, Edge Cases).
+- [x] M6-AC3 When a milestone reaches DONE, the finish notification gives its id, name and result, the task count, the per-tier counts of task entry tiers (Cheap, Mid, Top) matching the fixture's `routing.tier` values, and the tier(s) of its review(s), in the shape "M3 DONE — 7 tasks: 4 Cheap, 2 Mid, 1 Top; reviewed by Top." (AC5, FR9).
+- [x] M6-AC4 A loop run through `start` with a fake session advancing a fixture over two milestones leaves, in the sink, each milestone's start and finish notification exactly once and in order, each naming the project (AC5, FR8, FR9).
 
 ### Baseline
 8da33fb6f3fb90f9024092cfef8edd2a2e2602e5 on m6-milestone-notifications
@@ -255,6 +255,7 @@ Human decision (2026-11-12): unblocked. Session switched out of auto mode to man
 - Full suite: every python3 .harness-dev/test-*.py, for the reviewer to run once. Known pre-existing failure from M5 (test-orchestrator-inventory.py::test_core_stays_compact, agents/orchestrator.md over its line cap) is outside the M6 diff.
 
 ### Review
+Cycle 1: PASS — tier Top (opus), reason TOP_TASK_IN_DIFF, diff 8da33fb..c3f10db; M6-AC1..AC4 PASS; 0 BLOCKER, 0 IMPORTANT, 1 OPTIONAL; validation .harness/evidence/M6-review.log. Completion gate PASS.
 
 ### Review Cycles
 0
@@ -265,6 +266,7 @@ Size/shape check at pickup: 4 criteria; M6-AC4 runs through `start`; complexity 
 - The `could not announce` branch is exercised via an unencodable criterion (\ud800) in state.json; the test checks only the `could not announce M1: ` prefix.
 - ntfy stop test now asserts exactly one stop request rather than total request count (sanctioned stop-count substitution; start announcements also post).
 - Red was not observed by the Mid attempt-3 worker; verifiers later confirmed all six M6-T2 tests fail against the pre-T2 driver.
+Review cycle 1 OPTIONAL: the set of announced milestones lives only in the running driver, so restarting the loop re-sends a 'starting' message for a milestone already IN_PROGRESS/REVIEW. Consider 'resuming' wording, or - Review cycle 1 OPTIONAL: the set of announced milestones lives only in the running driver, so restarting the loop re-sends a 'starting' message for a milestone already IN_PROGRESS/REVIEW. Consider 'resuming' wording, or accept the repeat.
 
 ## M7 — One real unattended run builds a milestone, and the owner's phone hears about it
 

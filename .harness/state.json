@@ -827,7 +827,7 @@
     },
     "M6": {
       "outcome": "Each milestone's start and finish reach the owner as a full summary and a worker-tier report",
-      "status": "REVIEW",
+      "status": "DONE",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
@@ -842,27 +842,35 @@
       "criteria": [
         {
           "id": "M6-AC1",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "For a fixture milestone, the start notification contains its id, name, goal/purpose, scope and acceptance criteria, taken from `milestones.md` / `state.json`, and is sent before the session that begins it (AC5, FR8).",
-          "evidence": []
+          "evidence": [
+            "reviewer cycle 1 PASS: test_start_notification_has_the_milestone_details_and_precedes_its_session + 3 test_milestone_start_summary_* (.harness/evidence/M6-review.log)"
+          ]
         },
         {
           "id": "M6-AC2",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "When the milestone was only planned inside a session (no `milestones.md` before it), its start notification is sent as soon as the driver sees after that session that it has begun (FR8, Edge Cases).",
-          "evidence": []
+          "evidence": [
+            "reviewer cycle 1 PASS: test_milestone_planned_and_begun_in_one_session_is_announced_after_that_session; ..._planned_and_finished_in_one_session_gets_start_then_finish (.harness/evidence/M6-review.log)"
+          ]
         },
         {
           "id": "M6-AC3",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "When a milestone reaches DONE, the finish notification gives its id, name and result, the task count, the per-tier counts of task entry tiers (Cheap, Mid, Top) matching the fixture's `routing.tier` values, and the tier(s) of its review(s), in the shape \"M3 DONE \u2014 7 tasks: 4 Cheap, 2 Mid, 1 Top; reviewed by Top.\" (AC5, FR9).",
-          "evidence": []
+          "evidence": [
+            "reviewer cycle 1 PASS: test_milestone_finish_report_counts_tiers_and_reviewers exact text (.harness/evidence/M6-review.log)"
+          ]
         },
         {
           "id": "M6-AC4",
-          "status": "PENDING",
+          "status": "PASS",
           "text": "A loop run through `start` with a fake session advancing a fixture over two milestones leaves, in the sink, each milestone's start and finish notification exactly once and in order, each naming the project (AC5, FR8, FR9).",
-          "evidence": []
+          "evidence": [
+            "reviewer cycle 1 PASS: test_loop_announces_each_milestone_start_and_finish_once_in_order (.harness/evidence/M6-review.log)"
+          ]
         }
       ],
       "tasks": [
@@ -921,7 +929,18 @@
           ]
         }
       ],
-      "reviews": [],
+      "reviews": [
+        {
+          "cycle": 1,
+          "tier": "Top",
+          "model": "opus",
+          "reason_code": "TOP_TASK_IN_DIFF",
+          "diff_range": "8da33fb6f3fb90f9024092cfef8edd2a2e2602e5..c3f10db",
+          "verdict": "PASS (M6-AC1..AC4 PASS; 0 BLOCKER, 0 IMPORTANT, 1 OPTIONAL); gate PASS",
+          "artifact": null,
+          "validation_log": ".harness/evidence/M6-review.log"
+        }
+      ],
       "findings": [],
       "validation": [
         {
@@ -936,7 +955,8 @@
         "Driver-level AC3 fixtures use only Cheap/Mid tasks and a single Top review; multi-tier reviews, Top task counts and no-review cases are covered only by M6-T1 unit tests (verifier coverage note)",
         "The 'could not announce' branch is exercised via an unencodable criterion (\\ud800) in state.json; the test checks only the 'could not announce M1: ' prefix (verifier note)",
         "ntfy stop test now asserts exactly one stop request rather than total request count (sanctioned stop-count substitution; start announcements also post)",
-        "Red was not observed by the Mid attempt-3 worker; verifiers later confirmed all six M6-T2 tests fail against the pre-T2 driver"
+        "Red was not observed by the Mid attempt-3 worker; verifiers later confirmed all six M6-T2 tests fail against the pre-T2 driver",
+        "Review cycle 1 OPTIONAL: Driver.started is in-memory only, so restarting the loop re-sends 'starting' for a milestone already IN_PROGRESS/REVIEW; consider 'resuming' wording or accept the repeat"
       ]
     },
     "M7": {

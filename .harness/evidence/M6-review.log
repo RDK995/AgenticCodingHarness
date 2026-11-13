@@ -1,0 +1,122 @@
+== milestone check: python3 .harness-dev/test-implement-loop.py
+......................................................................................
+----------------------------------------------------------------------
+Ran 86 tests in 74.186s
+
+OK
+exit 0
+== .harness-dev/test-agent-guards.py
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+OK
+exit 
+== .harness-dev/test-commit-discipline.py
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.001s
+
+OK
+exit 
+== .harness-dev/test-compact-returns.py
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.000s
+
+OK
+exit 
+== .harness-dev/test-dispatch-collect.py
+........
+----------------------------------------------------------------------
+Ran 8 tests in 0.000s
+
+OK
+exit 
+== .harness-dev/test-guard-bash.py
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.693s
+
+OK
+exit 
+== .harness-dev/test-implement-loop-skill.py
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK
+exit 
+== .harness-dev/test-implement-loop.py
+......................................................................................
+----------------------------------------------------------------------
+Ran 86 tests in 69.624s
+
+OK
+exit 
+== .harness-dev/test-interrupted-review.py
+......................
+----------------------------------------------------------------------
+Ran 22 tests in 0.001s
+
+OK
+exit 
+== .harness-dev/test-measure-context.py
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.048s
+
+OK
+exit 
+== .harness-dev/test-milestone-complexity.py
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK
+exit 
+== .harness-dev/test-model-routing.py
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.005s
+
+OK
+exit 
+== .harness-dev/test-no-project-review.py
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.001s
+
+OK
+exit 
+== .harness-dev/test-orchestrator-inventory.py
+.F.
+======================================================================
+FAIL: test_core_stays_compact (__main__.OrchestratorInventoryTests.test_core_stays_compact)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/ryankenny/Tools/AgenticCodingHarness/.harness-dev/test-orchestrator-inventory.py", line 21, in test_core_stays_compact
+    self.assertLessEqual(len(self.text.splitlines()), 720)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 730 not less than or equal to 720
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (failures=1)
+exit 
+== .harness-dev/test-state.py
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 0.872s
+
+OK
+exit 
+== .harness-dev/test-validation-ownership.py
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.000s
+
+OK
+exit 
+== baseline 8da33fb test-orchestrator-inventory: same test_core_stays_compact FAIL confirmed in worktree

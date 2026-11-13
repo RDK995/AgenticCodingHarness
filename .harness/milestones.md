@@ -193,7 +193,7 @@ Size/shape check at pickup: 4 criteria; M5-AC1 runs through `start`/`stop`; comp
 
 ## M6 — Each milestone's start and finish reach the owner as a full summary and a worker-tier report
 
-Status: BLOCKED
+Status: IN_PROGRESS
 
 ### Outcome
 
@@ -241,6 +241,8 @@ Nothing in M6 can start until edits to `.harness-dev/test-implement-loop.py` (an
 
 Recommended decision:
 Re-run the M6 implementation phase in a session where that edit is permitted (for example, approve it when prompted, or run the phase interactively). The packets in .harness/tasks/M6-T1.md and M6-T2.md are ready and unchanged in substance; once the permission problem is fixed, set Status back to IN_PROGRESS and restart M6-T1 as a fresh Cheap attempt (the two refusals were permission failures, not capability failures, so they need not consume the ladder).
+
+Human decision (2026-11-12): unblocked. Session switched out of auto mode to manual approval so the human approves the edits to `.harness-dev/test-implement-loop.py` and `scripts/implement-loop.py` when prompted. Restart M6-T1 as a fresh Cheap attempt; the two refused attempts were permission failures and do not count against the escalation ladder.
 
 ### Validation
 

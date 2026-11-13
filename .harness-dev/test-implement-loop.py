@@ -305,7 +305,16 @@ class ImplementLoopTests(unittest.TestCase):
     def notifications(self):
         if not self.notify.exists():
             return []
-        return [line for line in self.notify.read_text().splitlines() if line.strip()]
+        records = []
+        for line in self.notify.read_text().splitlines():
+            if TIMESTAMP.match(line):
+                records.append(line)
+            elif records:
+                records[-1] += "\n" + line
+        return records
+
+    def stop_notifications(self):
+        return [note for note in self.notifications() if "implement loop stopped: " in note]
 
     def start_running(self, body, *extra):
         result, elapsed = self.start(self.fake_claude(body), *extra)
@@ -372,7 +381,7 @@ class ImplementLoopTests(unittest.TestCase):
         outcome = json.loads((self.loop / "outcome.json").read_text())
         self.assertEqual(outcome["outcome"], "stopped by owner")
         self.assertEqual(outcome["milestone"], "M2")
-        self.assertEqual(len(self.notifications()), 1, self.notifications())
+        self.assertEqual(len(self.stop_notifications()), 1, self.stop_notifications())
         self.assertFalse(
             [row for row in process_table() if row[2].split()[-2:] == ["-w", str(pid)]],
             "caffeinate outlived the driver",
@@ -396,7 +405,7 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertTrue(wait_for(lambda: not group_alive(step["pid"]), 5), "step group still alive")
         self.assertFalse((self.loop / "driver.pid").exists())
         self.assertIn("SIGKILL", (self.loop / "loop.log").read_text())
-        self.assertEqual(len(self.notifications()), 1, self.notifications())
+        self.assertEqual(len(self.stop_notifications()), 1, self.stop_notifications())
 
     def test_status_and_stop_report_not_running_without_live_driver(self):
         for command in ("status", "stop"):
@@ -432,8 +441,8 @@ class ImplementLoopTests(unittest.TestCase):
         self.assertEqual(outcome["milestone"], "M2")
         self.assertIn("time", outcome)
         self.assert_prompt_argument(self.args_file.read_text().split())
-        self.assertTrue(wait_for(lambda: len(self.notifications()) == 1, 2))
-        self.assertEqual(len(self.notifications()), 1, self.notifications())
+        self.assertTrue(wait_for(lambda: len(self.stop_notifications()) == 1, 2))
+        self.assertEqual(len(self.stop_notifications()), 1, self.stop_notifications())
         self.assertTrue((self.loop / "step-1.out").exists())
         self.assertIn("step 1 outcome: failed step: no state progress", (self.loop / "loop.log").read_text())
         self.assertIn("step 2 outcome: failed step: no state progress", (self.loop / "loop.log").read_text())
@@ -588,8 +597,11 @@ class ImplementLoopTests(unittest.TestCase):
             "from pathlib import Path\n"
             f"runs = Path({str(runs)!r})\n"
             f"plan = {plan!r}\n"
+            f"sink = Path({str(self.notify)!r})\n"
+            "seen = sink.read_text() if sink.exists() else ''\n"
             "with open(runs, 'a') as handle:\n"
-            "    handle.write(json.dumps({'pid': os.getpid(), 'cwd': os.getcwd(), 'argv': sys.argv[1:]}) + '\\n')\n"
+            "    handle.write(json.dumps({'pid': os.getpid(), 'cwd': os.getcwd(), 'argv': sys.argv[1:],\n"
+            "                             'sink': seen}) + '\\n')\n"
             "number = len(runs.read_text().splitlines())\n"
             "step = plan[min(number, len(plan)) - 1]\n"
             "if 'statuses' in step:\n"
@@ -597,8 +609,12 @@ class ImplementLoopTests(unittest.TestCase):
             "    state = {'schema_version': 1, 'current_milestone': step.get('current', names[0]),\n"
             "             'milestones': {n: {'outcome': n, 'status': step['statuses'][n]} for n in names}}\n"
             "    Path('.harness/state.json').write_text(json.dumps(state, indent=2))\n"
+            "if 'state' in step:\n"
+            "    Path('.harness').mkdir(exist_ok=True)\n"
+            "    Path('.harness/state.json').write_text(json.dumps(step['state'], indent=2))\n"
             "if 'notes' in step:\n"
             "    Path('.harness/milestones.md').write_text(step['notes'])\n"
+            "(runs.parent / f'sink-at-end-{number}.txt').write_text(sink.read_text() if sink.exists() else '')\n"
             "print(step.get('print', ''))\n"
             "sys.exit(step.get('exit', 0))\n"
         )
@@ -621,8 +637,8 @@ class ImplementLoopTests(unittest.TestCase):
         )
         self.assertTrue(finished, "driver did not finish by itself")
         outcome = json.loads((self.loop / "outcome.json").read_text())["outcome"]
-        self.assertTrue(wait_for(lambda: len(self.notifications()) == 1, 2))
-        self.assertEqual(len(self.notifications()), 1, self.notifications())
+        self.assertTrue(wait_for(lambda: len(self.stop_notifications()) == 1, 2))
+        self.assertEqual(len(self.stop_notifications()), 1, self.stop_notifications())
         return outcome
 
     def test_loop_runs_successive_fresh_steps_until_every_milestone_is_done(self):
@@ -821,7 +837,7 @@ class ImplementLoopTests(unittest.TestCase):
         if milestone is not None:
             self.assertEqual(record["milestone"], milestone)
         self.assertIn(ask_contains, record["ask"])
-        notes = self.notifications()
+        notes = self.stop_notifications()
         self.assertEqual(len(notes), 1, notes)
         for part in (record["outcome"], record["milestone"], record["branch"], record["ask"]):
             self.assertIn(part, notes[0])
@@ -879,7 +895,7 @@ class ImplementLoopTests(unittest.TestCase):
             timeout=30,
         )
         self.assertTrue(finished, "driver did not finish by itself")
-        self.assertTrue(wait_for(lambda: len(self.notifications()) == 1, 2))
+        self.assertTrue(wait_for(lambda: len(self.stop_notifications()) == 1, 2))
         record = self.assert_full_record(
             "driver_error", "Look at .harness/loop/loop.log: the loop hit an unexpected error.", "M2"
         )
@@ -952,7 +968,7 @@ class ImplementLoopTests(unittest.TestCase):
             self.assertIn("still alive after grace: SIGKILL", log_text)
         self.assertTrue(wait_for(lambda: not group_alive(step["pid"]), 5), "step group still alive")
         self.assertFalse(alive(step["pid"]))
-        self.assertEqual(len(self.notifications()), 1, self.notifications())
+        self.assertEqual(len(self.stop_notifications()), 1, self.stop_notifications())
 
     def test_step_over_time_limit_is_terminated_and_recorded_as_failed(self):
         self.check_time_limit(SLEEPING_CLAUDE.replace("sleep 60", "sleep 30"), False)
@@ -1106,8 +1122,14 @@ class ImplementLoopTests(unittest.TestCase):
         result = self.run_loop("start", "--claude", str(self.tools / "claude"), "--notify-file", str(self.notify))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(f"pid {pid}", result.stderr)
-        self.assertEqual(len(self.notifications()), 1, self.notifications())
-        self.assertIn("loop did not start", self.notifications()[0])
+        notes = self.notifications()
+        refusals = [note for note in notes if "loop did not start" in note]
+        starts = [note for note in notes if " starting — " in note]
+        # The live driver announced its current milestone's start once; the refused start adds one refusal.
+        self.assertEqual(len(starts), 1, notes)
+        self.assertEqual(len(notes), len(starts) + 1, notes)
+        self.assertEqual(len(refusals), 1, notes)
+        self.assertEqual(len(self.stop_notifications()), 0, notes)
         self.assertTrue(alive(pid))
         self.assertEqual(self.snapshot_loop(), before)
 
@@ -1196,9 +1218,10 @@ class ImplementLoopTests(unittest.TestCase):
         stop = self.run_loop("stop")
         self.assertEqual(stop.returncode, 0, stop.stdout + stop.stderr)
         self.wait_finished()
-        self.assertTrue(wait_for(lambda: server.requests, 5))
-        self.assertEqual(len(server.requests), 1, server.requests)
-        path, body = server.requests[0]
+        stops = lambda: [r for r in server.requests if "implement loop stopped: " in r[1]]
+        self.assertTrue(wait_for(stops, 5))
+        self.assertEqual(len(stops()), 1, server.requests)
+        path, body = stops()[0]
         self.assertEqual(path, "/" + second)
         self.assertEqual(body, self.stop_message())
         self.loop_log_matches(
@@ -1290,8 +1313,10 @@ class ImplementLoopTests(unittest.TestCase):
                 record = json.loads((self.loop / "outcome.json").read_text())
                 self.assertEqual(record["outcome"], "finished: every milestone is DONE")
                 lines = self.loop_log_matches("notification not sent: " + reason)
+                stop_lines = [line for line in lines if "implement loop stopped: " in line]
+                self.assertEqual(len(stop_lines), 1, lines)
                 self.assertRegex(
-                    lines[0], r"notification not sent: \S.*?: \[project\] implement loop stopped: finished"
+                    stop_lines[0], r"notification not sent: \S.*?: \[project\] implement loop stopped: finished"
                 )
                 log_lines = (self.loop / "loop.log").read_text().splitlines()
                 self.assertIn("final outcome: finished", log_lines[-2])
@@ -1376,10 +1401,127 @@ class ImplementLoopTests(unittest.TestCase):
                     seen[-1], (f"https://ntfy.example.invalid/{topic}", "POST", "hi — there".encode(), 10)
                 )
 
+    # --- M6-T2: milestone start and finish announcements ---
+    NOTES = (
+        "# Milestones\n\n## M1 — Alpha thing\n\n### Outcome\n\nAlpha works.\n\n"
+        "### Acceptance Criteria\n\n- [ ] alpha one\n- [ ] alpha two\n\n"
+        "## M2 — Beta thing\n\n### Outcome\n\nBeta works.\n\n"
+        "### Acceptance Criteria\n\n- [ ] beta one\n"
+    )
+
+    def announce_state(self, statuses, tasks=True, with_reviews=True):
+        milestones = {}
+        for name, status in statuses.items():
+            criteria = [{"id": f"{name}-AC1", "text": f"{name} criterion"},
+                        {"id": f"{name}-AC2", "text": f"{name} second criterion"}]
+            record = {"outcome": f"{name} outcome", "status": status, "criteria": criteria}
+            if status == "DONE":
+                record["tasks"] = [
+                    {"id": f"{name}-T1", "routing": {"tier": "Cheap"}},
+                    {"id": f"{name}-T2", "routing": {"tier": "Mid"}},
+                ] if tasks else []
+                record["reviews"] = [{"tier": "Top"}] if with_reviews else []
+            milestones[name] = record
+        return {"schema_version": 1, "current_milestone": next(iter(statuses)), "milestones": milestones}
+
+    def run_announced(self, plan, notes=True, state=True):
+        if notes:
+            (self.project / ".harness" / "milestones.md").write_text(self.NOTES)
+        if state:
+            (self.project / ".harness" / "state.json").write_text(
+                json.dumps(self.announce_state({"M1": "TODO", "M2": "TODO"}), indent=2))
+        else:
+            (self.project / ".harness" / "state.json").unlink()
+        self.start(self.scripted_claude(plan))
+        self.assertTrue(wait_for(
+            lambda: (self.loop / "outcome.json").exists() and not (self.loop / "driver.pid").exists(), timeout=30),
+            "driver did not finish by itself")
+        self.assertTrue(wait_for(lambda: self.stop_notifications(), 2))
+        return self.notifications()
+
+    def two_milestone_plan(self):
+        both = lambda a, b: self.announce_state({"M1": a, "M2": b})
+        return [
+            {"state": both("REVIEW", "TODO")},
+            {"state": both("DONE", "TODO")},
+            {"state": both("DONE", "REVIEW")},
+            {"state": both("DONE", "DONE")},
+        ]
+
+    def test_loop_announces_each_milestone_start_and_finish_once_in_order(self):
+        notes = self.run_announced(self.two_milestone_plan())
+        self.assertEqual(len(notes), 5, notes)
+        label = f"[{self.project.name}] "
+        for note in notes:
+            self.assertIn(label, note)
+        for note, fragment in zip(notes, (
+            "M1 starting — Alpha thing", "M1 DONE — Alpha thing", "M2 starting — Beta thing",
+            "M2 DONE — Beta thing", "implement loop stopped: finished",
+        )):
+            self.assertIn(fragment, note)
+        self.assertTrue(notes[1].endswith(label + "M1 DONE — Alpha thing — 2 tasks: 1 Cheap, 1 Mid, 0 Top; reviewed by Top."), notes[1])
+        self.assertTrue(notes[3].endswith(label + "M2 DONE — Beta thing — 2 tasks: 1 Cheap, 1 Mid, 0 Top; reviewed by Top."), notes[3])
+
+    def test_start_notification_has_the_milestone_details_and_precedes_its_session(self):
+        notes = self.run_announced(self.two_milestone_plan())
+        start = notes[0]
+        for part in ("M1 starting — Alpha thing", "Alpha works.", "- M1-AC1 M1 criterion",
+                     "- M1-AC2 M1 second criterion"):
+            self.assertIn(part, start)
+        runs = self.recorded_runs()
+        self.assertIn("M1 starting —", runs[0]["sink"])
+        self.assertNotIn("M2 starting —", runs[0]["sink"])
+        self.assertNotIn("M2 starting —", runs[1]["sink"])
+        self.assertIn("M2 starting —", runs[2]["sink"])  # announced before the step that runs M2
+
+    def test_milestone_planned_and_begun_in_one_session_is_announced_after_that_session(self):
+        plan = [{"state": self.announce_state({"M1": "IN_PROGRESS"}), "notes": self.NOTES}]
+        notes = self.run_announced(plan, notes=False, state=False)
+        self.assertEqual(len(notes), 2, notes)
+        self.assertIn("M1 starting — Alpha thing", notes[0])
+        self.assertIn("Alpha works.", notes[0])
+        self.assertIn("implement loop stopped: ", notes[1])  # planning stops for the human, after the start
+        runs = self.recorded_runs()
+        self.assertEqual(len(runs), 1)
+        self.assertEqual(runs[0]["sink"], "")  # nothing was sent before the planning session
+        at_end = (self.tools / "sink-at-end-1.txt").read_text()
+        self.assertNotIn("M1 starting", at_end)  # nor while it ran: the start was sent after it ended
+        self.assertEqual(len([n for n in notes if "M1 starting" in n]), 1)
+
+    def test_milestone_planned_and_finished_in_one_session_gets_start_then_finish(self):
+        plan = [{"state": self.announce_state({"M1": "DONE"}), "notes": self.NOTES}]
+        notes = self.run_announced(plan, notes=False, state=False)
+        self.assertEqual(len(notes), 3, notes)
+        self.assertIn("M1 starting — Alpha thing", notes[0])
+        self.assertIn("M1 DONE — Alpha thing — 2 tasks: 1 Cheap, 1 Mid, 0 Top; reviewed by Top.", notes[1])
+        self.assertIn("implement loop stopped: finished", notes[2])
+
+    def test_failed_announcements_do_not_stop_the_loop(self):
+        self.write_state({"M1": "TODO"})
+        self.start_ntfy(self.scripted_claude([{"state": self.announce_state({"M1": "DONE"})}]))
+        self.wait_finished()
+        record = json.loads((self.loop / "outcome.json").read_text())
+        self.assertEqual(record["outcome"], "finished: every milestone is DONE")
+        text = (self.loop / "loop.log").read_text()
+        self.assertIn("notification not sent: alert config missing: [project] M1 starting", text)
+        self.assertIn("notification not sent: alert config missing: [project] M1 DONE", text)
+
+    def test_announcement_that_cannot_be_built_is_logged_and_the_loop_continues(self):
+        broken = self.announce_state({"M1": "TODO"})
+        broken["milestones"]["M1"]["criteria"][0]["text"] = "bad \ud800 text"  # cannot be encoded to send
+        (self.project / ".harness" / "state.json").write_text(json.dumps(broken))
+        self.start(self.scripted_claude([{"state": self.announce_state({"M1": "DONE"})}]))
+        self.wait_finished()
+        record = json.loads((self.loop / "outcome.json").read_text())
+        self.assertEqual(record["outcome"], "finished: every milestone is DONE")
+        self.assertIn("could not announce M1: ", (self.loop / "loop.log").read_text())
+        self.assertTrue(wait_for(lambda: self.stop_notifications(), 2))
+        self.assertEqual(len(self.stop_notifications()), 1, self.notifications())
+
     # --- M5-T2: every notification names its project and fits ntfy's size limit ---
     def test_stop_notification_names_the_project(self):
         self.run_quick_step()
-        notes = self.notifications()
+        notes = self.stop_notifications()
         self.assertEqual(len(notes), 1, notes)
         self.assertIn(f"[{self.project.name}] implement loop stopped: ", notes[0])
 

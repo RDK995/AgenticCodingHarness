@@ -650,6 +650,8 @@ class Driver:
         self.stop_requested = False
         self.finished = False
         self.notified = False
+        self.started: set[str] = set()
+        self.finished_ids: set[str] = set()
         self.caffeinate: subprocess.Popen | None = None
         self.step: subprocess.Popen | None = None
         self.milestone: str | None = None
@@ -793,6 +795,35 @@ class Driver:
         if read_pid(self.project) == os.getpid():
             pid_file.unlink(missing_ok=True)
 
+    def announce(self, identifier: str, build) -> None:
+        """Send one milestone announcement; a failure is logged and never stops the loop."""
+        try:
+            notify(self.project, self.config, build(self.project, identifier))
+        except Exception as error:
+            log(self.project, f"could not announce {identifier}: {error}")
+
+    def announce_start(self, identifier: str) -> None:
+        if identifier not in self.started:
+            self.started.add(identifier)
+            self.announce(identifier, milestone_start_summary)
+
+    def announce_before_step(self) -> None:
+        current = current_milestone(self.project)
+        if current is not None:
+            self.announce_start(current)
+
+    def announce_after_step(self, before: dict, after: dict) -> None:
+        """Announce milestones this step began (start) or completed (finish), in state order."""
+        was_done = {i for i, status in (before["statuses"] or {}).items() if status == "DONE"}
+        for identifier, status in (after["statuses"] or {}).items():
+            if identifier in was_done:
+                continue  # already DONE when this step began: never announced
+            if status != "TODO":
+                self.announce_start(identifier)
+            if status == "DONE" and identifier not in self.finished_ids:
+                self.finished_ids.add(identifier)
+                self.announce(identifier, milestone_finish_report)
+
     def run(self) -> int:
         for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
             signal.signal(signum, self.request_stop)
@@ -807,10 +838,13 @@ class Driver:
                 if self.stop_requested:
                     outcome = "stopped by owner"
                     break
+                self.announce_before_step()
                 before = take_snapshot(self.project)
                 returncode, stopped, timed_out = self.run_step(number, failures + 1)
+                after = take_snapshot(self.project)
+                self.announce_after_step(before, after)
                 outcome = judge_step(
-                    before, take_snapshot(self.project), returncode, stopped, timed_out, self.step_timeout,
+                    before, after, returncode, stopped, timed_out, self.step_timeout,
                     self.output,
                 )
                 log(self.project, f"step {number} outcome: {outcome}")

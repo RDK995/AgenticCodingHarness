@@ -905,7 +905,14 @@
             "reason_code": "ORDINARY_IMPLEMENTATION",
             "detail": "Driver step-loop wiring with ordering/exactly-once rules and existing end-to-end assertion updates"
           },
-          "attempts": []
+          "attempts": [
+            {
+              "attempt": 3,
+              "tier": "Mid",
+              "result": "FAIL",
+              "evidence": "verifier: suite exit 0 (85 OK), 5 new tests Red on old driver; FAIL: test_live_driver_refuses_second_start_and_is_untouched lost its exact total-count check; gaps: announce except branch untested, AC1 single criterion, AC2 'after session' not asserted; .harness/evidence/M6-T2-verifier.log"
+            }
+          ]
         }
       ],
       "reviews": [],

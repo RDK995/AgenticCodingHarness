@@ -193,7 +193,7 @@ Size/shape check at pickup: 4 criteria; M5-AC1 runs through `start`/`stop`; comp
 
 ## M6 — Each milestone's start and finish reach the owner as a full summary and a worker-tier report
 
-Status: IN_PROGRESS
+Status: REVIEW
 
 ### Outcome
 
@@ -222,8 +222,14 @@ N/A
 
 ### Evidence
 Tasks (packets in .harness/tasks/):
-- M6-T1 — AC1/AC3 message builders   Cheap attempt 1 BLOCKED (permission classifier refused the first Edit to .harness-dev/test-implement-loop.py, "no verdict"; no change made) → Cheap attempt 2 BLOCKED (same edit refused the same way; no change made) → restart after human unblock, Cheap attempt 1, PASS (verifier: `python3 .harness-dev/test-implement-loop.py` exit 0, Ran 80 tests OK; changed only scripts/implement-loop.py and .harness-dev/test-implement-loop.py; tests weakened NO; .harness/evidence/M6-T1-verifier.log)
-- M6-T2 — driver wiring, AC1-AC4 through `start`   Mid, not started (depends on M6-T1)
+- M6-T1 — AC1/AC3 message builders   Cheap attempt 1 BLOCKED (permission classifier refused the first Edit to .harness-dev/test-implement-loop.py, "no verdict"; no change made) → Cheap attempt 2 BLOCKED (same edit refused the same way; no change made) → restart after human unblock, Cheap attempt 1, PASS (verifier: `python3 .harness-dev/test-implement-loop.py` exit 0, Ran 80 tests OK; changed only scripts/implement-loop.py and .harness-dev/test-implement-loop.py; tests weakened NO; .harness/evidence/M6-T1-verifier.log) — d0f825e
+- M6-T2 — driver wiring, AC1-AC4 through `start`   Mid, routed Mid: ORDINARY_IMPLEMENTATION. Mid attempt 3 FAIL (verifier: suite green, but `test_live_driver_refuses_second_start_and_is_untouched` lost its exact total-count check; gaps: `could not announce` branch untested, AC1 one criterion, AC2 "after session" inferred; .harness/evidence/M6-T2-verifier.log) → Escalated: Top attempt 4, PASS (verifier: `python3 .harness-dev/test-implement-loop.py` exit 0, Ran 86 tests OK; all 6 new tests Red against pre-T2 driver; allowed files only; tests weakened NO; .harness/evidence/M6-T2-verifier-attempt4.log) — 91597fb
+Per criterion:
+- M6-AC1: test_start_notification_has_the_milestone_details_and_precedes_its_session (id, name, Outcome, both criteria; present in sink before session 1); test_milestone_start_summary_* (3 unit tests, exact strings)
+- M6-AC2: test_milestone_planned_and_begun_in_one_session_is_announced_after_that_session (sink empty before and at end of session 1, start once before stop); test_milestone_planned_and_finished_in_one_session_gets_start_then_finish
+- M6-AC3: test_loop_announces_each_milestone_start_and_finish_once_in_order (exact finish shape via endswith); test_milestone_finish_report_* (4 unit tests, exact strings incl. `M3 DONE — Accounts can be listed — 7 tasks: 4 Cheap, 2 Mid, 1 Top; reviewed by Top.`)
+- M6-AC4: test_loop_announces_each_milestone_start_and_finish_once_in_order (exactly 5 records in order M1 start, M1 finish, M2 start, M2 finish, stop; each `[project] `)
+- Edge (send/build failure never stops the loop): test_failed_announcements_do_not_stop_the_loop; test_announcement_that_cannot_be_built_is_logged_and_the_loop_continues
 
 Problem:
 Two fresh workers were each stopped by the session's permission check the moment they tried to add tests to `.harness-dev/test-implement-loop.py`. The check gave no verdict and said a retry would get the same answer. No file was changed.
@@ -245,6 +251,8 @@ Re-run the M6 implementation phase in a session where that edit is permitted (fo
 Human decision (2026-11-12): unblocked. Session switched out of auto mode to manual approval so the human approves the edits to `.harness-dev/test-implement-loop.py` and `scripts/implement-loop.py` when prompted. Restart M6-T1 as a fresh Cheap attempt; the two refused attempts were permission failures and do not count against the escalation ladder.
 
 ### Validation
+- python3 .harness-dev/test-implement-loop.py — PASS, 86 tests (verifier exit 0, .harness/evidence/M6-T2-verifier-attempt4.log); milestone validation command for the reviewer. Diff: git diff 8da33fb6f3fb90f9024092cfef8edd2a2e2602e5 HEAD
+- Full suite: every python3 .harness-dev/test-*.py, for the reviewer to run once. Known pre-existing failure from M5 (test-orchestrator-inventory.py::test_core_stays_compact, agents/orchestrator.md over its line cap) is outside the M6 diff.
 
 ### Review
 
@@ -253,6 +261,10 @@ Human decision (2026-11-12): unblocked. Session switched out of auto mode to man
 
 ### Follow-ups
 Size/shape check at pickup: 4 criteria; M6-AC4 runs through `start`; complexity signals: none (one production file, two tasks, no concurrency/lifecycle ownership change, no live proof).
+- Driver-level AC3 fixtures use only Cheap/Mid tasks and a single Top review; multi-tier reviews, Top task counts and no-review cases are covered only by M6-T1 unit tests.
+- The `could not announce` branch is exercised via an unencodable criterion (\ud800) in state.json; the test checks only the `could not announce M1: ` prefix.
+- ntfy stop test now asserts exactly one stop request rather than total request count (sanctioned stop-count substitution; start announcements also post).
+- Red was not observed by the Mid attempt-3 worker; verifiers later confirmed all six M6-T2 tests fail against the pre-T2 driver.
 
 ## M7 — One real unattended run builds a milestone, and the owner's phone hears about it
 

@@ -827,7 +827,7 @@
     },
     "M6": {
       "outcome": "Each milestone's start and finish reach the owner as a full summary and a worker-tier report",
-      "status": "IN_PROGRESS",
+      "status": "REVIEW",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
@@ -892,7 +892,7 @@
               "attempt": 1,
               "tier": "Cheap",
               "result": "PASS",
-              "evidence": "restart after human unblock (manual approval); verifier: python3 .harness-dev/test-implement-loop.py exit 0, Ran 80 tests OK; files within allowed set; tests weakened NO; .harness/evidence/M6-T1-verifier.log"
+              "evidence": "restart after human unblock (manual approval); verifier: python3 .harness-dev/test-implement-loop.py exit 0, Ran 80 tests OK; files within allowed set; tests weakened NO; .harness/evidence/M6-T1-verifier.log; commit d0f825e"
             }
           ]
         },
@@ -911,16 +911,32 @@
               "tier": "Mid",
               "result": "FAIL",
               "evidence": "verifier: suite exit 0 (85 OK), 5 new tests Red on old driver; FAIL: test_live_driver_refuses_second_start_and_is_untouched lost its exact total-count check; gaps: announce except branch untested, AC1 single criterion, AC2 'after session' not asserted; .harness/evidence/M6-T2-verifier.log"
+            },
+            {
+              "attempt": 4,
+              "tier": "Top",
+              "result": "PASS",
+              "evidence": "Escalated from Mid after attempt-3 verification FAIL; verifier: python3 .harness-dev/test-implement-loop.py exit 0, Ran 86 tests OK; 6 new tests all Red against pre-T2 driver; files within allowed set; tests weakened NO; .harness/evidence/M6-T2-verifier-attempt4.log; commit 91597fb"
             }
           ]
         }
       ],
       "reviews": [],
       "findings": [],
-      "validation": [],
+      "validation": [
+        {
+          "command": "python3 .harness-dev/test-implement-loop.py",
+          "result": "PASS (86 tests, verifier exit 0)",
+          "artifact": ".harness/evidence/M6-T2-verifier-attempt4.log"
+        }
+      ],
       "follow_ups": [
         "Size/shape check at pickup: 4 criteria; M6-AC4 runs through start; complexity signals: none (one production file, two tasks, no concurrency/lifecycle ownership change, no live proof)",
-        "Human decision 2026-11-12: unblocked; session in manual approval mode; restart M6-T1 as fresh Cheap attempt; prior two attempts were permission refusals and do not consume the ladder"
+        "Human decision 2026-11-12: unblocked; session in manual approval mode; restart M6-T1 as fresh Cheap attempt; prior two attempts were permission refusals and do not consume the ladder",
+        "Driver-level AC3 fixtures use only Cheap/Mid tasks and a single Top review; multi-tier reviews, Top task counts and no-review cases are covered only by M6-T1 unit tests (verifier coverage note)",
+        "The 'could not announce' branch is exercised via an unencodable criterion (\\ud800) in state.json; the test checks only the 'could not announce M1: ' prefix (verifier note)",
+        "ntfy stop test now asserts exactly one stop request rather than total request count (sanctioned stop-count substitution; start announcements also post)",
+        "Red was not observed by the Mid attempt-3 worker; verifiers later confirmed all six M6-T2 tests fail against the pre-T2 driver"
       ]
     },
     "M7": {

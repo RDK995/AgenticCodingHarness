@@ -270,7 +270,7 @@ Size/shape check at pickup: 4 criteria; M6-AC4 runs through `start`; complexity 
 
 ## M7 — One real unattended run builds a milestone, and the owner's phone hears about it
 
-Status: TODO
+Status: BLOCKED
 
 ### Outcome
 
@@ -298,8 +298,49 @@ N/A
 - [ ] M7-AC4 After the run, the ntfy topic and any credential appear in none of `loop.log`, `commands.log`, `outcome.json`, the fixture repository or this repository, checked by a recorded search (AC6, FR12).
 
 ### Baseline
+e8ce13a37d3b1c2905772f1f60388ef0ca8c8f83 on m7-live-proof
 
 ### Evidence
+- M7-T1 fixture project — Cheap (haiku), attempt 1, PASS. Routing BOUNDED_LOW_RISK.
+  Verifier re-ran the packet check: exit 0, `FIXTURE_OK`. Fixture
+  `/Users/ryankenny/Tools/harness-m7-fixture`: own git repo, no remote, commit
+  `7f895e9` on `main` holding only `README.md` and `.harness/requirements.md`
+  (byte-identical to `examples/requirements.example.md`, Open Questions `None`),
+  checked out on clean branch `live-run`. Artifact: `.harness/evidence/M7-T1-verifier.log`.
+- M7-AC1..AC4: no evidence yet. The live run has not been started (see Escalation).
+
+### Escalation
+Problem:
+The remaining work is the live run itself. It starts real, unattended `claude`
+sessions on the owner's sign-in (spending plan usage for what may be an hour or
+more), sends real notifications to the owner's phone, and needs the owner to
+confirm phone receipt (M7-AC3). An orchestrator cannot confirm receipt and should
+not start an unattended run on the owner's plan without the owner present.
+
+Requirement/milestone affected:
+M7 (AC8; M7-AC1, M7-AC2, M7-AC3, M7-AC4). FR7, FR12.
+
+Attempts made:
+1. M7-T1: fixture project prepared and independently verified (above).
+2. Confirmed `~/.config/harness-e2e/alert.json` exists (presence only; not read)
+   and `claude` is on PATH at `/Users/ryankenny/.local/bin/claude`.
+
+Remaining issue:
+Run and observe the live loop, then confirm receipt on the phone.
+
+Recommended decision:
+Owner, when free to watch the phone, runs from this repository on branch
+`m7-live-proof`:
+`python3 scripts/implement-loop.py start --project /Users/ryankenny/Tools/harness-m7-fixture`
+(no `--notify-file`, so the real ntfy channel is used; topic stays in the config
+file). Expected: one milestone-start, one milestone-finish and one stop
+notification. Note the date each arrived, then re-dispatch M7 with that
+confirmation. The next phase records `loop.log` HTTP 200 lines, the fixture's
+`state.json` and branch commits, and runs the topic/credential leak search
+(a check that reads the topic from the config file and prints only match counts,
+never the topic) across `loop.log`, `commands.log`, `outcome.json`, the fixture
+repository and this repository. The first session will plan milestones; if the
+loop stops after planning as a human stop (FR6(c)), run `start` again once.
 
 ### Validation
 

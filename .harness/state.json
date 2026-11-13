@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_milestone": "M6",
+  "current_milestone": "M7",
   "requirements": {
     "FR1": "M1",
     "FR2": "M1",
@@ -961,12 +961,12 @@
     },
     "M7": {
       "outcome": "One real unattended run builds a milestone, and the owner's phone hears about it",
-      "status": "TODO",
+      "status": "BLOCKED",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
-        "commit": "",
-        "branch": ""
+        "commit": "e8ce13a37d3b1c2905772f1f60388ef0ca8c8f83",
+        "branch": "m7-live-proof"
       },
       "as_built": {
         "artifact": null,
@@ -1001,7 +1001,26 @@
           "evidence": []
         }
       ],
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "M7-T1",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Cheap",
+            "model": "haiku",
+            "reason_code": "BOUNDED_LOW_RISK",
+            "detail": "Create a tiny fixture git repository outside this one from the requirements example"
+          },
+          "attempts": [
+            {
+              "attempt": 1,
+              "tier": "Cheap",
+              "result": "PASS",
+              "evidence": "verifier: packet Tests exit 0, FIXTURE_OK; fixture /Users/ryankenny/Tools/harness-m7-fixture commit 7f895e9 on main, branch live-run clean, no remote; nothing changed in this repository; tests weakened NO; .harness/evidence/M7-T1-verifier.log"
+            }
+          ]
+        }
+      ],
       "reviews": [],
       "findings": [],
       "validation": [],

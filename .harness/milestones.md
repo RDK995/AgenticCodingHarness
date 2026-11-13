@@ -266,7 +266,7 @@ Size/shape check at pickup: 4 criteria; M6-AC4 runs through `start`; complexity 
 - The `could not announce` branch is exercised via an unencodable criterion (\ud800) in state.json; the test checks only the `could not announce M1: ` prefix.
 - ntfy stop test now asserts exactly one stop request rather than total request count (sanctioned stop-count substitution; start announcements also post).
 - Red was not observed by the Mid attempt-3 worker; verifiers later confirmed all six M6-T2 tests fail against the pre-T2 driver.
-Review cycle 1 OPTIONAL: the set of announced milestones lives only in the running driver, so restarting the loop re-sends a 'starting' message for a milestone already IN_PROGRESS/REVIEW. Consider 'resuming' wording, or - Review cycle 1 OPTIONAL: the set of announced milestones lives only in the running driver, so restarting the loop re-sends a 'starting' message for a milestone already IN_PROGRESS/REVIEW. Consider 'resuming' wording, or accept the repeat.
+- Review cycle 1 OPTIONAL: the set of announced milestones lives only in the running driver, so restarting the loop re-sends a 'starting' message for a milestone already IN_PROGRESS/REVIEW. Consider 'resuming' wording, or accept the repeat.
 
 ## M7 — One real unattended run builds a milestone, and the owner's phone hears about it
 

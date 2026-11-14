@@ -1,0 +1,17 @@
+VERIFIER LOG M7-T3
+run_utc: Sat 14 Nov 2026 22:05:29 UTC
+commit: 0c3f100916862caa8a40ae0aa36e27e3bd1ca9d7
+command: cd /Users/ryankenny/Tools/AgenticCodingHarness && python3 .harness/evidence/M7-T3-leak-check.py | diff - .harness/evidence/M7-T3-leak-check.log && tail -1 .harness/evidence/M7-T3-leak-check.log | grep -qx LEAK_CHECK_OK && echo T3_OK
+diff_exit: 0
+script_exit: 0
+--- log contents ---
+secrets checked: 2 (ntfy_topic, to)
+fixture loop.log: 0
+fixture commands.log: 0
+fixture outcome.json: 0
+fixture working tree: 0
+fixture git history: 0
+this repo working tree: 0
+this repo git history: 0
+LEAK_CHECK_OK
+tests_command_exit: 0 (printed T3_OK)

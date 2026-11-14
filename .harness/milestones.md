@@ -270,7 +270,7 @@ Size/shape check at pickup: 4 criteria; M6-AC4 runs through `start`; complexity 
 
 ## M7 — One real unattended run builds a milestone, and the owner's phone hears about it
 
-Status: REVIEW
+Status: DONE
 
 ### Outcome
 
@@ -292,10 +292,10 @@ N/A
 N/A
 
 ### Acceptance Criteria
-- [ ] M7-AC1 One real `start` against a small fixture project on the owner's Mac (on a non-main branch, with agreed requirements) runs unattended and completes at least one milestone to DONE, shown by the fixture's `state.json` and its milestone branch commits (AC8).
-- [ ] M7-AC2 The milestone start, milestone finish and stop notifications are each sent through the real ntfy channel, with HTTP 200 recorded for each in `loop.log` (AC8).
-- [ ] M7-AC3 The owner confirms the three notifications arrived on the phone, and that confirmation is recorded with its date (AC8).
-- [ ] M7-AC4 After the run, the ntfy topic and any credential appear in none of `loop.log`, `commands.log`, `outcome.json`, the fixture repository or this repository, checked by a recorded search (AC6, FR12).
+- [x] M7-AC1 One real `start` against a small fixture project on the owner's Mac (on a non-main branch, with agreed requirements) runs unattended and completes at least one milestone to DONE, shown by the fixture's `state.json` and its milestone branch commits (AC8).
+- [x] M7-AC2 The milestone start, milestone finish and stop notifications are each sent through the real ntfy channel, with HTTP 200 recorded for each in `loop.log` (AC8).
+- [x] M7-AC3 The owner confirms the three notifications arrived on the phone, and that confirmation is recorded with its date (AC8).
+- [x] M7-AC4 After the run, the ntfy topic and any credential appear in none of `loop.log`, `commands.log`, `outcome.json`, the fixture repository or this repository, checked by a recorded search (AC6, FR12).
 
 ### Baseline
 e8ce13a37d3b1c2905772f1f60388ef0ca8c8f83 on m7-live-proof
@@ -373,6 +373,7 @@ from BLOCKED to IN_PROGRESS to gather M7-AC1, M7-AC2 and M7-AC4 evidence.
 - Milestone validation for the reviewer: both commands above (the leak check must be re-run after the final commit). Diff: git diff e8ce13a37d3b1c2905772f1f60388ef0ca8c8f83 HEAD
 
 ### Review
+- Cycle 1: PASS — M7-AC1..AC4 PASS; 0 BLOCKER, 0 IMPORTANT, 0 OPTIONAL. Reviewer tier Mid (sonnet), reason MID_TASK_IN_DIFF (M7-T3 routed Mid); diff e8ce13a..0eb56d9. Reviewer re-ran both validation commands and check-state.py at HEAD, all exit 0. Completion gate PASS.
 
 ### Review Cycles
 0

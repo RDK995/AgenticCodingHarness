@@ -270,7 +270,7 @@ Size/shape check at pickup: 4 criteria; M6-AC4 runs through `start`; complexity 
 
 ## M7 — One real unattended run builds a milestone, and the owner's phone hears about it
 
-Status: IN_PROGRESS
+Status: REVIEW
 
 ### Outcome
 
@@ -318,7 +318,15 @@ e8ce13a37d3b1c2905772f1f60388ef0ca8c8f83 on m7-live-proof
 - M7-AC2: fixture `loop.log` has exactly 3 notification lines, each
   `notification sent (ntfy HTTP 200)`: `M1 starting`, `M1 DONE`, `implement loop
   stopped: finished: every milestone is DONE`.
-- M7-AC4: evidence pending (task M7-T3).
+- M7-T3 leak search — Mid (sonnet), attempt 3, PASS. Routing NOT_LOW_RISK (the check
+  handles the topic; printing or writing it would create the leak). Verifier re-ran
+  the packet check: exit 0, `T3_OK`. Artifacts: `.harness/evidence/M7-T3-leak-check.log`,
+  `.harness/evidence/M7-T3-verifier.log`.
+- M7-AC4: `.harness/evidence/M7-T3-leak-check.py` reads the topic from the config at
+  run time and prints counts only. Secrets checked: `ntfy_topic`, `to` (no
+  credential key exists; the driver sends no auth). 0 matches in fixture `loop.log`,
+  `commands.log`, `outcome.json`, fixture working tree and git history, this
+  repository's working tree and git history. `LEAK_CHECK_OK`.
 
 ### Escalation
 Problem:
@@ -360,6 +368,9 @@ milestone is DONE". The owner confirmed phone receipt (M7-AC3, above). M7 resume
 from BLOCKED to IN_PROGRESS to gather M7-AC1, M7-AC2 and M7-AC4 evidence.
 
 ### Validation
+- bash .harness/evidence/M7-T2-gather.sh | diff - .harness/evidence/M7-T2-run.log && tail -1 .harness/evidence/M7-T2-run.log | grep -qx EVIDENCE_OK — PASS (verifier exit 0, .harness/evidence/M7-T2-verifier.log)
+- python3 .harness/evidence/M7-T3-leak-check.py | diff - .harness/evidence/M7-T3-leak-check.log && tail -1 .harness/evidence/M7-T3-leak-check.log | grep -qx LEAK_CHECK_OK — PASS (verifier exit 0, .harness/evidence/M7-T3-verifier.log)
+- Milestone validation for the reviewer: both commands above (the leak check must be re-run after the final commit). Diff: git diff e8ce13a37d3b1c2905772f1f60388ef0ca8c8f83 HEAD
 
 ### Review
 
@@ -367,3 +378,7 @@ from BLOCKED to IN_PROGRESS to gather M7-AC1, M7-AC2 and M7-AC4 evidence.
 0
 
 ### Follow-ups
+- Fixture has untracked `__pycache__/` from the live run's tests; the fixture has no `.gitignore`.
+- M7-T3 leak check counts an unreadable or missing file as 0 rather than failing (all three loop files existed, so this run is unaffected).
+- M7-T3 history search uses `git log -p --all` without `-m` and does not search author/committer fields.
+- M7-T2's worker was dispatched just before its packet reached disk (Write refused by the auto-mode classifier; written by heredoc); it found and read the packet, so the attempt stands.

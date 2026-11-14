@@ -961,7 +961,7 @@
     },
     "M7": {
       "outcome": "One real unattended run builds a milestone, and the owner's phone hears about it",
-      "status": "BLOCKED",
+      "status": "IN_PROGRESS",
       "review_cycles": 0,
       "review_override": null,
       "baseline": {
@@ -980,19 +980,25 @@
           "id": "M7-AC1",
           "status": "PENDING",
           "text": "One real `start` against a small fixture project on the owner's Mac (on a non-main branch, with agreed requirements) runs unattended and completes at least one milestone to DONE, shown by the fixture's `state.json` and its milestone branch commits (AC8).",
-          "evidence": []
+          "evidence": [
+            "Fixture /Users/ryankenny/Tools/harness-m7-fixture .harness/state.json: M1 DONE; branch m1-divide, `git log main..m1-divide` 4 commits ending c679330 \"M1 DONE: divide(a, b) implemented; zero divisor raises ZeroDivisionError\"; run started by the owner from branch live-run (non-main) with agreed requirements (Open Questions None). Artifacts: .harness/evidence/M7-T2-run.log, .harness/evidence/M7-T2-verifier.log"
+          ]
         },
         {
           "id": "M7-AC2",
           "status": "PENDING",
           "text": "The milestone start, milestone finish and stop notifications are each sent through the real ntfy channel, with HTTP 200 recorded for each in `loop.log` (AC8).",
-          "evidence": []
+          "evidence": [
+            "Fixture .harness/loop/loop.log: `notification sent (ntfy HTTP 200): [harness-m7-fixture] M1 starting \u2014 ...`, `... M1 DONE \u2014 ... 1 task: 1 Cheap, 0 Mid, 0 Top; reviewed by Mid.`, `... implement loop stopped: finished: every milestone is DONE. ...`; no unsent notification lines. Artifacts: .harness/evidence/M7-T2-run.log, .harness/evidence/M7-T2-verifier.log"
+          ]
         },
         {
           "id": "M7-AC3",
           "status": "PENDING",
           "text": "The owner confirms the three notifications arrived on the phone, and that confirmation is recorded with its date (AC8).",
-          "evidence": []
+          "evidence": [
+            "Owner confirmation, recorded 2026-11-14, verbatim: \"All three M7 notifications (start, finish, stop) arrived on my phone on 2026-11-14\". Live run: owner ran `python3 scripts/implement-loop.py start --project /Users/ryankenny/Tools/harness-m7-fixture` on 2026-11-14 (driver pid 79181), final outcome \"finished: every milestone is DONE\"."
+          ]
         },
         {
           "id": "M7-AC4",
@@ -1017,6 +1023,24 @@
               "tier": "Cheap",
               "result": "PASS",
               "evidence": "verifier: packet Tests exit 0, FIXTURE_OK; fixture /Users/ryankenny/Tools/harness-m7-fixture commit 7f895e9 on main, branch live-run clean, no remote; nothing changed in this repository; tests weakened NO; .harness/evidence/M7-T1-verifier.log"
+            }
+          ]
+        },
+        {
+          "id": "M7-T2",
+          "scope": "implementation",
+          "routing": {
+            "tier": "Cheap",
+            "model": "haiku",
+            "reason_code": "BOUNDED_LOW_RISK",
+            "detail": "Read-only collection of fixture run evidence into a script and log"
+          },
+          "attempts": [
+            {
+              "attempt": 1,
+              "tier": "Cheap",
+              "result": "PASS",
+              "evidence": "verifier: packet Tests exit 0, T2_OK; run.log byte-identical to script stdout; fixture M1 DONE, main..m1-divide 4 commits (to c679330); loop.log has 3 notification lines, all `notification sent (ntfy HTTP 200)` for M1 starting, M1 DONE, implement loop stopped; regexes checked against scripts/implement-loop.py lines 327, 413, 424, 788-791; fixture unmodified; tests weakened NO; .harness/evidence/M7-T2-run.log, .harness/evidence/M7-T2-verifier.log"
             }
           ]
         }

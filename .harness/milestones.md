@@ -270,7 +270,7 @@ Size/shape check at pickup: 4 criteria; M6-AC4 runs through `start`; complexity 
 
 ## M7 — One real unattended run builds a milestone, and the owner's phone hears about it
 
-Status: BLOCKED
+Status: IN_PROGRESS
 
 ### Outcome
 
@@ -307,7 +307,18 @@ e8ce13a37d3b1c2905772f1f60388ef0ca8c8f83 on m7-live-proof
   `7f895e9` on `main` holding only `README.md` and `.harness/requirements.md`
   (byte-identical to `examples/requirements.example.md`, Open Questions `None`),
   checked out on clean branch `live-run`. Artifact: `.harness/evidence/M7-T1-verifier.log`.
-- M7-AC1..AC4: no evidence yet. The live run has not been started (see Escalation).
+- M7-AC3 owner confirmation, recorded 2026-11-14, verbatim: "All three M7 notifications (start, finish, stop) arrived on my phone on 2026-11-14".
+- M7-T2 run evidence — Cheap (haiku), attempt 1, PASS. Routing BOUNDED_LOW_RISK.
+  Verifier re-ran the packet check: exit 0, `T2_OK`; run.log byte-identical to the
+  script's stdout; log-line regexes checked against `scripts/implement-loop.py`
+  (lines 327, 413, 424, 788-791); fixture unmodified. Artifacts:
+  `.harness/evidence/M7-T2-run.log`, `.harness/evidence/M7-T2-verifier.log`.
+- M7-AC1: fixture `state.json` M1 `DONE`; `main..m1-divide` 4 commits ending
+  `c679330` "M1 DONE: divide(a, b) implemented; ...". Run from `live-run`.
+- M7-AC2: fixture `loop.log` has exactly 3 notification lines, each
+  `notification sent (ntfy HTTP 200)`: `M1 starting`, `M1 DONE`, `implement loop
+  stopped: finished: every milestone is DONE`.
+- M7-AC4: evidence pending (task M7-T3).
 
 ### Escalation
 Problem:
@@ -341,6 +352,12 @@ confirmation. The next phase records `loop.log` HTTP 200 lines, the fixture's
 never the topic) across `loop.log`, `commands.log`, `outcome.json`, the fixture
 repository and this repository. The first session will plan milestones; if the
 loop stops after planning as a human stop (FR6(c)), run `start` again once.
+
+Resolution (2026-11-14, by the owner, as the Recommended decision prescribed):
+The owner ran `python3 scripts/implement-loop.py start --project /Users/ryankenny/Tools/harness-m7-fixture`
+on 2026-11-14 (driver pid 79181); it stopped with final outcome "finished: every
+milestone is DONE". The owner confirmed phone receipt (M7-AC3, above). M7 resumed
+from BLOCKED to IN_PROGRESS to gather M7-AC1, M7-AC2 and M7-AC4 evidence.
 
 ### Validation
 

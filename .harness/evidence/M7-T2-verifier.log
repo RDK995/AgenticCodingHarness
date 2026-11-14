@@ -1,0 +1,4 @@
+commit: 0c3f100916862caa8a40ae0aa36e27e3bd1ca9d7
+command: cd /Users/ryankenny/Tools/AgenticCodingHarness && bash .harness/evidence/M7-T2-gather.sh | diff - .harness/evidence/M7-T2-run.log && tail -1 .harness/evidence/M7-T2-run.log | grep -qx EVIDENCE_OK && test -z "$(git -C /Users/ryankenny/Tools/harness-m7-fixture status --porcelain | grep -v '^?? __pycache__/$')" && echo T2_OK
+T2_OK
+exit status: 0

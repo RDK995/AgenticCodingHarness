@@ -1,0 +1,22 @@
+== 1. fixture milestone statuses (/Users/ryankenny/Tools/harness-m7-fixture/.harness/state.json)
+M1 DONE
+
+== 2. git log main..m1-divide (fixture)
+c679330 M1 DONE: divide(a, b) implemented; zero divisor raises ZeroDivisionError
+a5a0af4 M1: implementation phase complete
+b9b7d8c M1 T1: divide(a, b) raising ZeroDivisionError on zero divisor
+02c3344 M1: milestone plan generated
+
+== 2b. git branch --list (fixture)
+  live-run
+* m1-divide
+  main
+
+== 3. loop.log ntfy send lines (verbatim, every event kind)
+2026-11-14T21:23:21+00:00 notification sent (ntfy HTTP 200): [harness-m7-fixture] M1 starting — Callers can divide two numbers and division by zero raises an error
+2026-11-14T21:23:21+00:00 notification sent (ntfy HTTP 200): [harness-m7-fixture] M1 DONE — Callers can divide two numbers and division by zero raises an error — 1 task: 1 Cheap, 0 Mid, 0 Top; reviewed by Mid.
+2026-11-14T21:23:21+00:00 notification sent (ntfy HTTP 200): [harness-m7-fixture] implement loop stopped: finished: every milestone is DONE. Stopped on milestone none, branch m1-divide. Nothing to do: every milestone is done. Review the branch when you are ready.
+
+== 4. checks
+all checks passed
+EVIDENCE_OK

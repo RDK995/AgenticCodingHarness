@@ -1,0 +1,9 @@
+secrets checked: 2 (ntfy_topic, to)
+fixture loop.log: 0
+fixture commands.log: 0
+fixture outcome.json: 0
+fixture working tree: 0
+fixture git history: 0
+this repo working tree: 0
+this repo git history: 0
+LEAK_CHECK_OK

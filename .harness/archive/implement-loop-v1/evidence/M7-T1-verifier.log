@@ -1,0 +1,5 @@
+== VERIFIER M7-T1 2026-11-13T14:19:31Z
+commit: e8ce13a37d3b1c2905772f1f60388ef0ca8c8f83
+command: F=/Users/ryankenny/Tools/harness-m7-fixture; test ... && echo FIXTURE_OK  (packet Tests line, verbatim)
+FIXTURE_OK
+exit status: 0

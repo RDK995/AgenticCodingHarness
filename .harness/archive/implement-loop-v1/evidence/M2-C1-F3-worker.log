@@ -1,0 +1,34 @@
+commit: a677a80a5af28bc179a40a69bf78fd55d815833a
+command: python3 .harness-dev/test-implement-loop.py
+test_builder_returns_locked_down_command (__main__.ImplementLoopTests.test_builder_returns_locked_down_command) ... ok
+test_builder_takes_the_prompt_as_a_parameter (__main__.ImplementLoopTests.test_builder_takes_the_prompt_as_a_parameter) ... ok
+test_commands_log_records_children_with_prompt_by_length (__main__.ImplementLoopTests.test_commands_log_records_children_with_prompt_by_length) ... ok
+test_deny_rules_leave_path_resets_and_ordinary_commits_allowed (__main__.ImplementLoopTests.test_deny_rules_leave_path_resets_and_ordinary_commits_allowed) ... ok
+test_driver_ends_by_itself_after_one_step (__main__.ImplementLoopTests.test_driver_ends_by_itself_after_one_step) ... ok
+test_driver_source_runs_no_push_or_merge (__main__.ImplementLoopTests.test_driver_source_runs_no_push_or_merge) ... ok
+test_git_add_stages_fixture_changes_but_never_loop_state (__main__.ImplementLoopTests.test_git_add_stages_fixture_changes_but_never_loop_state) ... ok
+test_judge_step_branches (__main__.ImplementLoopTests.test_judge_step_branches) ... ok
+test_loop_log_records_step_lifecycle_with_timestamps (__main__.ImplementLoopTests.test_loop_log_records_step_lifecycle_with_timestamps) ... ok
+test_loop_log_records_unsent_notification_without_notify_file (__main__.ImplementLoopTests.test_loop_log_records_unsent_notification_without_notify_file) ... ok
+test_loop_runs_successive_fresh_steps_until_every_milestone_is_done (__main__.ImplementLoopTests.test_loop_runs_successive_fresh_steps_until_every_milestone_is_done) ... ok
+test_milestones_file_only_change_counts_as_progress (__main__.ImplementLoopTests.test_milestones_file_only_change_counts_as_progress) ... ok
+test_no_sink_records_unsent_notification_in_log (__main__.ImplementLoopTests.test_no_sink_records_unsent_notification_in_log) ... ok
+test_nonzero_exit_with_state_advanced_to_all_done_is_finished (__main__.ImplementLoopTests.test_nonzero_exit_with_state_advanced_to_all_done_is_finished) ... ok
+test_parent_secret_reaches_neither_step_nor_logs (__main__.ImplementLoopTests.test_parent_secret_reaches_neither_step_nor_logs) ... ok
+test_start_detaches_driver_and_status_reports_it (__main__.ImplementLoopTests.test_start_detaches_driver_and_status_reports_it) ... ok
+test_state_not_output_decides_the_step_result (__main__.ImplementLoopTests.test_state_not_output_decides_the_step_result) ... ok
+test_status_and_stop_report_not_running_without_live_driver (__main__.ImplementLoopTests.test_status_and_stop_report_not_running_without_live_driver) ... ok
+test_step_over_time_limit_ignoring_sigterm_is_killed_after_grace (__main__.ImplementLoopTests.test_step_over_time_limit_ignoring_sigterm_is_killed_after_grace) ... ok
+test_step_over_time_limit_is_terminated_and_recorded_as_failed (__main__.ImplementLoopTests.test_step_over_time_limit_is_terminated_and_recorded_as_failed) ... ok
+test_step_runs_locked_down_with_minimal_environment (__main__.ImplementLoopTests.test_step_runs_locked_down_with_minimal_environment) ... ok
+test_step_timeout_defaults_to_three_hours_and_is_listed_in_help (__main__.ImplementLoopTests.test_step_timeout_defaults_to_three_hours_and_is_listed_in_help) ... ok
+test_step_timeout_must_be_finite_and_positive (__main__.ImplementLoopTests.test_step_timeout_must_be_finite_and_positive) ... ok
+test_stop_ends_step_and_driver_leaving_log_and_git_untouched (__main__.ImplementLoopTests.test_stop_ends_step_and_driver_leaving_log_and_git_untouched) ... ok
+test_stop_kills_step_that_ignores_sigterm_after_grace (__main__.ImplementLoopTests.test_stop_kills_step_that_ignores_sigterm_after_grace) ... ok
+test_timed_out_step_is_failed_even_if_state_advanced (__main__.ImplementLoopTests.test_timed_out_step_is_failed_even_if_state_advanced) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 16.260s
+
+OK
+exit: 0

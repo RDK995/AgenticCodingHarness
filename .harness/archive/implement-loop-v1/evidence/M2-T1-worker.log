@@ -1,0 +1,8 @@
+...............
+----------------------------------------------------------------------
+Ran 15 tests in 8.926s
+
+OK
+
+command: python3 .harness-dev/test-implement-loop.py
+commit: 8c676453196d66e83d2810645cf1490176967854 (uncommitted working-tree changes to scripts/implement-loop.py and .harness-dev/test-implement-loop.py)

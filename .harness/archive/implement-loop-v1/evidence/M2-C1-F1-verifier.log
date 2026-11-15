@@ -1,0 +1,8 @@
+commit: 19721a976aecb1dad9f90926e3829f3fc7478cd4
+command: python3 .harness-dev/test-implement-loop.py
+.........................
+----------------------------------------------------------------------
+Ran 25 tests in 16.058s
+
+OK
+exit status: 0
